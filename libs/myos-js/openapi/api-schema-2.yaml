@@ -1,0 +1,1785 @@
+openapi: '3.0.1'
+info:
+  title: Timeline.blue API
+  version: '2025-06-25'
+servers:
+  - description: dev
+    url: https://api.dev.myos.blue/
+paths:
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      tags:
+        - API Keys
+      summary: listApiKeys
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyListResponse'
+    post:
+      operationId: createApiKey
+      tags:
+        - API Keys
+      summary: createApiKey
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+  /api-keys/{id}:
+    delete:
+      operationId: deleteApiKey
+      tags:
+        - API Keys
+      summary: deleteApiKey
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: &ref_0
+            type: string
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResult'
+  /documents:
+    get:
+      operationId: listDocuments
+      tags:
+        - Documents
+      summary: listDocuments
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSimpleListResponse'
+    post:
+      operationId: createDocument
+      tags:
+        - Documents
+      summary: createDocument
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+  /documents/bootstrap:
+    post:
+      operationId: createDocumentBootstrap
+      tags:
+        - Documents
+      summary: createDocumentBootstrap
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapResponse'
+  /documents/{sessionId}:
+    get:
+      operationId: getDocument
+      tags:
+        - Documents
+      summary: getDocument
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentGetResponse'
+    put:
+      operationId: updateDocument
+      tags:
+        - Documents
+      summary: updateDocument
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+    delete:
+      operationId: deleteDocument
+      tags:
+        - Documents
+      summary: deleteDocument
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResult'
+  /documents/{sessionId}/epochs:
+    get:
+      operationId: listEpochs
+      tags:
+        - Documents
+      summary: listEpochs
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpochListResponse'
+  /documents/{sessionId}/epochs/{epoch}:
+    get:
+      operationId: getEpoch
+      tags:
+        - Documents
+      summary: getEpoch
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+        - in: path
+          name: epoch
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpochSnapshot'
+  /documents/{sessionId}/feed-entries:
+    get:
+      operationId: listFeedEntries
+      tags:
+        - Documents
+      summary: listFeedEntries
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedEntryListResponse'
+  /documents/{sessionId}/links:
+    get:
+      operationId: listLinks
+      tags:
+        - Documents
+      summary: listLinks
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSimpleListResponse'
+  /documents/{sessionId}/pending-actions:
+    get:
+      operationId: listPendingActions
+      tags:
+        - Documents
+      summary: listPendingActions
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingActionListResponse'
+  /documents/{sessionId}/resume:
+    post:
+      operationId: resumeDocumentProcessing
+      tags:
+        - Documents
+      summary: resumeDocumentProcessing
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '202':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeDocumentResponse'
+  /documents/{sessionId}/stop:
+    post:
+      operationId: stopDocumentProcessing
+      tags:
+        - Documents
+      summary: stopDocumentProcessing
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '202':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StopDocumentResponse'
+  /documents/{sessionId}/{operation}:
+    post:
+      operationId: runOperation
+      tags:
+        - Documents
+      summary: runOperation
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+        - in: path
+          name: operation
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationRequestResponse'
+  /timelines:
+    get:
+      operationId: listTimelines
+      tags:
+        - Timelines
+      summary: listTimelines
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineListResponse'
+    post:
+      operationId: createTimeline
+      tags:
+        - Timelines
+      summary: createTimeline
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timeline'
+  /timelines/{timeline}:
+    get:
+      operationId: getTimeline
+      tags:
+        - Timelines
+      summary: getTimeline
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timeline'
+    delete:
+      operationId: deleteTimeline
+      tags:
+        - Timelines
+      summary: deleteTimeline
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResult'
+  /timelines/{timeline}/entries:
+    get:
+      operationId: getTimelineEntries
+      tags:
+        - Timelines
+      summary: getTimelineEntries
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineEntryListResponse'
+    post:
+      operationId: createTimelineEntry
+      tags:
+        - Timelines
+      summary: createTimelineEntry
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineEntryInfo'
+  /timelines/{timeline}/entries/{entryId}:
+    get:
+      operationId: getTimelineEntry
+      tags:
+        - Timelines
+      summary: getTimelineEntry
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+        - in: path
+          name: entryId
+          required: true
+          schema: *ref_0
+      responses:
+        '202':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationRequestResponse'
+  /timelines/{timeline}/permissions:
+    get:
+      operationId: listTimelinePermissions
+      tags:
+        - Timelines
+      summary: listTimelinePermissions
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelinePermissionListResponse'
+    post:
+      operationId: createTimelinePermission
+      tags:
+        - Timelines
+      summary: createTimelinePermission
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelinePermission'
+  /timelines/{timeline}/permissions/{permissionId}:
+    get:
+      operationId: getTimelinePermission
+      tags:
+        - Timelines
+      summary: getTimelinePermission
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+        - in: path
+          name: permissionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelinePermission'
+    delete:
+      operationId: deleteTimelinePermission
+      tags:
+        - Timelines
+      summary: deleteTimelinePermission
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: timeline
+          required: true
+          schema: *ref_0
+        - in: path
+          name: permissionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevokeTimelinePermissionResponse'
+  /me/documents:
+    get:
+      operationId: getMyDocuments
+      tags:
+        - Me
+      summary: getMyDocuments
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSimpleListResponse'
+  /me/inbox:
+    get:
+      operationId: getInbox
+      tags:
+        - Me
+      summary: getInbox
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSimpleListResponse'
+  /me/recently-used:
+    get:
+      operationId: listRecentlyUsedDocuments
+      tags:
+        - Me
+      summary: listRecentlyUsedDocuments
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSimpleListResponse'
+  /me/search/documents:
+    get:
+      operationId: getSearchDocuments
+      tags:
+        - Me
+      summary: getSearchDocuments
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSimpleListResponse'
+  /me/starred:
+    get:
+      operationId: getStarredDocuments
+      tags:
+        - Me
+      summary: getStarredDocuments
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSimpleListResponse'
+  /me/starred/{sessionId}:
+    put:
+      operationId: starDocument
+      tags:
+        - Me
+      summary: starDocument
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarResult'
+    delete:
+      operationId: unstarDocument
+      tags:
+        - Me
+      summary: unstarDocument
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResult'
+  /user:
+    get:
+      operationId: getUserData
+      tags:
+        - User
+      summary: getUserData
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserData'
+    post:
+      operationId: updateUserData
+      tags:
+        - User
+      summary: updateUserData
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserData'
+  /user/password/reset/request:
+    post:
+      operationId: requestPasswordReset
+      tags:
+        - User
+      summary: requestPasswordReset
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetRequestResponse'
+  /user/password/reset:
+    post:
+      operationId: resetPassword
+      tags:
+        - User
+      summary: resetPassword
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+  /user/settings/ui:
+    get:
+      operationId: getUiSettings
+      tags:
+        - User
+      summary: getUiSettings
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UiSettings'
+    post:
+      operationId: updateUiSettings
+      tags:
+        - User
+      summary: updateUiSettings
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UiSettings'
+  /users:
+    get:
+      operationId: getUsersByIds
+      tags:
+        - Users
+      summary: getUsersByIds
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublicProfileList'
+  /myos-events:
+    get:
+      operationId: listMyOSEvents
+      tags:
+        - Myos Events
+      summary: listMyOSEvents
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyOsEventListResponse'
+  /myos-events/{event}:
+    get:
+      operationId: getMyOSEvents
+      tags:
+        - Myos Events
+      summary: getMyOSEvents
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: event
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyOsEventDetail'
+  /webhooks:
+    get:
+      operationId: listWebhooks
+      tags:
+        - Webhooks
+      summary: listWebhooks
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookListResponse'
+    post:
+      operationId: createWebhook
+      tags:
+        - Webhooks
+      summary: createWebhook
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+  /webhooks/{webhookId}:
+    get:
+      operationId: getWebhook
+      tags:
+        - Webhooks
+      summary: getWebhook
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: webhookId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+    post:
+      operationId: updateWebhook
+      tags:
+        - Webhooks
+      summary: updateWebhook
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: webhookId
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+    delete:
+      operationId: deleteWebhook
+      tags:
+        - Webhooks
+      summary: deleteWebhook
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: webhookId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+  /webhooks/{webhookId}/dispatches:
+    get:
+      operationId: listWebhookDispatches
+      tags:
+        - Webhooks
+      summary: listWebhookDispatches
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: webhookId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDispatchListResponse'
+  /webhooks/{webhookId}/dispatches/{eventId}:
+    get:
+      operationId: getWebhookDispatch
+      tags:
+        - Webhooks
+      summary: getWebhookDispatch
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: webhookId
+          required: true
+          schema: *ref_0
+        - in: path
+          name: eventId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDispatch'
+  /webhooks/{webhookId}/dispatches/{eventId}/attempts:
+    get:
+      operationId: listWebhookDispatchAttempts
+      tags:
+        - Webhooks
+      summary: listWebhookDispatchAttempts
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: webhookId
+          required: true
+          schema: *ref_0
+        - in: path
+          name: eventId
+          required: true
+          schema: *ref_0
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDispatchAttemptListResponse'
+  /webhooks/{webhookId}/resend:
+    post:
+      operationId: resendWebhook
+      tags:
+        - Webhooks
+      summary: resendWebhook
+      security:
+        - LambdaAuthorizerToken: []
+      parameters:
+        - in: path
+          name: webhookId
+          required: true
+          schema: *ref_0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+  /integrations/connectors/chatpgt:
+    get:
+      operationId: getChatPgtConnector
+      tags:
+        - Integrations
+      summary: getChatPgtConnector
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorStatus'
+  /integrations/connectors/chatpgt/install:
+    post:
+      operationId: installChatPgtConnector
+      tags:
+        - Integrations
+      summary: installChatPgtConnector
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapResponse'
+  /maintenance/idempotency/cleanup:
+    post:
+      operationId: cleanupIdempotency
+      tags:
+        - Maintenance
+      summary: cleanupIdempotency
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupIdempotencyResponse'
+  /maintenance/idempotency/outbox:
+    post:
+      operationId: flushOutbox
+      tags:
+        - Maintenance
+      summary: flushOutbox
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlushOutboxResponse'
+  /maintenance/test-data/expired-idempotency:
+    post:
+      operationId: createExpiredIdempotency
+      tags:
+        - Maintenance
+      summary: createExpiredIdempotency
+      security:
+        - LambdaAuthorizerToken: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequestBody'
+      responses:
+        '200':
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateExpiredIdempotencyResponse'
+components:
+  securitySchemes:
+    LambdaAuthorizerToken:
+      type: apiKey
+      name: Authorization
+      in: header
+  schemas:
+    BlueJsonValue:
+      nullable: true
+      oneOf:
+        - type: object
+          additionalProperties: true
+        - type: array
+          items: {}
+        - type: string
+        - type: number
+        - type: boolean
+    DeleteResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+    StarResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+    APIKey:
+      type: object
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+        name:
+          type: string
+        created:
+          type: string
+          format: date-time
+      required:
+        - id
+        - key
+        - name
+        - created
+    ApiKey:
+      $ref: '#/components/schemas/APIKey'
+    ApiKeyListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKey'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    DocumentSimple:
+      type: object
+      additionalProperties: true
+      properties:
+        sessionId:
+          type: string
+        documentId:
+          type: string
+        processingStatus:
+          type: string
+    DocumentSimpleListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentSimple'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    Document:
+      allOf:
+        - $ref: '#/components/schemas/DocumentSimple'
+        - type: object
+          properties:
+            document:
+              $ref: '#/components/schemas/BlueJsonValue'
+            processingPausedAt:
+              type: string
+              nullable: true
+            processingPausedReason:
+              type: string
+              nullable: true
+    DocumentGetResponse:
+      allOf:
+        - $ref: '#/components/schemas/Document'
+        - type: object
+          properties:
+            allowedOperations:
+              type: array
+              items:
+                type: string
+    BootstrapResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        document:
+          $ref: '#/components/schemas/BlueJsonValue'
+      required:
+        - sessionId
+    EpochSnapshot:
+      type: object
+      additionalProperties: true
+      properties:
+        sessionId:
+          type: string
+        epoch:
+          type: integer
+        document:
+          $ref: '#/components/schemas/BlueJsonValue'
+    EpochListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              epoch:
+                type: integer
+              created:
+                type: string
+              ref:
+                type: string
+        nextPageToken:
+          type: string
+      required:
+        - items
+    FeedEntry:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        message:
+          $ref: '#/components/schemas/BlueJsonValue'
+        timestamp:
+          type: number
+    FeedEntryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedEntry'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    PendingAction:
+      type: object
+      additionalProperties: true
+      properties:
+        pendingActionId:
+          type: string
+        operation:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/BlueJsonValue'
+        event:
+          $ref: '#/components/schemas/BlueJsonValue'
+    PendingActionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingAction'
+      required:
+        - items
+    ResumeDocumentResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+          enum:
+            - RUNNING
+      required:
+        - sessionId
+        - status
+    StopDocumentResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+          enum:
+            - PAUSED
+      required:
+        - sessionId
+        - status
+    OperationRequestResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - SUCCESS
+            - PENDING
+            - ERROR
+        uid:
+          type: string
+      required:
+        - id
+        - status
+        - uid
+    Timeline:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        created:
+          type: string
+        accountId:
+          type: string
+        shared:
+          type: boolean
+      required:
+        - id
+        - name
+        - created
+        - accountId
+        - shared
+    TimelineListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Timeline'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    TimelineEntry:
+      type: object
+      additionalProperties: true
+      properties:
+        type:
+          type: string
+        message:
+          $ref: '#/components/schemas/BlueJsonValue'
+        timestamp:
+          type: number
+    TimelineEntryInfo:
+      type: object
+      properties:
+        blueId:
+          type: string
+        entry:
+          $ref: '#/components/schemas/TimelineEntry'
+      required:
+        - blueId
+        - entry
+    TimelineEntryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineEntryInfo'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    TimelinePermission:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        timelineId:
+          type: string
+        created:
+          type: string
+          format: date-time
+    TimelinePermissionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelinePermission'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    RevokeTimelinePermissionResponse:
+      type: object
+      properties:
+        revokedAt:
+          type: string
+        lastEntryId:
+          type: string
+          nullable: true
+        revocationRef:
+          type: string
+      required:
+        - revokedAt
+        - lastEntryId
+        - revocationRef
+    UserData:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - avatarUrl
+        - timezone
+    UiSettings:
+      type: object
+      properties:
+        theme:
+          type: string
+          enum:
+            - system
+            - light
+            - dark
+        dockPosition:
+          type: string
+          enum:
+            - vertical
+            - horizontal
+      required:
+        - theme
+        - dockPosition
+    UserPublicProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - description
+        - avatarUrl
+    UserPublicProfileList:
+      type: array
+      items:
+        $ref: '#/components/schemas/UserPublicProfile'
+    PasswordResetRequestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        token:
+          type: string
+      required:
+        - success
+    MyOsEventSimple:
+      type: object
+      properties:
+        id:
+          type: string
+        uid:
+          type: string
+        ref:
+          type: string
+        created:
+          type: string
+        type:
+          type: string
+      required:
+        - id
+        - uid
+        - ref
+        - created
+        - type
+    MyOsEventListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyOsEventSimple'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    MyOsEventDetail:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        uid:
+          type: string
+        ref:
+          type: string
+        created:
+          type: string
+        type:
+          type: string
+        object:
+          $ref: '#/components/schemas/BlueJsonValue'
+    Webhook:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        created:
+          type: string
+        settings:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - type
+        - status
+        - created
+        - settings
+    WebhookListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Webhook'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    WebhookDispatch:
+      type: object
+      additionalProperties: true
+      properties:
+        webhookId:
+          type: string
+        eventId:
+          type: string
+        status:
+          type: string
+        eventCreated:
+          type: string
+        created:
+          type: string
+        updated:
+          type: string
+    WebhookDispatchListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDispatch'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    WebhookDispatchAttempt:
+      type: object
+      properties:
+        responseCode:
+          type: string
+        status:
+          type: string
+        created:
+          type: string
+      required:
+        - responseCode
+        - status
+        - created
+    WebhookDispatchAttemptListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDispatchAttempt'
+        nextPageToken:
+          type: string
+      required:
+        - items
+    ConnectorStatus:
+      type: object
+      properties:
+        installed:
+          type: boolean
+        sessionId:
+          type: string
+      required:
+        - installed
+    CleanupIdempotencyResponse:
+      type: object
+      properties:
+        totalScanned:
+          type: number
+        totalDeleted:
+          type: number
+        batchesProcessed:
+          type: number
+        durationMs:
+          type: number
+      required:
+        - totalScanned
+        - totalDeleted
+        - batchesProcessed
+        - durationMs
+    FlushOutboxResponse:
+      type: object
+      properties:
+        totalScanned:
+          type: number
+        totalSent:
+          type: number
+        totalFailed:
+          type: number
+        batchesProcessed:
+          type: number
+        durationMs:
+          type: number
+      required:
+        - totalScanned
+        - totalSent
+        - totalFailed
+        - batchesProcessed
+        - durationMs
+    CreateExpiredIdempotencyResponse:
+      type: object
+      properties:
+        accountUid:
+          type: string
+        scope:
+          type: string
+        key:
+          type: string
+        expiresAt:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - accountUid
+        - scope
+        - key
+        - expiresAt
+        - createdAt
+    GenericRequestBody:
+      oneOf:
+        - type: object
+          additionalProperties: true
+        - type: array
+          items: {}
+        - type: string
+        - type: number
+        - type: boolean
