@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Blue Studio Web
 
-## Getting Started
+Blue Studio Web is a two-pane AI workspace that turns user intent into a running MyOS document:
 
-First, run the development server:
+1. Chat to generate a blueprint (`STATE: questions` / `STATE: ready`)
+2. Generate JS/TS DSL from blueprint
+3. Compile + validate generated DSL server-side
+4. Review channel bindings
+5. Bootstrap and poll running document state
+
+## Prompts
+
+Prompt assets are local and version-pinned in `lib/prompts`:
+
+- `blueprint-architect-prompt.md` (upstream sync)
+- `blueprint-to-js-dsl-prompt.md` (JS/TS rewrite for `@blue-labs/sdk-dsl`)
+
+Prompts are **not fetched from GitHub at runtime**.
+
+## Runtime + routes
+
+All routes that touch OpenAI, MyOS, extraction, or DSL compile are Node runtime:
+
+- `/api/chat`
+- `/api/token-count`
+- `/api/files/extract`
+- `/api/dsl/compile`
+- `/api/dsl/continue`
+- `/api/myos/bootstrap`
+- `/api/myos/retrieve`
+
+## Local persistence strategy
+
+- `localStorage`
+  - credentials
+  - active workspace id
+  - selected inspector tab
+- IndexedDB
+  - workspace snapshots/state
+  - uploaded file blobs
+  - extracted text artifacts
+
+## Security notes
+
+- Credentials are never persisted server-side.
+- Credentials are never intentionally logged by app code.
+- Error messages are redacted before returning to clients.
+- Inputs for secret keys use `type="password"`.
+- Logout clears localStorage + IndexedDB workspace state.
+
+### XSS tradeoff
+
+Because credentials are kept in browser storage (user requirement), an XSS vulnerability in the app could expose those credentials. This app mitigates that risk with framework defaults and strict handling, but browser-stored secrets remain a deliberate tradeoff for user-controlled local auth.
+
+## Commands
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run typecheck
+npm run lint
+npm run test
+npm run test:e2e
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Live counter scenario:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+OPENAI_API_KEY="..." \
+MYOS_API_KEY="..." \
+MYOS_ACCOUNT_ID="..." \
+MYOS_BASE_URL="https://api.dev.myos.blue/" \
+npm run test:live
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Vercel deployment notes
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Set app root to `apps/blue-studio-web` in the Vercel monorepo project settings.
+- Keep route handlers touching OpenAI/MyOS/extraction/DSL on `runtime = "nodejs"`.
+- Keep these routes dynamic (`dynamic = "force-dynamic"`), no cache assumptions.
+- Credentials are user-provided in browser; server env vars are optional for defaults only.
