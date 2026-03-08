@@ -2,8 +2,7 @@ import type { InspectorTab, UserCredentials } from "@/lib/workspace/types";
 
 const STORAGE_KEYS = {
   credentials: "blueStudio.credentials",
-  activeWorkspaceId: "blueStudio.activeWorkspaceId",
-  selectedTab: "blueStudio.selectedTab",
+  lastVisitedThreadId: "blueStudio.lastVisitedThreadId",
 } as const;
 
 export function readCredentials(): UserCredentials | null {
@@ -35,42 +34,36 @@ export function clearCredentials(): void {
   window.localStorage.removeItem(STORAGE_KEYS.credentials);
 }
 
-export function readActiveWorkspaceId(): string | null {
+export function readLastVisitedThreadId(): string | null {
   if (typeof window === "undefined") {
     return null;
   }
-  return window.localStorage.getItem(STORAGE_KEYS.activeWorkspaceId);
+  return window.localStorage.getItem(STORAGE_KEYS.lastVisitedThreadId);
 }
 
-export function writeActiveWorkspaceId(workspaceId: string): void {
+export function writeLastVisitedThreadId(threadId: string): void {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(STORAGE_KEYS.activeWorkspaceId, workspaceId);
+  window.localStorage.setItem(STORAGE_KEYS.lastVisitedThreadId, threadId);
+}
+
+export function clearThreadRoutingStorage(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(STORAGE_KEYS.lastVisitedThreadId);
 }
 
 export function readSelectedTab(): InspectorTab | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const value = window.localStorage.getItem(STORAGE_KEYS.selectedTab);
-  if (!value) {
-    return null;
-  }
-  return value as InspectorTab;
+  return null;
 }
 
-export function writeSelectedTab(tab: InspectorTab): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.setItem(STORAGE_KEYS.selectedTab, tab);
+export function writeSelectedTab(_tab: InspectorTab): void {
+  // selected inspector tab is persisted per-workspace in IndexedDB state
 }
 
-export function clearLocalWorkspaceStorage(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.removeItem(STORAGE_KEYS.activeWorkspaceId);
-  window.localStorage.removeItem(STORAGE_KEYS.selectedTab);
-}
+// Backward-compatible aliases for in-flight callers.
+export const readActiveWorkspaceId = readLastVisitedThreadId;
+export const writeActiveWorkspaceId = writeLastVisitedThreadId;
+export const clearLocalWorkspaceStorage = clearThreadRoutingStorage;
