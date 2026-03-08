@@ -18,6 +18,12 @@ These prompt files are synced into this app at build time and are **not** fetche
     - source path: `prompt-optimizer/src/main/resources/blueprint-to-dsl-prompt.md`
   - adapted for `@blue-labs/sdk-dsl` JavaScript/TypeScript API
 
+- `document-status-templates-prompt.md`
+  - local prompt for generating viewer-specific status templates from blueprint
+
+- `document-qa-prompt.md`
+  - local prompt for document assistant Q&A over blueprint + optional live state
+
 ## Runtime note
 
 Prompt files are read from this directory during API route execution and shipped with the deployed artifact.

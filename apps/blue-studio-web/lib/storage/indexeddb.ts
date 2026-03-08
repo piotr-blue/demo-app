@@ -1,5 +1,6 @@
 import { openDB } from "idb";
 import type { WorkspaceState } from "@/lib/workspace/types";
+import { normalizeWorkspaceState } from "@/lib/workspace/state";
 
 const DB_NAME = "blue-studio-web";
 const DB_VERSION = 1;
@@ -37,7 +38,16 @@ export async function saveWorkspace(workspace: WorkspaceState): Promise<void> {
 export async function readWorkspace(workspaceId: string): Promise<WorkspaceState | null> {
   const db = await getDb();
   const value = await db.get(WORKSPACE_STORE, workspaceId);
-  return (value as WorkspaceState | undefined) ?? null;
+  const workspace = (value as WorkspaceState | undefined) ?? null;
+  return workspace ? normalizeWorkspaceState(workspace) : null;
+}
+
+export async function listWorkspaces(): Promise<WorkspaceState[]> {
+  const db = await getDb();
+  const values = (await db.getAll(WORKSPACE_STORE)) as WorkspaceState[];
+  return values
+    .map((workspace) => normalizeWorkspaceState(workspace))
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
 export async function saveFileBlob(file: StoredFileBlob): Promise<void> {
@@ -60,4 +70,14 @@ export async function clearWorkspacePersistence(workspaceId: string): Promise<vo
   await db.delete(WORKSPACE_STORE, workspaceId);
   const fileIds = await db.getAllKeysFromIndex(FILE_STORE, "workspaceId", workspaceId);
   await Promise.all(fileIds.map((fileId) => db.delete(FILE_STORE, fileId)));
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+  await clearWorkspacePersistence(workspaceId);
+}
+
+export async function clearAllWorkspacePersistence(): Promise<void> {
+  const db = await getDb();
+  await db.clear(WORKSPACE_STORE);
+  await db.clear(FILE_STORE);
 }

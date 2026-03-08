@@ -3,6 +3,8 @@ import { POST as chatPost } from "@/app/api/chat/route";
 import { POST as continuePost } from "@/app/api/dsl/continue/route";
 import { POST as bootstrapPost } from "@/app/api/myos/bootstrap/route";
 import { POST as retrievePost } from "@/app/api/myos/retrieve/route";
+import { POST as statusTemplatesPost } from "@/app/api/document/status-templates/route";
+import { POST as documentQaPost } from "@/app/api/document/qa/route";
 
 const openAiApiKey = process.env.OPENAI_API_KEY;
 const myOsApiKey = process.env.MYOS_API_KEY;
@@ -142,6 +144,7 @@ suite("live counter flow via app routes", () => {
       expect(bootstrapPayload.sessionId).toBeTruthy();
 
       let running = false;
+      let latestRetrieved: Record<string, unknown> | null = null;
       for (let attempt = 0; attempt < 60; attempt += 1) {
         const retrieveResponse = await retrievePost(
           new Request("http://localhost/api/myos/retrieve", {
@@ -182,6 +185,7 @@ suite("live counter flow via app routes", () => {
           hasDocument
         ) {
           running = true;
+          latestRetrieved = retrievePayload.retrieved;
           break;
         }
 
@@ -189,6 +193,52 @@ suite("live counter flow via app routes", () => {
       }
 
       expect(running).toBe(true);
+      expect(latestRetrieved).toBeTruthy();
+
+      const statusTemplatesResponse = await statusTemplatesPost(
+        new Request("http://localhost/api/document/status-templates", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            credentials,
+            blueprint: currentBlueprint,
+            viewer: "ownerChannel",
+          }),
+        })
+      );
+      const statusTemplatesPayload = (await statusTemplatesResponse.json()) as {
+        ok: boolean;
+        bundle?: { templates: unknown[] };
+      };
+      expect(statusTemplatesResponse.status).toBe(200);
+      expect(statusTemplatesPayload.ok).toBe(true);
+      expect((statusTemplatesPayload.bundle?.templates ?? []).length).toBeGreaterThan(0);
+
+      const qaResponse = await documentQaPost(
+        new Request("http://localhost/api/document/qa", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            credentials,
+            blueprint: currentBlueprint,
+            viewer: "ownerChannel",
+            question: "What can this document do?",
+            state: latestRetrieved?.document ?? null,
+            allowedOperations: Array.isArray(latestRetrieved?.allowedOperations)
+              ? latestRetrieved?.allowedOperations
+              : [],
+          }),
+        })
+      );
+      const qaPayload = (await qaResponse.json()) as {
+        ok: boolean;
+        answer?: string;
+        mode?: string;
+      };
+      expect(qaResponse.status).toBe(200);
+      expect(qaPayload.ok).toBe(true);
+      expect((qaPayload.answer ?? "").length).toBeGreaterThan(0);
+      expect(qaPayload.mode).toBe("live-state");
     },
     180_000
   );

@@ -3,6 +3,7 @@
 import { DefaultChatTransport } from "ai";
 import type { FileUIPart, UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
+import { useRouter } from "next/navigation";
 import {
   Conversation,
   ConversationContent,
@@ -25,36 +26,50 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { DocumentAssistantPanel } from "@/components/document-assistant-panel";
+import { DocumentStatusPanel } from "@/components/document-status-panel";
+import { ThreadSidebar, type ThreadListItem } from "@/components/thread-sidebar";
+import {
+  chooseDefaultViewer,
+  parseBlueprintMetadata,
+} from "@/lib/blueprint/metadata";
 import { getMessageText } from "@/lib/chat/message-utils";
-import { buildSnapshotDiffs } from "@/lib/dsl/diff";
+import { resolveStatusMessage } from "@/lib/document/status-templates/evaluate";
+import { clearThreadRoutingStorage } from "@/lib/storage/local-storage";
 import {
-  clearLocalWorkspaceStorage,
-  writeSelectedTab,
-} from "@/lib/storage/local-storage";
-import {
+  clearAllWorkspacePersistence,
   clearWorkspacePersistence,
   listFileBlobs,
+  listWorkspaces,
   readWorkspace,
   saveFileBlob,
   saveWorkspace,
 } from "@/lib/storage/indexeddb";
+import { createThreadId } from "@/lib/workspace/thread-id";
+import { deriveThreadMeta } from "@/lib/workspace/thread-meta";
+import { applyRetrievedDocumentRefresh } from "@/lib/workspace/polling";
 import {
   createActivity,
   createBootstrapEvent,
   createWorkspace,
+  normalizeWorkspaceState,
   withInspectorTab,
 } from "@/lib/workspace/state";
 import type {
   ChannelBindingDraft,
+  DocumentQaMode,
   InspectorTab,
   StoredAttachment,
+  StatusTemplateBundle,
   UserCredentials,
   WorkspaceState,
 } from "@/lib/workspace/types";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const INSPECTOR_TABS: Array<{ key: InspectorTab; label: string }> = [
   { key: "overview", label: "Overview" },
+  { key: "status", label: "Status" },
+  { key: "assistant", label: "Assistant" },
   { key: "blueprint", label: "Blueprint" },
   { key: "dsl", label: "DSL" },
   { key: "bindings", label: "Bindings" },
@@ -72,9 +87,28 @@ function nowId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function filePartToBlob(file: FileUIPart): Promise<Blob> {
   const response = await fetch(file.url);
   return response.blob();
+}
+
+async function hashText(value: string): Promise<string> {
+  if (typeof window !== "undefined" && window.crypto?.subtle) {
+    const encoded = new TextEncoder().encode(value);
+    const digest = await window.crypto.subtle.digest("SHA-256", encoded);
+    return Array.from(new Uint8Array(digest))
+      .map((entry) => entry.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return String(hash);
 }
 
 export function WorkspaceShell({
@@ -89,7 +123,13 @@ export function WorkspaceShell({
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [assistantBusy, setAssistantBusy] = useState(false);
+  const [refreshBusy, setRefreshBusy] = useState(false);
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const [threads, setThreads] = useState<ThreadListItem[]>([]);
+  const router = useRouter();
   const pendingQuestionRef = useRef<string | null>(null);
+  const lastBlueprintRef = useRef<string | null>(null);
 
   const { messages, sendMessage, setMessages, status, stop } = useChat({
     transport: new DefaultChatTransport({
@@ -107,28 +147,43 @@ export function WorkspaceShell({
         if (part.type === "data-blueprint-question") {
           const question = String(data.question ?? "").trim();
           pendingQuestionRef.current = question;
-          return {
+          const next = {
             ...previous,
-            phase: "blueprint-chat",
+            phase: "blueprint-chat" as const,
             activityFeed: [
               ...previous.activityFeed,
               createActivity("assistant-message", "Blueprint question", question),
             ],
           };
+          const meta = deriveThreadMeta(next);
+          return {
+            ...next,
+            ...meta,
+            updatedAt: new Date().toISOString(),
+          };
         }
 
         if (part.type === "data-blueprint-ready") {
           const blueprint = String(data.blueprint ?? "").trim();
-          return {
+          const next = {
             ...previous,
-            phase: "blueprint-ready",
+            phase: "blueprint-ready" as const,
             currentBlueprint: blueprint,
+            currentDsl: null,
+            currentDocumentJson: null,
+            compileStatus: null,
+            channelBindings: [],
+            finalBindings: null,
+            sessionId: null,
+            documentId: null,
+            documentSnapshots: [],
+            bootstrapStatus: [],
             blueprintVersions: [
               ...previous.blueprintVersions,
               {
                 id: nowId("bp"),
                 createdAt: new Date().toISOString(),
-                source: "model",
+                source: "model" as const,
                 content: blueprint,
               },
             ],
@@ -137,15 +192,27 @@ export function WorkspaceShell({
               createActivity("blueprint", "Blueprint ready"),
             ],
           };
+          const meta = deriveThreadMeta(next);
+          return {
+            ...next,
+            ...meta,
+            updatedAt: new Date().toISOString(),
+          };
         }
 
         if (part.type === "data-blueprint-error") {
           const message = String(data.message ?? "Unknown blueprint error");
-          return {
+          const next = {
             ...previous,
-            phase: "error",
+            phase: "error" as const,
             errorMessage: message,
             activityFeed: [...previous.activityFeed, createActivity("error", "Blueprint error", message)],
+          };
+          const meta = deriveThreadMeta(next);
+          return {
+            ...next,
+            ...meta,
+            updatedAt: new Date().toISOString(),
           };
         }
 
@@ -159,7 +226,9 @@ export function WorkspaceShell({
 
     void (async () => {
       const existing = await readWorkspace(workspaceId);
-      const next = existing ?? createWorkspace(workspaceId, credentials);
+      const next = normalizeWorkspaceState(
+        existing ?? createWorkspace(workspaceId, credentials)
+      );
       if (!existing) {
         await saveWorkspace(next);
       }
@@ -180,7 +249,14 @@ export function WorkspaceShell({
 
   useEffect(() => {
     setWorkspace((previous) =>
-      previous ? { ...previous, messages: messages as UIMessage[] } : previous
+      previous
+        ? {
+            ...previous,
+            messages: messages as UIMessage[],
+            ...deriveThreadMeta({ ...previous, messages: messages as UIMessage[] }),
+            updatedAt: new Date().toISOString(),
+          }
+        : previous
     );
   }, [messages]);
 
@@ -192,12 +268,293 @@ export function WorkspaceShell({
   }, [workspace]);
 
   useEffect(() => {
-    const selectedTab = workspace?.selectedInspectorTab;
-    if (!selectedTab) {
+    if (!workspace || loading) {
       return;
     }
-    writeSelectedTab(selectedTab);
-  }, [workspace?.selectedInspectorTab]);
+    void (async () => {
+      const all = await listWorkspaces();
+      const mapped = all.map((entry) => ({
+        id: entry.id,
+        threadTitle: entry.threadTitle,
+        threadSummary: entry.threadSummary,
+        phase: entry.phase,
+        updatedAt: entry.updatedAt,
+      }));
+      if (!mapped.some((entry) => entry.id === workspace.id)) {
+        mapped.unshift({
+          id: workspace.id,
+          threadTitle: workspace.threadTitle,
+          threadSummary: workspace.threadSummary,
+          phase: workspace.phase,
+          updatedAt: workspace.updatedAt,
+        });
+      }
+      setThreads(mapped.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)));
+    })();
+  }, [loading, workspace, workspaceId]);
+
+  useEffect(() => {
+    if (!workspace?.currentBlueprint) {
+      return;
+    }
+    const blueprint = workspace.currentBlueprint;
+    if (lastBlueprintRef.current === blueprint) {
+      return;
+    }
+    lastBlueprintRef.current = blueprint;
+    const metadata = parseBlueprintMetadata(blueprint);
+    const defaultViewer =
+      workspace.viewerChannel ?? chooseDefaultViewer(metadata.participants);
+    setWorkspace((previous) => {
+      if (!previous || previous.currentBlueprint !== blueprint) {
+        return previous;
+      }
+      const next = {
+        ...previous,
+        blueprintMetadata: metadata,
+        viewerChannel: defaultViewer,
+        statusTemplatesByViewer: {},
+        resolvedStatus: null,
+        statusHistory: [],
+        documentQaHistory: [],
+        lastDocumentFingerprint: null,
+      };
+      const meta = deriveThreadMeta(next);
+      return {
+        ...next,
+        ...meta,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  }, [workspace?.currentBlueprint, workspace?.viewerChannel]);
+
+  useEffect(() => {
+    const currentBlueprint = workspace?.currentBlueprint;
+    const viewer = workspace?.viewerChannel;
+    if (!currentBlueprint || !viewer) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const blueprintHash = await hashText(currentBlueprint);
+      const existingBundle = workspace.statusTemplatesByViewer[viewer];
+      if (existingBundle?.blueprintHash === blueprintHash) {
+        return;
+      }
+      setTemplateBusy(true);
+      try {
+        const response = await fetch("/api/document/status-templates", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            credentials,
+            blueprint: currentBlueprint,
+            viewer,
+          }),
+        });
+        const payload = (await response.json()) as
+          | { ok: true; bundle: StatusTemplateBundle }
+          | { ok: false; error: string };
+        if (!payload.ok) {
+          throw new Error(payload.error);
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setWorkspace((previous) => {
+          if (!previous) {
+            return previous;
+          }
+          const next = {
+            ...previous,
+            statusTemplatesByViewer: {
+              ...previous.statusTemplatesByViewer,
+              [viewer]: payload.bundle,
+            },
+            activityFeed: [
+              ...previous.activityFeed,
+              createActivity("status", "Status templates generated", viewer),
+            ],
+          };
+          const latestSnapshot = next.documentSnapshots.at(-1);
+          if (!latestSnapshot) {
+            const meta = deriveThreadMeta(next);
+            return {
+              ...next,
+              ...meta,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          const resolved = resolveStatusMessage({
+            bundle: payload.bundle,
+            viewer,
+            document: latestSnapshot.document,
+            currencyCode: next.blueprintMetadata?.currencyCode ?? null,
+            sourceSnapshotId: latestSnapshot.id,
+            previous: next.resolvedStatus,
+          });
+          if (!resolved.changed) {
+            const meta = deriveThreadMeta(next);
+            return {
+              ...next,
+              ...meta,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          const withStatus = {
+            ...next,
+            resolvedStatus: resolved.resolved,
+            statusHistory: [...next.statusHistory, resolved.resolved],
+          };
+          const meta = deriveThreadMeta(withStatus);
+          return {
+            ...withStatus,
+            ...meta,
+            updatedAt: new Date().toISOString(),
+          };
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to generate status templates.";
+        if (cancelled) {
+          return;
+        }
+        setWorkspace((previous) =>
+          previous
+            ? {
+                ...previous,
+                errorMessage: message,
+                activityFeed: [
+                  ...previous.activityFeed,
+                  createActivity("error", "Status template generation failed", message),
+                ],
+                updatedAt: new Date().toISOString(),
+              }
+            : previous
+        );
+      } finally {
+        if (!cancelled) {
+          setTemplateBusy(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    credentials,
+    workspace?.currentBlueprint,
+    workspace?.viewerChannel,
+    workspace?.statusTemplatesByViewer,
+  ]);
+
+  const refreshDocument = useCallback(
+    async (sessionId: string): Promise<{ running: boolean; changed: boolean }> => {
+      const response = await fetch("/api/myos/retrieve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials,
+          sessionId,
+        }),
+      });
+      if (!response.ok) {
+        return { running: false, changed: false };
+      }
+      const payload = (await response.json()) as
+        | { ok: true; retrieved: Record<string, unknown> }
+        | { ok: false; error: string };
+      if (!payload.ok) {
+        return { running: false, changed: false };
+      }
+
+      let running = false;
+      let changed = false;
+      setWorkspace((previous) => {
+        if (!previous) {
+          return previous;
+        }
+        const selectedViewer = previous.viewerChannel;
+        const templateBundle = selectedViewer
+          ? previous.statusTemplatesByViewer[selectedViewer] ?? null
+          : null;
+        const refreshed = applyRetrievedDocumentRefresh({
+          workspace: previous,
+          retrieved: payload.retrieved,
+          selectedViewer,
+          templateBundle,
+          currencyCode: previous.blueprintMetadata?.currencyCode ?? null,
+        });
+        running = refreshed.running;
+        changed = refreshed.changed;
+        if (!refreshed.changed) {
+          return previous;
+        }
+        const withEvents = {
+          ...refreshed.workspace,
+          bootstrapStatus: [
+            ...refreshed.workspace.bootstrapStatus,
+            createBootstrapEvent(
+              refreshed.running ? "document-running" : "document-fetched",
+              refreshed.running
+                ? "Document is running and operations are available."
+                : "Document snapshot refreshed."
+            ),
+          ],
+          activityFeed: [
+            ...refreshed.workspace.activityFeed,
+            createActivity(
+              "document",
+              refreshed.running ? "Document running" : "Document snapshot updated"
+            ),
+          ],
+          updatedAt: new Date().toISOString(),
+        };
+        const meta = deriveThreadMeta(withEvents);
+        return {
+          ...withEvents,
+          ...meta,
+        };
+      });
+      return { running, changed };
+    },
+    [credentials]
+  );
+
+  const waitUntilRunnable = useCallback(
+    async (sessionId: string) => {
+      for (let index = 0; index < 120; index += 1) {
+        await sleep(1_000);
+        const refreshed = await refreshDocument(sessionId);
+        if (refreshed.running) {
+          break;
+        }
+      }
+    },
+    [refreshDocument]
+  );
+
+  useEffect(() => {
+    if (
+      !workspace ||
+      workspace.phase !== "document-running" ||
+      !workspace.sessionId ||
+      !workspace.autoRefreshEnabled
+    ) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshDocument(workspace.sessionId!);
+    }, 5_000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [refreshDocument, workspace]);
 
   const handlePromptSubmit = async (prompt: { text: string; files: FileUIPart[] }) => {
     const currentWorkspace = workspace;
@@ -287,6 +644,8 @@ export function WorkspaceShell({
                   createActivity("user-message", "File attached", attachment.name)
                 ),
               ],
+              updatedAt: new Date().toISOString(),
+              ...deriveThreadMeta(previous),
             }
           : previous
       );
@@ -315,6 +674,7 @@ export function WorkspaceShell({
                 ...previous.activityFeed,
                 createActivity("error", "Chat submission error", message),
               ],
+              updatedAt: new Date().toISOString(),
             }
           : previous
       );
@@ -339,6 +699,7 @@ export function WorkspaceShell({
             selectedInspectorTab: "dsl",
             errorMessage: null,
             activityFeed: [...previous.activityFeed, createActivity("dsl", "Generating DSL")],
+            updatedAt: new Date().toISOString(),
           }
         : previous
     );
@@ -392,6 +753,7 @@ export function WorkspaceShell({
             ...previous.activityFeed,
             createActivity("dsl", "DSL ready"),
           ],
+          updatedAt: new Date().toISOString(),
         };
       });
     } catch (error) {
@@ -403,6 +765,7 @@ export function WorkspaceShell({
               phase: previous.currentBlueprint ? "blueprint-ready" : previous.phase,
               errorMessage: message,
               activityFeed: [...previous.activityFeed, createActivity("error", "DSL generation error", message)],
+              updatedAt: new Date().toISOString(),
             }
           : previous
       );
@@ -426,6 +789,7 @@ export function WorkspaceShell({
             selectedInspectorTab: "dsl",
             errorMessage: null,
             activityFeed: [...previous.activityFeed, createActivity("compile", "Compiling DSL")],
+            updatedAt: new Date().toISOString(),
           }
         : previous
     );
@@ -478,6 +842,7 @@ export function WorkspaceShell({
                 createActivity("compile", "Compile succeeded"),
                 createActivity("bindings", "Bindings extracted"),
               ],
+              updatedAt: new Date().toISOString(),
             }
           : previous
       );
@@ -503,6 +868,7 @@ export function WorkspaceShell({
                 ],
               },
               activityFeed: [...previous.activityFeed, createActivity("error", "DSL compile error", message)],
+              updatedAt: new Date().toISOString(),
             }
           : previous
       );
@@ -531,95 +897,9 @@ export function WorkspaceShell({
               }
             : binding
         ),
+        updatedAt: new Date().toISOString(),
       };
     });
-  };
-
-  const beginPolling = async (sessionId: string) => {
-    for (let index = 0; index < 120; index += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1_000));
-
-      const response = await fetch("/api/myos/retrieve", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          credentials,
-          sessionId,
-        }),
-      });
-
-      if (!response.ok) {
-        continue;
-      }
-
-      const payload = (await response.json()) as {
-        ok: boolean;
-        retrieved: Record<string, unknown>;
-      };
-
-      if (!payload.ok) {
-        continue;
-      }
-
-      setWorkspace((previous) => {
-        if (!previous) {
-          return previous;
-        }
-
-        const retrieved = payload.retrieved;
-        const document = (retrieved.document ?? null) as unknown;
-        const allowedOperations = Array.isArray(retrieved.allowedOperations)
-          ? retrieved.allowedOperations.map((entry) => String(entry))
-          : [];
-        const processingStatus =
-          typeof retrieved.processingStatus === "string"
-            ? retrieved.processingStatus
-            : typeof retrieved.status === "string"
-              ? retrieved.status
-              : "";
-        const lastSnapshot = previous.documentSnapshots.at(-1)?.document ?? null;
-        const diffs = buildSnapshotDiffs(lastSnapshot, document);
-        const snapshot = {
-          id: nowId("snap"),
-          createdAt: new Date().toISOString(),
-          document,
-          allowedOperations,
-          diffs,
-        };
-
-        const running =
-          allowedOperations.length > 0 ||
-          /running/i.test(processingStatus) ||
-          (typeof document === "object" && document !== null);
-
-        const bootstrapStatus = [
-          ...previous.bootstrapStatus,
-          createBootstrapEvent(
-            running ? "document-running" : "waiting-for-document",
-            running
-              ? "Document is running and operations are available."
-              : "Waiting for document to become runnable..."
-          ),
-        ];
-
-        return {
-          ...previous,
-          phase: running ? "document-running" : previous.phase,
-          documentSnapshots: [...previous.documentSnapshots, snapshot],
-          documentId: (retrieved.documentId as string | undefined) ?? previous.documentId,
-          bootstrapStatus,
-          activityFeed: [
-            ...previous.activityFeed,
-            createActivity("document", running ? "Document running" : "Document snapshot updated"),
-          ],
-        };
-      });
-
-      const latestState = await readWorkspace(workspaceId);
-      if (latestState?.phase === "document-running") {
-        break;
-      }
-    }
   };
 
   const handleBootstrap = async () => {
@@ -637,6 +917,7 @@ export function WorkspaceShell({
               ...previous,
               errorMessage: `Binding value required for ${invalidBinding.channelName}.`,
               phase: "error",
+              updatedAt: new Date().toISOString(),
             }
           : previous
       );
@@ -657,6 +938,7 @@ export function WorkspaceShell({
             ],
             finalBindings: previous.channelBindings,
             activityFeed: [...previous.activityFeed, createActivity("bootstrap", "Bootstrap submitted")],
+            updatedAt: new Date().toISOString(),
           }
         : previous
     );
@@ -695,11 +977,12 @@ export function WorkspaceShell({
                 ...previous.activityFeed,
                 createActivity("bootstrap", "Session created", payload.sessionId ?? undefined),
               ],
+              updatedAt: new Date().toISOString(),
             }
           : previous
       );
 
-      await beginPolling(payload.sessionId);
+      await waitUntilRunnable(payload.sessionId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Bootstrap failed.";
       setWorkspace((previous) =>
@@ -713,6 +996,7 @@ export function WorkspaceShell({
                 createBootstrapEvent("error", message),
               ],
               activityFeed: [...previous.activityFeed, createActivity("error", "Bootstrap error", message)],
+              updatedAt: new Date().toISOString(),
             }
           : previous
       );
@@ -736,10 +1020,8 @@ export function WorkspaceShell({
   };
 
   const handleHardLogout = async () => {
-    if (workspace) {
-      await clearWorkspacePersistence(workspace.id);
-    }
-    clearLocalWorkspaceStorage();
+    await clearAllWorkspacePersistence();
+    clearThreadRoutingStorage();
     onLogout();
   };
 
@@ -760,7 +1042,155 @@ export function WorkspaceShell({
     setBusy(false);
   };
 
+  const handleRefreshNow = async () => {
+    if (!workspace?.sessionId || refreshBusy) {
+      return;
+    }
+    setRefreshBusy(true);
+    try {
+      await refreshDocument(workspace.sessionId);
+    } finally {
+      setRefreshBusy(false);
+    }
+  };
+
+  const handleViewerChange = (viewer: string) => {
+    setWorkspace((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      if (previous.viewerChannel === viewer) {
+        return previous;
+      }
+      const next = {
+        ...previous,
+        viewerChannel: viewer,
+      };
+      const latestSnapshot = next.documentSnapshots.at(-1);
+      const bundle = next.statusTemplatesByViewer[viewer];
+      if (!latestSnapshot || !bundle) {
+        const meta = deriveThreadMeta(next);
+        return {
+          ...next,
+          ...meta,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      const resolved = resolveStatusMessage({
+        bundle,
+        viewer,
+        document: latestSnapshot.document,
+        currencyCode: next.blueprintMetadata?.currencyCode ?? null,
+        sourceSnapshotId: latestSnapshot.id,
+        previous: next.resolvedStatus,
+      });
+      if (!resolved.changed) {
+        const meta = deriveThreadMeta(next);
+        return {
+          ...next,
+          ...meta,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      const withStatus = {
+        ...next,
+        resolvedStatus: resolved.resolved,
+        statusHistory: [...next.statusHistory, resolved.resolved],
+      };
+      const meta = deriveThreadMeta(withStatus);
+      return {
+        ...withStatus,
+        ...meta,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
+
+  const handleAskDocumentAssistant = async (question: string) => {
+    const currentWorkspace = workspace;
+    if (
+      !currentWorkspace ||
+      !currentWorkspace.currentBlueprint ||
+      !currentWorkspace.viewerChannel ||
+      assistantBusy
+    ) {
+      return;
+    }
+    const latest = currentWorkspace.documentSnapshots.at(-1);
+
+    setAssistantBusy(true);
+    try {
+      const response = await fetch("/api/document/qa", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials,
+          blueprint: currentWorkspace.currentBlueprint,
+          viewer: currentWorkspace.viewerChannel,
+          question,
+          state: latest?.document ?? null,
+          allowedOperations: latest?.allowedOperations ?? [],
+        }),
+      });
+      const payload = (await response.json()) as
+        | { ok: true; answer: string; mode: DocumentQaMode }
+        | { ok: false; error: string };
+      if (!payload.ok) {
+        throw new Error(payload.error);
+      }
+      setWorkspace((previous) => {
+        if (!previous) {
+          return previous;
+        }
+        const exchange = {
+          id: nowId("docqa"),
+          question,
+          answer: payload.answer,
+          mode: payload.mode,
+          createdAt: new Date().toISOString(),
+        };
+        const next = {
+          ...previous,
+          documentQaHistory: [...previous.documentQaHistory, exchange],
+          activityFeed: [
+            ...previous.activityFeed,
+            createActivity("document-qa", "Document question", question),
+          ],
+          selectedInspectorTab: "assistant" as const,
+          errorMessage: null,
+          updatedAt: new Date().toISOString(),
+        };
+        const meta = deriveThreadMeta(next);
+        return {
+          ...next,
+          ...meta,
+        };
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to ask document assistant.";
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: message,
+              activityFeed: [
+                ...previous.activityFeed,
+                createActivity("error", "Document assistant error", message),
+              ],
+              updatedAt: new Date().toISOString(),
+            }
+          : previous
+      );
+    } finally {
+      setAssistantBusy(false);
+    }
+  };
+
   const latestSnapshot = workspace?.documentSnapshots.at(-1);
+  const selectedViewer = workspace?.viewerChannel ?? null;
+  const selectedTemplateBundle =
+    selectedViewer && workspace ? workspace.statusTemplatesByViewer[selectedViewer] ?? null : null;
+  const assistantMode: DocumentQaMode = latestSnapshot?.document ? "live-state" : "blueprint-only";
 
   const chatMessages = useMemo(() => messages as UIMessage[], [messages]);
 
@@ -770,13 +1200,25 @@ export function WorkspaceShell({
 
   return (
     <div className="grid min-h-screen grid-cols-12 gap-4 bg-background p-4">
-      <section className="col-span-7 flex h-[calc(100vh-2rem)] flex-col rounded-xl border">
+      <ThreadSidebar
+        activeThreadId={workspaceId}
+        threads={threads}
+        onSelectThread={(threadId) => {
+          router.push(`/t/${encodeURIComponent(threadId)}`);
+        }}
+        onCreateThread={() => {
+          router.push(`/t/${encodeURIComponent(createThreadId())}`);
+        }}
+      />
+
+      <section className="col-span-6 flex h-[calc(100vh-2rem)] flex-col rounded-xl border">
         <header className="flex items-center justify-between border-b px-4 py-3">
           <div>
             <h1 className="font-semibold text-lg">Blue Studio</h1>
             <p className="text-muted-foreground text-xs">
               Phase: <span className="font-medium">{workspace.phase}</span>
             </p>
+            <p className="text-muted-foreground text-xs">Thread: {workspace.threadTitle}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" disabled={busy} onClick={() => void handleClearWorkspace()}>
@@ -933,7 +1375,7 @@ export function WorkspaceShell({
         </div>
       </section>
 
-      <section className="col-span-5 h-[calc(100vh-2rem)] rounded-xl border">
+      <section className="col-span-4 h-[calc(100vh-2rem)] rounded-xl border">
         <header className="flex flex-wrap gap-2 border-b p-3">
           {INSPECTOR_TABS.map((tab) => (
             <Button
@@ -961,6 +1403,10 @@ export function WorkspaceShell({
               {tab.key === "overview" && (
                 <div className="space-y-3 text-sm">
                   <p>
+                    <span className="font-medium">Thread:</span> {workspace.threadTitle}
+                  </p>
+                  <p className="text-muted-foreground">{workspace.threadSummary}</p>
+                  <p>
                     <span className="font-medium">Phase:</span> {workspace.phase}
                   </p>
                   <p>
@@ -979,6 +1425,42 @@ export function WorkspaceShell({
                     ))}
                   </div>
                 </div>
+              )}
+
+              {tab.key === "status" && (
+                <DocumentStatusPanel
+                  blueprintReady={Boolean(workspace.currentBlueprint)}
+                  viewerChannel={selectedViewer}
+                  participants={workspace.blueprintMetadata?.participants ?? []}
+                  templateBundle={selectedTemplateBundle}
+                  resolvedStatus={workspace.resolvedStatus}
+                  statusHistory={workspace.statusHistory}
+                  autoRefreshEnabled={workspace.autoRefreshEnabled}
+                  onViewerChange={handleViewerChange}
+                  onAutoRefreshChange={(enabled) =>
+                    setWorkspace((previous) =>
+                      previous
+                        ? {
+                            ...previous,
+                            autoRefreshEnabled: enabled,
+                            updatedAt: new Date().toISOString(),
+                          }
+                        : previous
+                    )
+                  }
+                  onRefreshNow={() => void handleRefreshNow()}
+                  refreshing={refreshBusy || templateBusy}
+                />
+              )}
+
+              {tab.key === "assistant" && (
+                <DocumentAssistantPanel
+                  enabled={Boolean(workspace.currentBlueprint)}
+                  mode={assistantMode}
+                  history={workspace.documentQaHistory}
+                  submitting={assistantBusy}
+                  onSubmitQuestion={handleAskDocumentAssistant}
+                />
               )}
 
               {tab.key === "blueprint" && (
