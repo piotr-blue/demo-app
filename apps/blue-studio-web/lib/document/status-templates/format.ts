@@ -43,7 +43,7 @@ export function formatMoney(value: unknown, currencyCode: string | null): string
       fractionDigits = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: normalizedCurrency,
-      }).resolvedOptions().maximumFractionDigits;
+      }).resolvedOptions().maximumFractionDigits ?? fallbackFractionDigits;
     } catch {
       fractionDigits = fallbackFractionDigits;
     }

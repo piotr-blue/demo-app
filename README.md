@@ -6,7 +6,9 @@ This repository hosts `apps/blue-studio-web`, a Next.js App Router + TypeScript 
 - generates JS/TS Blue DSL from a ready blueprint
 - compiles and validates the generated DSL server-side before bootstrap
 - reviews channel bindings and bootstraps the document via `@blue-labs/myos-js`
-- polls document state and renders inspector tabs (overview, blueprint, dsl, bindings, bootstrap, document, changes, activity)
+- polls/retrieves document state and renders inspector tabs (overview, status, assistant, blueprint, dsl, bindings, bootstrap, document, changes, activity)
+- supports multi-source attachments (`upload`, `attach app document`, `attach external MyOS session`)
+- supports webhook/SSE invalidation routing for live local thread updates
 
 ## Repository layout
 

@@ -32,7 +32,14 @@ import {
 } from "@/lib/blueprint/metadata";
 import { getMessageText } from "@/lib/chat/message-utils";
 import { resolveStatusMessage } from "@/lib/document/status-templates/evaluate";
-import { clearThreadRoutingStorage } from "@/lib/storage/local-storage";
+import {
+  buildAccountHash,
+  clearThreadRoutingStorage,
+  clearWebhookRegistration,
+  getOrCreateBrowserInstallId,
+  readWebhookRegistration,
+  writeWebhookRegistration,
+} from "@/lib/storage/local-storage";
 import {
   clearAllWorkspacePersistence,
   listFileBlobs,
@@ -126,6 +133,12 @@ export function WorkspaceShell({
   const router = useRouter();
   const pendingQuestionRef = useRef<string | null>(null);
   const lastBlueprintRef = useRef<string | null>(null);
+  const liveEventSourceRef = useRef<EventSource | null>(null);
+  const liveIdentityRef = useRef<{ browserId: string; accountHash: string } | null>(null);
+  const accountHash = useMemo(
+    () => buildAccountHash(credentials.myOsBaseUrl, credentials.myOsAccountId),
+    [credentials.myOsAccountId, credentials.myOsBaseUrl]
+  );
 
   const { messages, sendMessage, setMessages, status, stop } = useChat({
     transport: new DefaultChatTransport({
@@ -257,37 +270,43 @@ export function WorkspaceShell({
   }, [messages]);
 
   useEffect(() => {
-    if (!workspace) {
+    if (loading || !workspace) {
       return;
     }
     void saveWorkspace(workspace);
+  }, [loading, workspace]);
+
+  const reloadThreadList = useCallback(async () => {
+    const currentWorkspace = workspace;
+    if (!currentWorkspace) {
+      return;
+    }
+    const all = await listWorkspaces();
+    const mapped = all.map((entry) => ({
+      id: entry.id,
+      threadTitle: entry.threadTitle,
+      threadSummary: entry.threadSummary,
+      phase: entry.phase,
+      updatedAt: entry.updatedAt,
+    }));
+    if (!mapped.some((entry) => entry.id === currentWorkspace.id)) {
+      mapped.unshift({
+        id: currentWorkspace.id,
+        threadTitle: currentWorkspace.threadTitle,
+        threadSummary: currentWorkspace.threadSummary,
+        phase: currentWorkspace.phase,
+        updatedAt: currentWorkspace.updatedAt,
+      });
+    }
+    setThreads(mapped.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)));
   }, [workspace]);
 
   useEffect(() => {
     if (!workspace || loading) {
       return;
     }
-    void (async () => {
-      const all = await listWorkspaces();
-      const mapped = all.map((entry) => ({
-        id: entry.id,
-        threadTitle: entry.threadTitle,
-        threadSummary: entry.threadSummary,
-        phase: entry.phase,
-        updatedAt: entry.updatedAt,
-      }));
-      if (!mapped.some((entry) => entry.id === workspace.id)) {
-        mapped.unshift({
-          id: workspace.id,
-          threadTitle: workspace.threadTitle,
-          threadSummary: workspace.threadSummary,
-          phase: workspace.phase,
-          updatedAt: workspace.updatedAt,
-        });
-      }
-      setThreads(mapped.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)));
-    })();
-  }, [loading, workspace, workspaceId]);
+    void reloadThreadList();
+  }, [loading, reloadThreadList, workspace, workspaceId]);
 
   useEffect(() => {
     if (!workspace?.currentBlueprint) {
@@ -532,6 +551,200 @@ export function WorkspaceShell({
       }
     },
     [refreshDocument]
+  );
+  const workspaceReady = !loading && workspace !== null;
+  const currentSessionId = workspace?.sessionId ?? null;
+
+  const sendLiveSubscriptions = useCallback(async () => {
+    const identity = liveIdentityRef.current;
+    if (!identity) {
+      return;
+    }
+    const all = await listWorkspaces();
+    const sessionIds = [...new Set(all.map((entry) => entry.sessionId).filter(Boolean))] as string[];
+    const threadIds = [...new Set(all.map((entry) => entry.id))];
+    await fetch("/api/myos/live/subscriptions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        browserId: identity.browserId,
+        accountHash: identity.accountHash,
+        sessionIds,
+        threadIds,
+      }),
+    });
+  }, []);
+
+  const handleLiveInvalidation = useCallback(
+    async (sessionId: string) => {
+      const response = await fetch("/api/myos/retrieve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials,
+          sessionId,
+        }),
+      });
+      if (!response.ok) {
+        return;
+      }
+      const payload = (await response.json()) as
+        | { ok: true; retrieved: Record<string, unknown> }
+        | { ok: false; error: string };
+      if (!payload.ok) {
+        return;
+      }
+
+      const all = await listWorkspaces();
+      const matching = all.filter((entry) => entry.sessionId === sessionId);
+      if (matching.length === 0) {
+        return;
+      }
+
+      for (const entry of matching) {
+        const selectedViewer = entry.viewerChannel;
+        const bundle = selectedViewer
+          ? entry.statusTemplatesByViewer[selectedViewer] ?? null
+          : null;
+        const refreshed = applyRetrievedDocumentRefresh({
+          workspace: entry,
+          retrieved: payload.retrieved,
+          selectedViewer,
+          templateBundle: bundle,
+          currencyCode: entry.blueprintMetadata?.currencyCode ?? null,
+        });
+        if (!refreshed.changed) {
+          continue;
+        }
+        await saveWorkspace(refreshed.workspace);
+        if (refreshed.workspace.id === workspaceId) {
+          setWorkspace(refreshed.workspace);
+        }
+      }
+
+      await reloadThreadList();
+    },
+    [credentials, reloadThreadList, workspaceId]
+  );
+
+  const unregisterWebhookBestEffort = useCallback(async () => {
+    const identity = liveIdentityRef.current;
+    if (!identity) {
+      return;
+    }
+    const existing = readWebhookRegistration(identity.accountHash);
+    if (!existing) {
+      return;
+    }
+    try {
+      await fetch("/api/myos/webhooks/unregister", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials,
+          registrationId: existing.registrationId,
+        }),
+      });
+    } catch {
+      // noop best-effort cleanup
+    }
+    clearWebhookRegistration(identity.accountHash);
+  }, [credentials]);
+
+  useEffect(() => {
+    if (!workspaceReady) {
+      return;
+    }
+
+    let cancelled = false;
+    const browserId = getOrCreateBrowserInstallId();
+    if (!browserId) {
+      return;
+    }
+
+    const previousIdentity = liveIdentityRef.current;
+    if (
+      previousIdentity &&
+      (previousIdentity.browserId !== browserId || previousIdentity.accountHash !== accountHash)
+    ) {
+      liveEventSourceRef.current?.close();
+      liveEventSourceRef.current = null;
+    }
+
+    liveIdentityRef.current = { browserId, accountHash };
+
+    void (async () => {
+      const registerResponse = await fetch("/api/myos/webhooks/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials,
+          browserId,
+          accountHash,
+        }),
+      });
+      const registerPayload = (await registerResponse.json()) as
+        | {
+            ok: true;
+            registration: {
+              registrationId: string;
+              webhookId: string;
+              accountHash: string;
+              browserId: string;
+              createdAt: string;
+              updatedAt: string;
+            };
+          }
+        | { ok: false; error: string };
+      if (!registerResponse.ok || !registerPayload.ok || cancelled) {
+        return;
+      }
+
+      writeWebhookRegistration(accountHash, registerPayload.registration);
+
+      if (!liveEventSourceRef.current) {
+        const source = new EventSource(
+          `/api/myos/live?browserId=${encodeURIComponent(browserId)}&accountHash=${encodeURIComponent(accountHash)}`
+        );
+        source.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data) as Record<string, unknown>;
+            if (payload.type !== "myos-epoch-advanced") {
+              return;
+            }
+            const sessionId = typeof payload.sessionId === "string" ? payload.sessionId : null;
+            if (!sessionId) {
+              return;
+            }
+            void handleLiveInvalidation(sessionId);
+          } catch {
+            // noop
+          }
+        };
+        liveEventSourceRef.current = source;
+      }
+
+      await sendLiveSubscriptions();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountHash, credentials, handleLiveInvalidation, sendLiveSubscriptions, workspaceId, workspaceReady]);
+
+  useEffect(() => {
+    if (!workspaceReady) {
+      return;
+    }
+    void sendLiveSubscriptions();
+  }, [currentSessionId, sendLiveSubscriptions, workspaceId, workspaceReady]);
+
+  useEffect(
+    () => () => {
+      liveEventSourceRef.current?.close();
+      liveEventSourceRef.current = null;
+    },
+    []
   );
 
   useEffect(() => {
@@ -1016,6 +1229,10 @@ export function WorkspaceShell({
   };
 
   const handleHardLogout = async () => {
+    await unregisterWebhookBestEffort();
+    liveEventSourceRef.current?.close();
+    liveEventSourceRef.current = null;
+    clearWebhookRegistration(accountHash);
     await clearAllWorkspacePersistence();
     clearThreadRoutingStorage();
     onLogout();
@@ -1024,6 +1241,10 @@ export function WorkspaceShell({
   const handleClearWorkspace = async () => {
     stop();
     pendingQuestionRef.current = null;
+    await unregisterWebhookBestEffort();
+    liveEventSourceRef.current?.close();
+    liveEventSourceRef.current = null;
+    clearWebhookRegistration(accountHash);
     await clearAllWorkspacePersistence();
     clearThreadRoutingStorage();
     const nextThreadId = createThreadId();

@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const countMock = vi.fn(async () => 24);
-const generateMock = vi.fn();
+const { countMock, generateMock } = vi.hoisted(() => ({
+  countMock: vi.fn(async () => 24),
+  generateMock: vi.fn(),
+}));
 
 vi.mock("@/lib/prompts/load-prompts", () => ({
   getDocumentReferenceRendererPrompt: vi.fn(async () => "reference prompt"),
@@ -9,8 +11,8 @@ vi.mock("@/lib/prompts/load-prompts", () => ({
 
 vi.mock("@/lib/openai/client", () => ({
   OPENAI_TEXT_MODEL: "gpt-5.4",
-  countInputTokens: (...args: unknown[]) => countMock(...args),
-  generateTextWithResponsesApi: (...args: unknown[]) => generateMock(...args),
+  countInputTokens: countMock,
+  generateTextWithResponsesApi: generateMock,
 }));
 
 vi.mock("@/lib/openai/token-meter", () => ({
