@@ -1171,7 +1171,16 @@ export function WorkspaceShell({
         }),
       });
       const payload = (await response.json()) as
-        | { ok: true; sessionId: string | null; bootstrap: Record<string, unknown> }
+        | {
+            ok: true;
+            sessionId: string | null;
+            initiatorSessionId: string | null;
+            bootstrapSessionId: string | null;
+            bootstrapSucceeded: boolean;
+            bootstrapState: string | null;
+            bootstrapStartOperation: string | null;
+            bootstrap: Record<string, unknown>;
+          }
         | { ok: false; error: string };
 
       if (!payload.ok) {
@@ -1188,10 +1197,18 @@ export function WorkspaceShell({
               sessionId: payload.sessionId,
               bootstrapStatus: [
                 ...previous.bootstrapStatus,
-                createBootstrapEvent("session-created", `Session created: ${payload.sessionId}`),
+                createBootstrapEvent(
+                  "session-created",
+                  `Bootstrap succeeded. Session created: ${payload.sessionId}`
+                ),
               ],
               activityFeed: [
                 ...previous.activityFeed,
+                createActivity(
+                  "bootstrap",
+                  "Bootstrap succeeded",
+                  payload.bootstrapState ?? payload.bootstrapStartOperation ?? undefined
+                ),
                 createActivity("bootstrap", "Session created", payload.sessionId ?? undefined),
               ],
               updatedAt: new Date().toISOString(),
@@ -1204,18 +1221,22 @@ export function WorkspaceShell({
       const message = error instanceof Error ? error.message : "Bootstrap failed.";
       setWorkspace((previous) =>
         previous
-          ? {
-              ...previous,
-              phase: "error",
-              errorMessage: message,
-              bootstrapStatus: [
-                ...previous.bootstrapStatus,
-                createBootstrapEvent("error", message),
-              ],
-              activityFeed: [...previous.activityFeed, createActivity("error", "Bootstrap error", message)],
-              updatedAt: new Date().toISOString(),
-            }
-          : previous
+            ? {
+                ...previous,
+                phase: "error",
+                errorMessage: message,
+                bootstrapStatus: [
+                  ...previous.bootstrapStatus,
+                  createBootstrapEvent("error", message),
+                ],
+                activityFeed: [
+                  ...previous.activityFeed,
+                  createActivity("bootstrap", "Bootstrap failed", message),
+                  createActivity("error", "Bootstrap error", message),
+                ],
+                updatedAt: new Date().toISOString(),
+              }
+            : previous
       );
     } finally {
       setBusy(false);
