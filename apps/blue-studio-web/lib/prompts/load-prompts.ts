@@ -3,6 +3,8 @@ import path from "node:path";
 
 let architectPromptCache: string | null = null;
 let dslPromptCache: string | null = null;
+let documentStatusTemplatesPromptCache: string | null = null;
+let documentQaPromptCache: string | null = null;
 
 function promptCandidates(fileName: string): string[] {
   return [
@@ -39,4 +41,22 @@ export async function getBlueprintToJsDslPrompt(): Promise<string> {
   }
   dslPromptCache = await readPrompt("blueprint-to-js-dsl-prompt.md");
   return dslPromptCache;
+}
+
+export async function getDocumentStatusTemplatesPrompt(): Promise<string> {
+  if (documentStatusTemplatesPromptCache) {
+    return documentStatusTemplatesPromptCache;
+  }
+  documentStatusTemplatesPromptCache = await readPrompt(
+    "document-status-templates-prompt.md"
+  );
+  return documentStatusTemplatesPromptCache;
+}
+
+export async function getDocumentQaPrompt(): Promise<string> {
+  if (documentQaPromptCache) {
+    return documentQaPromptCache;
+  }
+  documentQaPromptCache = await readPrompt("document-qa-prompt.md");
+  return documentQaPromptCache;
 }
