@@ -24,8 +24,33 @@ const requestSchema = z.object({
   sourceType: z.enum(["blueprint", "yaml", "live-json-fallback"]),
   content: z.string().min(1),
   threadTitle: z.string().optional(),
-  sessionId: z.string().optional(),
+  sessionId: z.string().min(1),
 });
+
+function addCanonicalReferenceHeader(params: {
+  text: string;
+  sessionId?: string;
+  threadTitle?: string;
+}): string {
+  const normalizedSessionId = params.sessionId?.trim();
+  const normalizedName = params.threadTitle?.trim();
+  const hasSessionId = /^\s*sessionId\s*:/im.test(params.text);
+  const hasName = /^\s*name\s*:/im.test(params.text);
+
+  const headerLines: string[] = [];
+  if (normalizedSessionId && !hasSessionId) {
+    headerLines.push(`sessionId: ${normalizedSessionId}`);
+  }
+  if (normalizedName && !hasName) {
+    headerLines.push(`name: ${normalizedName}`);
+  }
+
+  if (headerLines.length === 0) {
+    return params.text;
+  }
+
+  return `${headerLines.join("\n")}\n${params.text}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -57,6 +82,11 @@ export async function POST(request: Request) {
     if (!text) {
       throw new Error("Document reference renderer returned empty text.");
     }
+    const canonicalText = addCanonicalReferenceHeader({
+      text,
+      sessionId: body.sessionId,
+      threadTitle: body.threadTitle,
+    });
 
     const fileName = inferDocumentReferenceFileName({
       sourceType,
@@ -68,7 +98,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       fileName,
-      text,
+      text: canonicalText,
       contextLabel,
       sourceMeta: {
         sourceType,

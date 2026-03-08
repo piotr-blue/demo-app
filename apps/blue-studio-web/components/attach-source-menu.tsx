@@ -51,7 +51,7 @@ async function renderReferenceFile(params: {
   sourceType: DocumentReferenceSourceType;
   content: string;
   threadTitle?: string;
-  sessionId?: string;
+  sessionId: string;
 }): Promise<{ fileName: string; text: string }> {
   const response = await fetch("/api/document/reference/render", {
     method: "POST",

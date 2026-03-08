@@ -46,6 +46,7 @@ describe("POST /api/document/reference/render", () => {
           sourceType: "blueprint",
           content: "STATE: ready\nTYPE: Document",
           threadTitle: "Counter Thread",
+          sessionId: "session-from-thread-1",
         }),
       })
     );
@@ -60,6 +61,7 @@ describe("POST /api/document/reference/render", () => {
     expect(payload.ok).toBe(true);
     expect(payload.fileName).toBe("counter-thread.myos.txt");
     expect(payload.contextLabel).toBe("App document reference");
+    expect(payload.text).toContain("sessionId: session-from-thread-1");
     expect(payload.text).toContain("operations");
     expect(countMock).toHaveBeenCalledWith(
       expect.objectContaining({ model: "gpt-5.4" })
