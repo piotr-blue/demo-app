@@ -14,6 +14,8 @@ const requestSchema = z.object({
   credentials: z.unknown(),
   browserId: z.string().min(1),
   accountHash: z.string().min(1),
+  knownRegistrationId: z.string().min(1).optional(),
+  knownWebhookId: z.string().min(1).optional(),
 });
 
 function stableRegistrationId(browserId: string, accountHash: string): string {
@@ -22,6 +24,17 @@ function stableRegistrationId(browserId: string, accountHash: string): string {
     .digest("hex")
     .slice(0, 24);
   return `reg_${digest}`;
+}
+
+function sanitizeRegistrationId(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!/^[a-zA-Z0-9_-]{1,120}$/.test(trimmed)) {
+    return null;
+  }
+  return trimmed;
 }
 
 function readWebhookId(value: unknown): string | null {
@@ -153,9 +166,41 @@ export async function POST(request: Request) {
       timeoutMs: 45_000,
       maxRetries: 2,
     });
-    const registrationId = stableRegistrationId(body.browserId, body.accountHash);
+    const registrationId =
+      sanitizeRegistrationId(body.knownRegistrationId) ??
+      stableRegistrationId(body.browserId, body.accountHash);
     const callbackPath = `/api/myos/webhooks/incoming/${registrationId}`;
     const callbackUrl = buildCallbackUrl(request.url, callbackPath);
+    const normalizedCallbackUrl = normalizeUrl(callbackUrl);
+
+    if (body.knownWebhookId && normalizedCallbackUrl) {
+      try {
+        const knownWebhook = await client.webhooks.retrieve(body.knownWebhookId);
+        const knownWebhookUrl = readWebhookSettingsUrl(knownWebhook);
+        if (knownWebhookUrl && normalizeUrl(knownWebhookUrl) === normalizedCallbackUrl) {
+          const now = new Date().toISOString();
+          const registration: WebhookRegistrationRecord = {
+            registrationId,
+            webhookId: body.knownWebhookId,
+            browserId: body.browserId,
+            accountHash: body.accountHash,
+            myOsBaseUrl: credentials.myOsBaseUrl,
+            callbackPath,
+            callbackUrl,
+            createdAt: now,
+            updatedAt: now,
+          };
+          await store.upsertRegistration(registration);
+          return NextResponse.json({
+            ok: true,
+            registration,
+            reused: true,
+          });
+        }
+      } catch {
+        // Continue with fallback checks/create.
+      }
+    }
 
     const existing = await store.getRegistrationByBrowserAccount(
       body.browserId,

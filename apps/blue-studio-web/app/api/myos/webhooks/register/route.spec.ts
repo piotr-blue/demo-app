@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const createWebhookMock = vi.fn();
 const deleteWebhookMock = vi.fn();
 const listWebhookMock = vi.fn();
+const retrieveWebhookMock = vi.fn();
 const storeMock = {
   getRegistrationByBrowserAccount: vi.fn(),
   deleteRegistration: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("@blue-labs/myos-js", () => ({
       list: (...args: unknown[]) => listWebhookMock(...args),
       create: (...args: unknown[]) => createWebhookMock(...args),
       del: (...args: unknown[]) => deleteWebhookMock(...args),
+      retrieve: (...args: unknown[]) => retrieveWebhookMock(...args),
     };
   },
 }));
@@ -39,10 +41,12 @@ describe("POST /api/myos/webhooks/register", () => {
     listWebhookMock.mockReset();
     createWebhookMock.mockReset();
     deleteWebhookMock.mockReset();
+    retrieveWebhookMock.mockReset();
     storeMock.getRegistrationByBrowserAccount.mockReset();
     storeMock.deleteRegistration.mockReset();
     storeMock.upsertRegistration.mockReset();
     listWebhookMock.mockResolvedValue({ items: [] });
+    retrieveWebhookMock.mockRejectedValue(new Error("not found"));
     delete process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
   });
 
@@ -164,6 +168,47 @@ describe("POST /api/myos/webhooks/register", () => {
     expect(payload.reused).toBe(true);
     expect(payload.registration.webhookId).toBe("webhook_existing");
     expect(createWebhookMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses known webhook id from client when callback URL matches", async () => {
+    const registrationId = stableRegistrationId("browser-1", "account-hash-1");
+    const callbackUrl = `https://studio.example.com/api/myos/webhooks/incoming/${registrationId}`;
+    storeMock.getRegistrationByBrowserAccount.mockResolvedValue(null);
+    retrieveWebhookMock.mockResolvedValue({
+      id: "webhook_known",
+      settings: { url: callbackUrl },
+    });
+
+    const response = await POST(
+      new Request("https://studio.example.com/api/myos/webhooks/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials: {
+            openAiApiKey: "sk-test",
+            myOsApiKey: "myos-test",
+            myOsAccountId: "acc-1",
+            myOsBaseUrl: "https://api.dev.myos.blue/",
+          },
+          browserId: "browser-1",
+          accountHash: "account-hash-1",
+          knownWebhookId: "webhook_known",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      ok: boolean;
+      reused: boolean;
+      registration: { webhookId: string };
+    };
+    expect(payload.ok).toBe(true);
+    expect(payload.reused).toBe(true);
+    expect(payload.registration.webhookId).toBe("webhook_known");
+    expect(retrieveWebhookMock).toHaveBeenCalledWith("webhook_known");
+    expect(createWebhookMock).not.toHaveBeenCalled();
+    expect(listWebhookMock).not.toHaveBeenCalled();
   });
 
   it("appends Vercel bypass token to callback URL when configured", async () => {

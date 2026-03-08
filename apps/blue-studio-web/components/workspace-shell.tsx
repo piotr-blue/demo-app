@@ -726,6 +726,11 @@ export function WorkspaceShell({
     }
 
     liveIdentityRef.current = { browserId, accountHash };
+    const knownRegistration = readWebhookRegistration(accountHash);
+    const knownRegistrationMatchesIdentity =
+      knownRegistration &&
+      knownRegistration.browserId === browserId &&
+      knownRegistration.accountHash === accountHash;
 
     void (async () => {
       const registerResponse = await fetch("/api/myos/webhooks/register", {
@@ -735,6 +740,12 @@ export function WorkspaceShell({
           credentials,
           browserId,
           accountHash,
+          knownRegistrationId: knownRegistrationMatchesIdentity
+            ? knownRegistration.registrationId
+            : undefined,
+          knownWebhookId: knownRegistrationMatchesIdentity
+            ? knownRegistration.webhookId
+            : undefined,
         }),
       });
       const registerPayload = (await registerResponse.json()) as
