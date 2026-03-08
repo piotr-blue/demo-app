@@ -33,6 +33,25 @@ function readArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+function rewriteCoreChannelTypeForBootstrap(value: unknown): unknown {
+  if (value === "Core/Channel") {
+    return "MyOS/MyOS Timeline Channel";
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => rewriteCoreChannelTypeForBootstrap(entry));
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(record).map(([key, nested]) => [key, rewriteCoreChannelTypeForBootstrap(nested)])
+    );
+  }
+
+  return value;
+}
+
 function collectUuidCandidates(value: unknown): string[] {
   const uuidPattern =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -130,7 +149,13 @@ export async function POST(request: Request) {
     });
 
     const normalizedBindings = toMyOsBindings(body.bindings);
-    const bootstrap = await client.documents.bootstrap(body.documentJson, normalizedBindings);
+    // TODO(temporary-dirty-fix): MyOS bootstrap currently misbehaves with Core/Channel.
+    // Force canonical timeline channel type right before bootstrap.
+    const bootstrapDocumentJson = rewriteCoreChannelTypeForBootstrap(body.documentJson) as Record<
+      string,
+      unknown
+    >;
+    const bootstrap = await client.documents.bootstrap(bootstrapDocumentJson, normalizedBindings);
     const bootstrapPayload = bootstrap as Record<string, unknown>;
     const bootstrapSessionId = readString(bootstrapPayload.sessionId);
     const sessionId = bootstrapSessionId

@@ -27,9 +27,27 @@ function readWebhookId(value: unknown): string | null {
   return typeof id === "string" && id.length > 0 ? id : null;
 }
 
+function isLocalhostRequestOrigin(requestUrl: string): boolean {
+  try {
+    return new URL(requestUrl).hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = requestSchema.parse(await request.json());
+    if (isLocalhostRequestOrigin(request.url)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Webhook registration is disabled on localhost.",
+        },
+        { status: 400 }
+      );
+    }
+
     const credentials = parseRouteCredentials(body.credentials);
     const store = getLiveStore();
 

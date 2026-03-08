@@ -32,7 +32,7 @@ describe("POST /api/myos/webhooks/register", () => {
     createWebhookMock.mockResolvedValue({ id: "webhook_1" });
 
     const response = await POST(
-      new Request("http://localhost/api/myos/webhooks/register", {
+      new Request("https://studio.example.com/api/myos/webhooks/register", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -79,7 +79,7 @@ describe("POST /api/myos/webhooks/register", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/api/myos/webhooks/register", {
+      new Request("https://studio.example.com/api/myos/webhooks/register", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -99,6 +99,32 @@ describe("POST /api/myos/webhooks/register", () => {
     const payload = (await response.json()) as { ok: boolean; reused: boolean };
     expect(payload.ok).toBe(true);
     expect(payload.reused).toBe(true);
+    expect(createWebhookMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects registration requests from localhost origin", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/myos/webhooks/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials: {
+            openAiApiKey: "sk-test",
+            myOsApiKey: "myos-test",
+            myOsAccountId: "acc-1",
+            myOsBaseUrl: "https://api.dev.myos.blue/",
+          },
+          browserId: "browser-1",
+          accountHash: "account-hash-1",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const payload = (await response.json()) as { ok: boolean; error: string };
+    expect(payload.ok).toBe(false);
+    expect(payload.error).toContain("disabled on localhost");
+    expect(storeMock.getRegistrationByBrowserAccount).not.toHaveBeenCalled();
     expect(createWebhookMock).not.toHaveBeenCalled();
   });
 });

@@ -656,6 +656,14 @@ export function WorkspaceShell({
       return;
     }
 
+    if (window.location.hostname === "localhost") {
+      liveEventSourceRef.current?.close();
+      liveEventSourceRef.current = null;
+      liveIdentityRef.current = null;
+      clearWebhookRegistration(accountHash);
+      return;
+    }
+
     let cancelled = false;
     const browserId = getOrCreateBrowserInstallId();
     if (!browserId) {
