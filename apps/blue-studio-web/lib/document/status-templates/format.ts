@@ -30,19 +30,46 @@ export function formatMoney(value: unknown, currencyCode: string | null): string
   if (!Number.isFinite(number)) {
     return String(value ?? "");
   }
-  if (!currencyCode) {
-    return String(number);
+
+  const normalizedCurrency =
+    typeof currencyCode === "string" && currencyCode.trim().length > 0
+      ? currencyCode.trim().toUpperCase()
+      : null;
+
+  const fallbackFractionDigits = 2;
+  let fractionDigits = fallbackFractionDigits;
+  if (normalizedCurrency) {
+    try {
+      fractionDigits = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: normalizedCurrency,
+      }).resolvedOptions().maximumFractionDigits;
+    } catch {
+      fractionDigits = fallbackFractionDigits;
+    }
   }
+
+  const majorUnits = number / 10 ** fractionDigits;
+  if (!normalizedCurrency) {
+    return new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: fractionDigits,
+      minimumFractionDigits: fractionDigits,
+    }).format(majorUnits);
+  }
+
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: currencyCode,
+      currency: normalizedCurrency,
       currencyDisplay: "symbol",
-      maximumFractionDigits: 2,
-      minimumFractionDigits: 0,
-    }).format(number);
+      maximumFractionDigits: fractionDigits,
+      minimumFractionDigits: fractionDigits,
+    }).format(majorUnits);
   } catch {
-    return String(number);
+    return new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: fractionDigits,
+      minimumFractionDigits: fractionDigits,
+    }).format(majorUnits);
   }
 }
 

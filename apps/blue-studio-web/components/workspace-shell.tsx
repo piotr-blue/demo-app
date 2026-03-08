@@ -1054,7 +1054,7 @@ export function WorkspaceShell({
     }
   };
 
-  const handleViewerChange = (viewer: string) => {
+  const handleViewerChange = (viewer: string | null) => {
     setWorkspace((previous) => {
       if (!previous) {
         return previous;
@@ -1066,6 +1066,14 @@ export function WorkspaceShell({
         ...previous,
         viewerChannel: viewer,
       };
+      if (!viewer) {
+        const meta = deriveThreadMeta(next);
+        return {
+          ...next,
+          ...meta,
+          updatedAt: new Date().toISOString(),
+        };
+      }
       const latestSnapshot = next.documentSnapshots.at(-1);
       const bundle = next.statusTemplatesByViewer[viewer];
       if (!latestSnapshot || !bundle) {
@@ -1108,12 +1116,44 @@ export function WorkspaceShell({
 
   const handleAskDocumentAssistant = async (question: string) => {
     const currentWorkspace = workspace;
-    if (
-      !currentWorkspace ||
-      !currentWorkspace.currentBlueprint ||
-      !currentWorkspace.viewerChannel ||
-      assistantBusy
-    ) {
+    if (!currentWorkspace) {
+      return;
+    }
+    if (assistantBusy) {
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: "Document assistant is already answering. Please wait.",
+              updatedAt: new Date().toISOString(),
+            }
+          : previous
+      );
+      return;
+    }
+    if (!currentWorkspace.currentBlueprint) {
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: "Generate a blueprint before asking the document assistant.",
+              updatedAt: new Date().toISOString(),
+            }
+          : previous
+      );
+      return;
+    }
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) {
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: "Question cannot be empty.",
+              updatedAt: new Date().toISOString(),
+            }
+          : previous
+      );
       return;
     }
     const latest = currentWorkspace.documentSnapshots.at(-1);
@@ -1127,7 +1167,7 @@ export function WorkspaceShell({
           credentials,
           blueprint: currentWorkspace.currentBlueprint,
           viewer: currentWorkspace.viewerChannel,
-          question,
+          question: trimmedQuestion,
           state: latest?.document ?? null,
           allowedOperations: latest?.allowedOperations ?? [],
         }),
@@ -1144,7 +1184,7 @@ export function WorkspaceShell({
         }
         const exchange = {
           id: nowId("docqa"),
-          question,
+          question: trimmedQuestion,
           answer: payload.answer,
           mode: payload.mode,
           createdAt: new Date().toISOString(),
@@ -1154,7 +1194,7 @@ export function WorkspaceShell({
           documentQaHistory: [...previous.documentQaHistory, exchange],
           activityFeed: [
             ...previous.activityFeed,
-            createActivity("document-qa", "Document question", question),
+            createActivity("document-qa", "Document question", trimmedQuestion),
           ],
           selectedInspectorTab: "assistant" as const,
           errorMessage: null,
@@ -1191,6 +1231,12 @@ export function WorkspaceShell({
   const selectedTemplateBundle =
     selectedViewer && workspace ? workspace.statusTemplatesByViewer[selectedViewer] ?? null : null;
   const assistantMode: DocumentQaMode = latestSnapshot?.document ? "live-state" : "blueprint-only";
+  const assistantSubmitBlockedReason =
+    !workspace.currentBlueprint
+      ? "Blueprint is required before asking the assistant."
+      : assistantBusy
+        ? "Document assistant is already answering."
+        : null;
 
   const chatMessages = useMemo(() => messages as UIMessage[], [messages]);
 
@@ -1436,7 +1482,7 @@ export function WorkspaceShell({
                   resolvedStatus={workspace.resolvedStatus}
                   statusHistory={workspace.statusHistory}
                   autoRefreshEnabled={workspace.autoRefreshEnabled}
-                  onViewerChange={handleViewerChange}
+                  onViewerChange={(viewer) => handleViewerChange(viewer)}
                   onAutoRefreshChange={(enabled) =>
                     setWorkspace((previous) =>
                       previous
@@ -1457,8 +1503,12 @@ export function WorkspaceShell({
                 <DocumentAssistantPanel
                   enabled={Boolean(workspace.currentBlueprint)}
                   mode={assistantMode}
+                  participants={workspace.blueprintMetadata?.participants ?? []}
+                  viewerChannel={workspace.viewerChannel}
                   history={workspace.documentQaHistory}
                   submitting={assistantBusy}
+                  submitBlockedReason={assistantSubmitBlockedReason}
+                  onViewerChange={handleViewerChange}
                   onSubmitQuestion={handleAskDocumentAssistant}
                 />
               )}

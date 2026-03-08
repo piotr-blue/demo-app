@@ -1,15 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 
+const countMock = vi.fn(async () => 200);
+const generateMock = vi.fn(async () => ({
+  text: "STATE: questions\nQUESTION: Who can approve?",
+  inputTokens: 200,
+}));
+
 vi.mock("@/lib/prompts/load-prompts", () => ({
   getBlueprintArchitectPrompt: vi.fn(async () => "system prompt"),
 }));
 
 vi.mock("@/lib/openai/client", () => ({
-  countInputTokens: vi.fn(async () => 200),
-  generateTextWithResponsesApi: vi.fn(async () => ({
-    text: "STATE: questions\nQUESTION: Who can approve?",
-    inputTokens: 200,
-  })),
+  OPENAI_TEXT_MODEL: "gpt-5.4",
+  countInputTokens: (...args: unknown[]) => countMock(...args),
+  generateTextWithResponsesApi: (...args: unknown[]) => generateMock(...args),
 }));
 
 vi.mock("@/lib/openai/token-meter", () => ({
@@ -34,6 +38,8 @@ describe("POST /api/chat", () => {
   });
 
   it("returns question stream for valid payload", async () => {
+    countMock.mockClear();
+    generateMock.mockClear();
     const response = await POST(
       new Request("http://localhost/api/chat", {
         method: "POST",
@@ -62,5 +68,11 @@ describe("POST /api/chat", () => {
     expect(response.status).toBe(200);
     const body = await response.text();
     expect(body).toContain("Who can approve?");
+    expect(countMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "gpt-5.4" })
+    );
+    expect(generateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "gpt-5.4" })
+    );
   });
 });

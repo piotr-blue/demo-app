@@ -4,6 +4,7 @@ import { buildBlueprintEnvelope } from "@/lib/prompt/envelope";
 import { parseBlueprintResponse } from "@/lib/prompt/blueprint-parser";
 import { getBlueprintArchitectPrompt } from "@/lib/prompts/load-prompts";
 import {
+  OPENAI_TEXT_MODEL,
   countInputTokens,
   generateTextWithResponsesApi,
 } from "@/lib/openai/client";
@@ -56,6 +57,7 @@ export async function POST(request: Request): Promise<Response> {
       apiKey: credentials.openAiApiKey,
       systemPrompt,
       input: envelope,
+      model: OPENAI_TEXT_MODEL,
     });
     assertWithinTokenBudget(inputTokens);
 
@@ -63,6 +65,7 @@ export async function POST(request: Request): Promise<Response> {
       apiKey: credentials.openAiApiKey,
       systemPrompt,
       input: envelope,
+      model: OPENAI_TEXT_MODEL,
     });
 
     const parsed = parseBlueprintResponse(generated.text);

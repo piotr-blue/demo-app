@@ -74,7 +74,29 @@ describe("resolveStatusMessage", () => {
       previous: null,
     });
     expect(resolved.resolved.title).toBe("Active");
-    expect(resolved.resolved.body).toContain("$1,200");
+    expect(resolved.resolved.body).toContain("$12.00");
+  });
+
+  it("treats money() values as minor units", () => {
+    const result = evaluateStatusExpression("money(45000)", {
+      document: {},
+      currencyCode: "USD",
+    });
+    expect(result).toBe("$450.00");
+  });
+
+  it("handles non-USD currencies and fallback formatting", () => {
+    const eur = evaluateStatusExpression("money(doc('/amount/total'))", {
+      document: { amount: { total: 45000 } },
+      currencyCode: "EUR",
+    });
+    expect(eur).toContain("450.00");
+
+    const fallback = evaluateStatusExpression("money(45000)", {
+      document: {},
+      currencyCode: "INVALID_CURRENCY",
+    });
+    expect(fallback).toBe("450.00");
   });
 
   it("falls back to true template when others do not match", () => {
