@@ -826,6 +826,49 @@ export const PromptInputBody = ({
   <div className={cn("contents", className)} {...props} />
 );
 
+export type PromptInputAttachmentsProps = Omit<
+  ComponentProps<typeof InputGroupAddon>,
+  "align"
+>;
+
+export const PromptInputAttachments = ({
+  className,
+  ...props
+}: PromptInputAttachmentsProps) => {
+  const attachments = usePromptInputAttachments();
+
+  if (attachments.files.length === 0) {
+    return null;
+  }
+
+  return (
+    <InputGroupAddon
+      align="block-start"
+      className={cn("flex-wrap gap-1 pb-0", className)}
+      {...props}
+    >
+      {attachments.files.map((file) => (
+        <span
+          className="inline-flex max-w-full items-center gap-1 rounded-md border bg-muted px-2 py-1 text-xs"
+          key={file.id}
+        >
+          <span className="max-w-60 truncate">
+            {file.filename?.trim() || "Attachment"}
+          </span>
+          <button
+            aria-label={`Remove ${file.filename ?? "attachment"}`}
+            className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+            onClick={() => attachments.remove(file.id)}
+            type="button"
+          >
+            <XIcon className="size-3" />
+          </button>
+        </span>
+      ))}
+    </InputGroupAddon>
+  );
+};
+
 export type PromptInputTextareaProps = ComponentProps<
   typeof InputGroupTextarea
 >;

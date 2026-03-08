@@ -3,14 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "npm run build -w @blue-labs/sdk-dsl",
     "dev": "next dev --webpack",
+    "prebuild": "npm run build -w @blue-labs/sdk-dsl",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build -w @blue-labs/sdk-dsl",
     "test": "vitest run",
     "test:watch": "vitest",
+    "pretest:e2e": "npm run build -w @blue-labs/sdk-dsl",
     "test:e2e": "playwright test",
+    "pretest:live": "npm run build -w @blue-labs/sdk-dsl",
     "test:live": "vitest run --config vitest.live.config.ts"
   },
   "dependencies": {

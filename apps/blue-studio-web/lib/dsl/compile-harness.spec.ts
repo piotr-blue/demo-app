@@ -28,4 +28,20 @@ describe("compileDslModule", () => {
       compileDslModule("export const notBuildDocument = () => null;")
     ).rejects.toThrow("buildDocument");
   });
+
+  it("compiles generated DSL that imports sdk-dsl package", async () => {
+    const code = `
+      import { DocBuilder } from "@blue-labs/sdk-dsl";
+
+      export function buildDocument() {
+        return DocBuilder.doc()
+          .name("Counter from SDK")
+          .field("/counter", 0)
+          .buildDocument();
+      }
+    `;
+
+    const compiled = await compileDslModule(code);
+    expect(compiled.documentJson.name).toBe("Counter from SDK");
+  });
 });

@@ -15,6 +15,7 @@ import {
   PromptInputActionMenu,
   PromptInputActionMenuContent,
   PromptInputActionMenuTrigger,
+  PromptInputAttachments,
   PromptInputBody,
   PromptInputFooter,
   PromptInputSubmit,
@@ -90,7 +91,7 @@ export function WorkspaceShell({
   const [busy, setBusy] = useState(false);
   const pendingQuestionRef = useRef<string | null>(null);
 
-  const chat = useChat({
+  const { messages, sendMessage, setMessages, status, stop } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
@@ -154,23 +155,34 @@ export function WorkspaceShell({
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     void (async () => {
       const existing = await readWorkspace(workspaceId);
       const next = existing ?? createWorkspace(workspaceId, credentials);
       if (!existing) {
         await saveWorkspace(next);
       }
+
+      if (cancelled) {
+        return;
+      }
+
       setWorkspace(next);
-      chat.setMessages(next.messages);
+      setMessages(next.messages);
       setLoading(false);
     })();
-  }, [chat, credentials, workspaceId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [credentials, setMessages, workspaceId]);
 
   useEffect(() => {
     setWorkspace((previous) =>
-      previous ? { ...previous, messages: chat.messages as UIMessage[] } : previous
+      previous ? { ...previous, messages: messages as UIMessage[] } : previous
     );
-  }, [chat.messages]);
+  }, [messages]);
 
   useEffect(() => {
     if (!workspace) {
@@ -180,14 +192,17 @@ export function WorkspaceShell({
   }, [workspace]);
 
   useEffect(() => {
-    if (!workspace) {
+    const selectedTab = workspace?.selectedInspectorTab;
+    if (!selectedTab) {
       return;
     }
-    writeSelectedTab(workspace.selectedInspectorTab);
-  }, [workspace?.selectedInspectorTab, workspace]);
+    writeSelectedTab(selectedTab);
+  }, [workspace?.selectedInspectorTab]);
 
   const handlePromptSubmit = async (prompt: { text: string; files: FileUIPart[] }) => {
-    if (!workspace || busy) {
+    const currentWorkspace = workspace;
+
+    if (!currentWorkspace || busy) {
       return;
     }
 
@@ -236,7 +251,7 @@ export function WorkspaceShell({
 
         await saveFileBlob({
           id: attachmentId,
-          workspaceId: workspace.id,
+          workspaceId: currentWorkspace.id,
           name: extracted.fileName,
           mimeType: extracted.mimeType,
           blob,
@@ -244,34 +259,39 @@ export function WorkspaceShell({
         });
       }
 
-      const nextAttachments = [...workspace.attachments, ...extractedAttachments];
-
-      const nextQaPairs = pendingQuestionRef.current
-        ? [
-            ...workspace.qaPairs,
-            {
-              question: pendingQuestionRef.current,
-              answer: prompt.text,
-            },
-          ]
-        : workspace.qaPairs;
+      const pendingQuestion = pendingQuestionRef.current;
+      const nextQaEntry = pendingQuestion
+        ? {
+            question: pendingQuestion,
+            answer: prompt.text,
+          }
+        : null;
+      const nextAttachments = [...currentWorkspace.attachments, ...extractedAttachments];
+      const nextQaPairs = nextQaEntry
+        ? [...currentWorkspace.qaPairs, nextQaEntry]
+        : currentWorkspace.qaPairs;
 
       pendingQuestionRef.current = null;
 
-      setWorkspace({
-        ...workspace,
-        attachments: nextAttachments,
-        qaPairs: nextQaPairs,
-        activityFeed: [
-          ...workspace.activityFeed,
-          createActivity("user-message", "User message", prompt.text),
-          ...extractedAttachments.map((attachment) =>
-            createActivity("user-message", "File attached", attachment.name)
-          ),
-        ],
-      });
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: null,
+              attachments: [...previous.attachments, ...extractedAttachments],
+              qaPairs: nextQaEntry ? [...previous.qaPairs, nextQaEntry] : previous.qaPairs,
+              activityFeed: [
+                ...previous.activityFeed,
+                createActivity("user-message", "User message", prompt.text),
+                ...extractedAttachments.map((attachment) =>
+                  createActivity("user-message", "File attached", attachment.name)
+                ),
+              ],
+            }
+          : previous
+      );
 
-      await chat.sendMessage(
+      await sendMessage(
         {
           text: prompt.text,
         },
@@ -279,10 +299,24 @@ export function WorkspaceShell({
           body: {
             credentials,
             attachments: nextAttachments,
-            currentBlueprint: workspace.currentBlueprint,
+            currentBlueprint: currentWorkspace.currentBlueprint,
             qaPairs: nextQaPairs,
           },
         }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to send message.";
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: message,
+              activityFeed: [
+                ...previous.activityFeed,
+                createActivity("error", "Chat submission error", message),
+              ],
+            }
+          : previous
       );
     } finally {
       setBusy(false);
@@ -290,37 +324,41 @@ export function WorkspaceShell({
   };
 
   const handleGenerateDsl = async () => {
-    if (!workspace?.currentBlueprint || busy) {
+    const currentWorkspace = workspace;
+
+    if (!currentWorkspace?.currentBlueprint || busy) {
       return;
     }
 
     setBusy(true);
-    setWorkspace({
-      ...workspace,
-      phase: "dsl-generating",
-      selectedInspectorTab: "dsl",
-      activityFeed: [...workspace.activityFeed, createActivity("dsl", "Generating DSL")],
-    });
+    setWorkspace((previous) =>
+      previous
+        ? {
+            ...previous,
+            phase: "dsl-generating",
+            selectedInspectorTab: "dsl",
+            errorMessage: null,
+            activityFeed: [...previous.activityFeed, createActivity("dsl", "Generating DSL")],
+          }
+        : previous
+    );
 
     try {
-      const response = await fetch("/api/dsl/continue", {
+      const response = await fetch("/api/dsl/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           credentials,
-          blueprint: workspace.currentBlueprint,
-          attachments: workspace.attachments,
+          blueprint: currentWorkspace.currentBlueprint,
+          attachments: currentWorkspace.attachments,
         }),
       });
 
       const payload = (await response.json()) as
         | {
             ok: true;
-            repaired: boolean;
             dsl: string;
-            structure: unknown;
-            documentJson: Record<string, unknown>;
-            bindings: ChannelBindingDraft[];
+            inputTokens: number;
           }
         | { ok: false; error: string };
 
@@ -334,38 +372,25 @@ export function WorkspaceShell({
         }
         return {
           ...previous,
-          phase: "binding-review",
-          selectedInspectorTab: "bindings",
+          phase: "dsl-ready",
+          selectedInspectorTab: "dsl",
           currentDsl: payload.dsl,
-          currentDocumentJson: payload.documentJson,
+          currentDocumentJson: null,
+          channelBindings: [],
+          finalBindings: null,
           dslVersions: [
             ...previous.dslVersions,
             {
               id: nowId("dsl"),
               createdAt: new Date().toISOString(),
-              source: payload.repaired ? "repair" : "model",
+              source: "model",
               content: payload.dsl,
             },
           ],
-          compileStatus: {
-            ok: true,
-            checkedAt: new Date().toISOString(),
-            diagnostics: [
-              {
-                id: nowId("diag"),
-                createdAt: new Date().toISOString(),
-                level: "info",
-                message: payload.repaired
-                  ? "Compile succeeded after one repair pass."
-                  : "Compile succeeded.",
-              },
-            ],
-          },
-          channelBindings: payload.bindings,
+          compileStatus: null,
           activityFeed: [
             ...previous.activityFeed,
             createActivity("dsl", "DSL ready"),
-            createActivity("compile", "Compile succeeded"),
           ],
         };
       });
@@ -375,9 +400,109 @@ export function WorkspaceShell({
         previous
           ? {
               ...previous,
-              phase: "error",
+              phase: previous.currentBlueprint ? "blueprint-ready" : previous.phase,
               errorMessage: message,
               activityFeed: [...previous.activityFeed, createActivity("error", "DSL generation error", message)],
+            }
+          : previous
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCompileDsl = async () => {
+    const currentWorkspace = workspace;
+
+    if (!currentWorkspace?.currentDsl || busy) {
+      return;
+    }
+
+    setBusy(true);
+    setWorkspace((previous) =>
+      previous
+        ? {
+            ...previous,
+            selectedInspectorTab: "dsl",
+            errorMessage: null,
+            activityFeed: [...previous.activityFeed, createActivity("compile", "Compiling DSL")],
+          }
+        : previous
+    );
+
+    try {
+      const response = await fetch("/api/dsl/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          code: currentWorkspace.currentDsl,
+          accountId: credentials.myOsAccountId,
+        }),
+      });
+
+      const payload = (await response.json()) as
+        | {
+            ok: true;
+            documentJson: Record<string, unknown>;
+            structure: unknown;
+            bindings: ChannelBindingDraft[];
+          }
+        | { ok: false; error: string };
+
+      if (!payload.ok) {
+        throw new Error(payload.error);
+      }
+
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              phase: "binding-review",
+              selectedInspectorTab: "bindings",
+              currentDocumentJson: payload.documentJson,
+              channelBindings: payload.bindings,
+              compileStatus: {
+                ok: true,
+                checkedAt: new Date().toISOString(),
+                diagnostics: [
+                  {
+                    id: nowId("diag"),
+                    createdAt: new Date().toISOString(),
+                    level: "info",
+                    message: "Compile succeeded.",
+                  },
+                ],
+              },
+              activityFeed: [
+                ...previous.activityFeed,
+                createActivity("compile", "Compile succeeded"),
+                createActivity("bindings", "Bindings extracted"),
+              ],
+            }
+          : previous
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to compile DSL.";
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              phase: "dsl-ready",
+              selectedInspectorTab: "dsl",
+              errorMessage: message,
+              compileStatus: {
+                ok: false,
+                checkedAt: new Date().toISOString(),
+                diagnostics: [
+                  {
+                    id: nowId("diag"),
+                    createdAt: new Date().toISOString(),
+                    level: "error",
+                    message,
+                  },
+                ],
+              },
+              activityFeed: [...previous.activityFeed, createActivity("error", "DSL compile error", message)],
             }
           : previous
       );
@@ -498,32 +623,43 @@ export function WorkspaceShell({
   };
 
   const handleBootstrap = async () => {
-    if (!workspace?.currentDocumentJson || busy) {
+    const currentWorkspace = workspace;
+
+    if (!currentWorkspace?.currentDocumentJson || busy) {
       return;
     }
 
-    const invalidBinding = workspace.channelBindings.find((binding) => !binding.value.trim());
+    const invalidBinding = currentWorkspace.channelBindings.find((binding) => !binding.value.trim());
     if (invalidBinding) {
-      setWorkspace({
-        ...workspace,
-        errorMessage: `Binding value required for ${invalidBinding.channelName}.`,
-        phase: "error",
-      });
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: `Binding value required for ${invalidBinding.channelName}.`,
+              phase: "error",
+            }
+          : previous
+      );
       return;
     }
 
     setBusy(true);
-    setWorkspace({
-      ...workspace,
-      phase: "bootstrapping",
-      selectedInspectorTab: "bootstrap",
-      bootstrapStatus: [
-        ...workspace.bootstrapStatus,
-        createBootstrapEvent("bootstrap-submitted", "Bootstrap request submitted."),
-      ],
-      finalBindings: workspace.channelBindings,
-      activityFeed: [...workspace.activityFeed, createActivity("bootstrap", "Bootstrap submitted")],
-    });
+    setWorkspace((previous) =>
+      previous
+        ? {
+            ...previous,
+            phase: "bootstrapping",
+            selectedInspectorTab: "bootstrap",
+            errorMessage: null,
+            bootstrapStatus: [
+              ...previous.bootstrapStatus,
+              createBootstrapEvent("bootstrap-submitted", "Bootstrap request submitted."),
+            ],
+            finalBindings: previous.channelBindings,
+            activityFeed: [...previous.activityFeed, createActivity("bootstrap", "Bootstrap submitted")],
+          }
+        : previous
+    );
 
     try {
       const response = await fetch("/api/myos/bootstrap", {
@@ -531,8 +667,8 @@ export function WorkspaceShell({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           credentials,
-          documentJson: workspace.currentDocumentJson,
-          bindings: workspace.channelBindings,
+          documentJson: currentWorkspace.currentDocumentJson,
+          bindings: currentWorkspace.channelBindings,
         }),
       });
       const payload = (await response.json()) as
@@ -607,9 +743,26 @@ export function WorkspaceShell({
     onLogout();
   };
 
+  const handleClearWorkspace = async () => {
+    if (!workspace) {
+      return;
+    }
+
+    stop();
+    pendingQuestionRef.current = null;
+    const resetWorkspace = createWorkspace(workspace.id, credentials);
+
+    await clearWorkspacePersistence(workspace.id);
+    await saveWorkspace(resetWorkspace);
+
+    setWorkspace(resetWorkspace);
+    setMessages(resetWorkspace.messages);
+    setBusy(false);
+  };
+
   const latestSnapshot = workspace?.documentSnapshots.at(-1);
 
-  const chatMessages = useMemo(() => chat.messages as UIMessage[], [chat.messages]);
+  const chatMessages = useMemo(() => messages as UIMessage[], [messages]);
 
   if (loading || !workspace) {
     return <div className="flex min-h-screen items-center justify-center">Loading workspace…</div>;
@@ -625,10 +778,21 @@ export function WorkspaceShell({
               Phase: <span className="font-medium">{workspace.phase}</span>
             </p>
           </div>
-          <Button variant="outline" onClick={handleHardLogout}>
-            Log out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" disabled={busy} onClick={() => void handleClearWorkspace()}>
+              Clear workspace
+            </Button>
+            <Button variant="outline" onClick={() => void handleHardLogout()}>
+              Log out
+            </Button>
+          </div>
         </header>
+
+        {workspace.errorMessage && (
+          <div className="mx-4 mt-3 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-destructive text-sm">
+            {workspace.errorMessage}
+          </div>
+        )}
 
         <Conversation className="min-h-0">
           <ConversationContent>
@@ -669,10 +833,24 @@ export function WorkspaceShell({
             <div className="mb-3 flex items-center justify-between rounded-lg border p-3 text-sm">
               <div>
                 <p className="font-medium">Blueprint is ready.</p>
-                <p className="text-muted-foreground">Continue to generate JS/TS DSL.</p>
+                <p className="text-muted-foreground">Generate JS/TS DSL from the blueprint.</p>
               </div>
               <Button disabled={busy} onClick={handleGenerateDsl}>
-                Continue
+                Generate DSL
+              </Button>
+            </div>
+          )}
+
+          {workspace.phase === "dsl-ready" && (
+            <div className="mb-3 flex items-center justify-between rounded-lg border p-3 text-sm">
+              <div>
+                <p className="font-medium">DSL generated.</p>
+                <p className="text-muted-foreground">
+                  Review the DSL in the inspector, then compile when ready.
+                </p>
+              </div>
+              <Button disabled={busy || !workspace.currentDsl} onClick={handleCompileDsl}>
+                Compile DSL
               </Button>
             </div>
           )}
@@ -739,6 +917,7 @@ export function WorkspaceShell({
             maxFiles={12}
           >
             <PromptInputBody>
+              <PromptInputAttachments />
               <PromptInputTextarea placeholder="Send a message..." disabled={busy} />
             </PromptInputBody>
             <PromptInputFooter>
@@ -748,7 +927,7 @@ export function WorkspaceShell({
                   <PromptInputActionAddAttachments />
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
-              <PromptInputSubmit status={chat.status} disabled={busy} onStop={() => void chat.stop()} />
+              <PromptInputSubmit status={status} disabled={busy} onStop={() => void stop()} />
             </PromptInputFooter>
           </PromptInput>
         </div>
@@ -818,7 +997,13 @@ export function WorkspaceShell({
                       <CardTitle className="text-sm">Compile status</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
-                      <p>{workspace.compileStatus?.ok ? "Success" : "Not compiled"}</p>
+                      <p>
+                        {workspace.compileStatus
+                          ? workspace.compileStatus.ok
+                            ? "Success"
+                            : "Failed"
+                          : "Not compiled"}
+                      </p>
                       {workspace.compileStatus?.diagnostics.map((diag) => (
                         <p key={diag.id} className="font-mono text-xs">
                           [{diag.level}] {diag.message}
