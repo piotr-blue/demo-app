@@ -342,9 +342,12 @@ export const PromptInputActionAddAttachments = ({
   ...props
 }: PromptInputActionAddAttachmentsProps) => {
   const attachments = usePromptInputAttachments();
+  type DropdownSelectEvent = Parameters<
+    NonNullable<ComponentProps<typeof DropdownMenuItem>["onSelect"]>
+  >[0];
 
   const handleSelect = useCallback(
-    (e: Event) => {
+    (e: DropdownSelectEvent) => {
       e.preventDefault();
       attachments.openFileDialog();
     },
@@ -1140,6 +1143,9 @@ export const PromptInputSubmit = ({
   ...props
 }: PromptInputSubmitProps) => {
   const isGenerating = status === "submitted" || status === "streaming";
+  type SubmitClickEvent = Parameters<
+    NonNullable<ComponentProps<typeof InputGroupButton>["onClick"]>
+  >[0];
 
   let Icon = <CornerDownLeftIcon className="size-4" />;
 
@@ -1152,7 +1158,7 @@ export const PromptInputSubmit = ({
   }
 
   const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
+    (e: SubmitClickEvent) => {
       if (isGenerating && onStop) {
         e.preventDefault();
         onStop();
