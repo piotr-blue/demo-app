@@ -5,6 +5,7 @@ export interface WebhookRegistrationRecord {
   accountHash: string;
   myOsBaseUrl: string;
   callbackPath: string;
+  callbackUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

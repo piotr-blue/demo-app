@@ -114,3 +114,6 @@ npm run test:live
 - Keep route handlers touching OpenAI/MyOS/extraction/DSL/live updates on `runtime = "nodejs"`.
 - Keep these routes dynamic (`dynamic = "force-dynamic"`), no cache assumptions.
 - Credentials are user-provided in browser; server env vars are optional for defaults only.
+- If Deployment Protection is enabled (Vercel Authentication / Password Protection), set
+  `VERCEL_AUTOMATION_BYPASS_SECRET` so registered webhook callback URLs include
+  `x-vercel-protection-bypass=...` and external webhook POSTs can reach `/api/myos/webhooks/incoming/*`.

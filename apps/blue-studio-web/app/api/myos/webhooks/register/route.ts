@@ -29,10 +29,29 @@ function readWebhookId(value: unknown): string | null {
 
 function isLocalhostRequestOrigin(requestUrl: string): boolean {
   try {
-    return new URL(requestUrl).hostname === "localhost";
+    const hostname = new URL(requestUrl).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
   } catch {
     return false;
   }
+}
+
+function readVercelBypassSecret(): string | null {
+  const value = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function buildCallbackUrl(requestUrl: string, callbackPath: string): string {
+  const url = new URL(callbackPath, requestUrl);
+  const bypassSecret = readVercelBypassSecret();
+  if (bypassSecret) {
+    url.searchParams.set("x-vercel-protection-bypass", bypassSecret);
+  }
+  return url.toString();
 }
 
 export async function POST(request: Request) {
@@ -50,29 +69,44 @@ export async function POST(request: Request) {
 
     const credentials = parseRouteCredentials(body.credentials);
     const store = getLiveStore();
-
-    const existing = await store.getRegistrationByBrowserAccount(
-      body.browserId,
-      body.accountHash
-    );
-    if (existing) {
-      return NextResponse.json({
-        ok: true,
-        registration: existing,
-        reused: true,
-      });
-    }
-
-    const registrationId = nowId("reg");
-    const callbackPath = `/api/myos/webhooks/incoming/${registrationId}`;
-    const callbackUrl = `${new URL(request.url).origin}${callbackPath}`;
-
     const client = new MyOsClient({
       apiKey: credentials.myOsApiKey,
       baseUrl: credentials.myOsBaseUrl,
       timeoutMs: 45_000,
       maxRetries: 2,
     });
+
+    const existing = await store.getRegistrationByBrowserAccount(
+      body.browserId,
+      body.accountHash
+    );
+    if (existing) {
+      const expectedCallbackPath = `/api/myos/webhooks/incoming/${existing.registrationId}`;
+      const expectedCallbackUrl = buildCallbackUrl(request.url, expectedCallbackPath);
+      const existingCallbackUrl =
+        typeof existing.callbackUrl === "string" && existing.callbackUrl.length > 0
+          ? existing.callbackUrl
+          : new URL(existing.callbackPath, request.url).toString();
+      if (existingCallbackUrl === expectedCallbackUrl) {
+        return NextResponse.json({
+          ok: true,
+          registration: existing,
+          reused: true,
+        });
+      }
+
+      try {
+        await client.webhooks.del(existing.webhookId);
+      } catch {
+        // Best-effort cleanup. Continue to recreate registration.
+      }
+      await store.deleteRegistration(existing.registrationId);
+    }
+
+    const registrationId = nowId("reg");
+    const callbackPath = `/api/myos/webhooks/incoming/${registrationId}`;
+    const callbackUrl = buildCallbackUrl(request.url, callbackPath);
+
     const webhook = await client.webhooks.create(
       {
         type: "HTTPS",
@@ -96,6 +130,7 @@ export async function POST(request: Request) {
       accountHash: body.accountHash,
       myOsBaseUrl: credentials.myOsBaseUrl,
       callbackPath,
+      callbackUrl,
       createdAt: now,
       updatedAt: now,
     };
