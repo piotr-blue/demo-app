@@ -130,6 +130,7 @@ export function WorkspaceShell({
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
   const [threads, setThreads] = useState<ThreadListItem[]>([]);
+  const [unreadThreadIds, setUnreadThreadIds] = useState<Set<string>>(new Set());
   const router = useRouter();
   const pendingQuestionRef = useRef<string | null>(null);
   const lastBlueprintRef = useRef<string | null>(null);
@@ -276,7 +277,7 @@ export function WorkspaceShell({
     void saveWorkspace(workspace);
   }, [loading, workspace]);
 
-  const reloadThreadList = useCallback(async () => {
+  const reloadThreadList = useCallback(async (priorityThreadIds: string[] = []) => {
     const currentWorkspace = workspace;
     if (!currentWorkspace) {
       return;
@@ -298,8 +299,38 @@ export function WorkspaceShell({
         updatedAt: currentWorkspace.updatedAt,
       });
     }
-    setThreads(mapped.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)));
-  }, [workspace]);
+    const sorted = mapped.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    const mergedPriorityIds = [
+      ...priorityThreadIds,
+      ...[...unreadThreadIds].filter((threadId) => !priorityThreadIds.includes(threadId)),
+    ];
+    const prioritySet = new Set(mergedPriorityIds);
+    const prioritized: typeof sorted = [];
+    if (prioritySet.size > 0) {
+      for (const threadId of mergedPriorityIds) {
+        const found = sorted.find((entry) => entry.id === threadId);
+        if (found && !prioritized.some((entry) => entry.id === threadId)) {
+          prioritized.push(found);
+        }
+      }
+    }
+    for (const entry of sorted) {
+      if (!prioritySet.has(entry.id)) {
+        prioritized.push(entry);
+      }
+    }
+    setThreads(prioritized);
+    setUnreadThreadIds((previous) => {
+      const validThreadIds = new Set(prioritized.map((entry) => entry.id));
+      const next = new Set<string>();
+      for (const threadId of previous) {
+        if (validThreadIds.has(threadId)) {
+          next.add(threadId);
+        }
+      }
+      return next;
+    });
+  }, [unreadThreadIds, workspace]);
 
   useEffect(() => {
     if (!workspace || loading) {
@@ -601,6 +632,7 @@ export function WorkspaceShell({
         return;
       }
 
+      const updatedThreadIds: string[] = [];
       for (const entry of matching) {
         const selectedViewer = entry.viewerChannel;
         const bundle = selectedViewer
@@ -617,12 +649,26 @@ export function WorkspaceShell({
           continue;
         }
         await saveWorkspace(refreshed.workspace);
+        updatedThreadIds.unshift(refreshed.workspace.id);
         if (refreshed.workspace.id === workspaceId) {
           setWorkspace(refreshed.workspace);
         }
       }
 
-      await reloadThreadList();
+      if (updatedThreadIds.length > 0) {
+        setUnreadThreadIds((previous) => {
+          const next = new Set(previous);
+          for (const threadId of updatedThreadIds) {
+            if (threadId !== workspaceId) {
+              next.add(threadId);
+            }
+          }
+          return next;
+        });
+        await reloadThreadList(updatedThreadIds);
+      } else {
+        await reloadThreadList();
+      }
     },
     [credentials, reloadThreadList, workspaceId]
   );
@@ -1485,11 +1531,20 @@ export function WorkspaceShell({
   }
 
   return (
-    <div className="grid min-h-screen grid-cols-12 gap-4 bg-background p-4">
+    <div className="grid min-h-screen grid-cols-12 gap-4 bg-gradient-to-b from-background via-background to-muted/20 p-4">
       <ThreadSidebar
         activeThreadId={workspaceId}
         threads={threads}
+        unreadThreadIds={unreadThreadIds}
         onSelectThread={(threadId) => {
+          setUnreadThreadIds((previous) => {
+            if (!previous.has(threadId)) {
+              return previous;
+            }
+            const next = new Set(previous);
+            next.delete(threadId);
+            return next;
+          });
           router.push(`/t/${encodeURIComponent(threadId)}`);
         }}
         onCreateThread={() => {
@@ -1497,8 +1552,8 @@ export function WorkspaceShell({
         }}
       />
 
-      <section className="col-span-6 flex h-[calc(100vh-2rem)] flex-col rounded-xl border">
-        <header className="flex items-center justify-between border-b px-4 py-3">
+      <section className="col-span-6 flex h-[calc(100vh-2rem)] flex-col rounded-2xl border bg-card/95 shadow-sm">
+        <header className="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
           <div>
             <h1 className="font-semibold text-lg">Blue Studio</h1>
             <p className="text-muted-foreground text-xs">
@@ -1671,8 +1726,8 @@ export function WorkspaceShell({
         </div>
       </section>
 
-      <section className="col-span-4 h-[calc(100vh-2rem)] rounded-xl border">
-        <header className="flex flex-wrap gap-2 border-b p-3">
+      <section className="col-span-4 h-[calc(100vh-2rem)] rounded-2xl border bg-card/95 shadow-sm">
+        <header className="flex flex-wrap gap-2 border-b bg-muted/30 p-3">
           {INSPECTOR_TABS.map((tab) => (
             <Button
               key={tab.key}

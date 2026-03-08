@@ -60,7 +60,7 @@ export function DocumentAssistantPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-xl border bg-muted/20 px-3 py-2">
         <h3 className="font-medium text-sm">Document assistant</h3>
         <Badge variant="secondary">
           {mode === "blueprint-only" ? "Using blueprint only" : "Using blueprint + live state"}
@@ -73,7 +73,7 @@ export function DocumentAssistantPanel({
         </p>
       ) : (
         <>
-          <Card>
+          <Card className="border-border/80 bg-card/95">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Viewer perspective</CardTitle>
             </CardHeader>
@@ -134,7 +134,7 @@ export function DocumentAssistantPanel({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-border/80 bg-card/95">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Ask a question</CardTitle>
             </CardHeader>
@@ -178,7 +178,7 @@ export function DocumentAssistantPanel({
           <p className="text-muted-foreground text-sm">No assistant history yet.</p>
         )}
         {history.map((entry) => (
-          <Card key={entry.id}>
+          <Card key={entry.id} className="border-border/80 bg-card/95">
             <CardContent className="space-y-2 pt-4 text-sm">
               <div>
                 <p className="font-medium">Q: {entry.question}</p>
