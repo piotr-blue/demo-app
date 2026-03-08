@@ -191,6 +191,8 @@ export interface WorkspaceState {
 
 export type InspectorTab =
   | "overview"
+  | "status"
+  | "assistant"
   | "blueprint"
   | "dsl"
   | "bindings"

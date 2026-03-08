@@ -167,6 +167,8 @@ export function withSnapshot(
 
 const VALID_INSPECTOR_TABS: InspectorTab[] = [
   "overview",
+  "status",
+  "assistant",
   "blueprint",
   "dsl",
   "bindings",
