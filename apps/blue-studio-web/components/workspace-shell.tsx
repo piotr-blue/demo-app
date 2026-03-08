@@ -35,7 +35,6 @@ import { resolveStatusMessage } from "@/lib/document/status-templates/evaluate";
 import { clearThreadRoutingStorage } from "@/lib/storage/local-storage";
 import {
   clearAllWorkspacePersistence,
-  clearWorkspacePersistence,
   listFileBlobs,
   listWorkspaces,
   readWorkspace,
@@ -1023,20 +1022,14 @@ export function WorkspaceShell({
   };
 
   const handleClearWorkspace = async () => {
-    if (!workspace) {
-      return;
-    }
-
     stop();
     pendingQuestionRef.current = null;
-    const resetWorkspace = createWorkspace(workspace.id, credentials);
-
-    await clearWorkspacePersistence(workspace.id);
-    await saveWorkspace(resetWorkspace);
-
-    setWorkspace(resetWorkspace);
-    setMessages(resetWorkspace.messages);
-    setBusy(false);
+    await clearAllWorkspacePersistence();
+    clearThreadRoutingStorage();
+    const nextThreadId = createThreadId();
+    const nextWorkspace = createWorkspace(nextThreadId, credentials);
+    await saveWorkspace(nextWorkspace);
+    router.push(`/t/${encodeURIComponent(nextThreadId)}`);
   };
 
   const handleRefreshNow = async () => {
@@ -1265,7 +1258,7 @@ export function WorkspaceShell({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" disabled={busy} onClick={() => void handleClearWorkspace()}>
-              Clear workspace
+              Clear all threads
             </Button>
             <Button variant="outline" onClick={() => void handleHardLogout()}>
               Log out

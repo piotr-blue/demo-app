@@ -32,7 +32,6 @@ test("workspace allows tab switching, file attach, and chat submit", async ({ pa
   });
 
   await page.goto("/");
-  await expect(page).toHaveURL(/\/t\/.+/);
 
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");
@@ -41,7 +40,7 @@ test("workspace allows tab switching, file attach, and chat submit", async ({ pa
   await page.getByRole("button", { name: "Continue" }).click();
 
   await expect(page.getByText("Blue Studio")).toBeVisible();
-  await expect(page.getByText("Threads")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Threads" })).toBeVisible();
 
   await page.getByRole("button", { name: "Activity", exact: true }).click();
   await expect(page.getByText("Assistant initialized")).toBeVisible();
@@ -65,7 +64,15 @@ test("workspace allows tab switching, file attach, and chat submit", async ({ pa
   await expect(page.getByText("Context files")).toBeVisible();
   await expect(page.getByRole("button", { name: /notes\.txt/i })).toBeVisible();
 
-  await page.getByRole("button", { name: "Clear workspace" }).click();
+  const firstThreadUrl = page.url();
+  await page.getByRole("button", { name: "New thread" }).click();
+  await expect.poll(() => page.url()).not.toBe(firstThreadUrl);
+  const secondThreadUrl = page.url();
+
+  await page.getByRole("button", { name: "Clear all threads" }).click();
+  await expect.poll(() => page.url()).not.toBe(firstThreadUrl);
+  await expect.poll(() => page.url()).not.toBe(secondThreadUrl);
   await expect(page.getByText("Blue Studio")).toBeVisible();
   await expect(page.getByText("What do you want to create today?")).toBeVisible();
+  await expect(page.getByText("Context files")).toHaveCount(0);
 });
