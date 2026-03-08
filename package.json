@@ -1,0 +1,18 @@
+{
+  "name": "demo-app",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "libs/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w blue-studio-web",
+    "build": "npm run build -w blue-studio-web",
+    "start": "npm run start -w blue-studio-web",
+    "lint": "npm run lint -w blue-studio-web",
+    "typecheck": "npm run typecheck -w blue-studio-web",
+    "test": "npm run test -w blue-studio-web",
+    "test:e2e": "npm run test:e2e -w blue-studio-web",
+    "test:live": "npm run test:live -w blue-studio-web"
+  }
+}

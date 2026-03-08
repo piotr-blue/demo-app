@@ -1,0 +1,56 @@
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/prompts/load-prompts", () => ({
+  getBlueprintToJsDslPrompt: vi.fn(async () => "system prompt"),
+}));
+
+vi.mock("@/lib/openai/client", () => ({
+  countInputTokens: vi.fn(async () => 100),
+  generateTextWithResponsesApi: vi.fn(async () => ({
+    text: "```ts\nexport function buildDocument() { return {}; }\n```",
+    inputTokens: 100,
+  })),
+}));
+
+vi.mock("@/lib/openai/token-meter", () => ({
+  assertWithinTokenBudget: vi.fn(),
+}));
+
+import { POST } from "@/app/api/dsl/generate/route";
+
+describe("POST /api/dsl/generate", () => {
+  it("returns 400 for invalid payload", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/dsl/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      })
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("returns generated DSL without compiling", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/dsl/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials: {
+            openAiApiKey: "sk-test",
+            myOsApiKey: "myos-test",
+            myOsAccountId: "acc-1",
+            myOsBaseUrl: "https://api.dev.myos.blue/",
+          },
+          blueprint: "STATE: ready\nTYPE: Document",
+          attachments: [],
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as { ok: boolean; dsl: string };
+    expect(payload.ok).toBe(true);
+    expect(payload.dsl).toContain("buildDocument");
+  });
+});
