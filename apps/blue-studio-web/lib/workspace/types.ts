@@ -90,6 +90,50 @@ export interface DocumentSnapshot {
   diffs: SnapshotDiff[];
 }
 
+export interface BlueprintParticipant {
+  channelName: string;
+  description: string;
+  systemLike?: boolean;
+}
+
+export interface BlueprintMetadata {
+  documentName: string | null;
+  summary: string | null;
+  currencyCode: string | null;
+  participants: BlueprintParticipant[];
+}
+
+export interface StatusTemplate {
+  when: string;
+  title: string;
+  body: string;
+}
+
+export interface StatusTemplateBundle {
+  viewer: string;
+  blueprintHash: string;
+  templates: StatusTemplate[];
+  generatedAt: string;
+}
+
+export interface ResolvedStatusMessage {
+  id: string;
+  viewer: string;
+  title: string;
+  body: string;
+  matchedWhen: string;
+  sourceSnapshotId: string | null;
+  createdAt: string;
+}
+
+export interface DocumentQaExchange {
+  id: string;
+  question: string;
+  answer: string;
+  mode: "blueprint-only" | "live-state";
+  createdAt: string;
+}
+
 export interface ActivityItem {
   id: string;
   createdAt: string;
@@ -102,6 +146,8 @@ export interface ActivityItem {
     | "bindings"
     | "bootstrap"
     | "document"
+    | "status"
+    | "document-qa"
     | "error";
   title: string;
   detail?: string;
@@ -109,12 +155,18 @@ export interface ActivityItem {
 
 export interface WorkspaceState {
   id: string;
+  createdAt: string;
+  updatedAt: string;
   phase: WorkspacePhase;
+  threadTitle: string;
+  threadSummary: string;
   credentials: UserCredentials | null;
   messages: UIMessage[];
   attachments: StoredAttachment[];
   blueprintVersions: BlueprintVersion[];
   currentBlueprint: string | null;
+  blueprintMetadata: BlueprintMetadata | null;
+  viewerChannel: string | null;
   dslVersions: DslVersion[];
   currentDsl: string | null;
   currentDocumentJson: unknown | null;
@@ -125,6 +177,12 @@ export interface WorkspaceState {
   sessionId: string | null;
   documentId: string | null;
   documentSnapshots: DocumentSnapshot[];
+  statusTemplatesByViewer: Record<string, StatusTemplateBundle>;
+  resolvedStatus: ResolvedStatusMessage | null;
+  statusHistory: ResolvedStatusMessage[];
+  documentQaHistory: DocumentQaExchange[];
+  lastDocumentFingerprint: string | null;
+  autoRefreshEnabled: boolean;
   activityFeed: ActivityItem[];
   selectedInspectorTab: InspectorTab;
   errorMessage: string | null;
@@ -145,6 +203,8 @@ export interface QaPair {
   question: string;
   answer: string;
 }
+
+export type DocumentQaMode = "blueprint-only" | "live-state";
 
 export interface ChatRoutePayload {
   credentials: UserCredentials;
