@@ -17,7 +17,7 @@ Result:
 
 - `typecheck` passed
 - `lint` passed
-- `vitest` passed (`23` tests)
+- `vitest` passed (`59` tests across unit + route coverage, including status templates, document QA, thread metadata, and polling)
 - production build passed (all app routes compiled)
 
 ## Playwright UI smoke
@@ -30,14 +30,15 @@ npm run test:e2e
 
 Covered:
 
-- credentials gate renders
-- credentials submission enters workspace
-- initial assistant seed message visible
-- logout returns to credentials gate
+- thread routing (`/` redirect + `/t/[threadId]` flow)
+- multi-thread switching + persistence
+- document assistant blueprint-only mode
+- status template resolution + refresh updates
+- workspace baseline interactions
 
 Result:
 
-- `1` Playwright test passed
+- `4` Playwright tests passed
 
 ## Live counter end-to-end flow
 
@@ -57,6 +58,8 @@ Live flow assertions:
 2. `/api/dsl/continue` generated and compiled DSL successfully
 3. `/api/myos/bootstrap` returned session information
 4. `/api/myos/retrieve` polling confirmed running/snapshot availability
+5. `/api/document/status-templates` returned a valid template bundle
+6. `/api/document/qa` returned a non-empty live-state answer
 
 Result:
 

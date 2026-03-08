@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type {
   ResolvedStatusMessage,
   StatusTemplate,
@@ -39,6 +38,10 @@ interface EvaluationContext {
 }
 
 const OPERATOR_ORDER = ["===", "!==", ">=", "<=", "&&", "||", ">", "<", "!"] as const;
+
+function createStatusId(): string {
+  return `status_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function tokenize(expression: string): Token[] {
   const tokens: Token[] = [];
@@ -450,7 +453,7 @@ export function resolveStatusMessage(params: {
   };
   const matchedTemplate = resolveTemplate(params.bundle.templates, context);
   const resolved: ResolvedStatusMessage = {
-    id: `status_${randomUUID()}`,
+    id: createStatusId(),
     viewer: params.viewer,
     title: interpolateTemplateText(matchedTemplate.title, context),
     body: interpolateTemplateText(matchedTemplate.body, context),

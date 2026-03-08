@@ -59,7 +59,8 @@ export function readSelectedTab(): InspectorTab | null {
   return null;
 }
 
-export function writeSelectedTab(_tab: InspectorTab): void {
+export function writeSelectedTab(tab: InspectorTab): void {
+  void tab;
   // selected inspector tab is persisted per-workspace in IndexedDB state
 }
 

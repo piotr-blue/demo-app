@@ -32,6 +32,7 @@ test("workspace allows tab switching, file attach, and chat submit", async ({ pa
   });
 
   await page.goto("/");
+  await expect(page).toHaveURL(/\/t\/.+/);
 
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");
@@ -40,11 +41,12 @@ test("workspace allows tab switching, file attach, and chat submit", async ({ pa
   await page.getByRole("button", { name: "Continue" }).click();
 
   await expect(page.getByText("Blue Studio")).toBeVisible();
+  await expect(page.getByText("Threads")).toBeVisible();
 
-  await page.getByRole("button", { name: "Activity" }).click();
+  await page.getByRole("button", { name: "Activity", exact: true }).click();
   await expect(page.getByText("Assistant initialized")).toBeVisible();
 
-  await page.getByRole("button", { name: "Blueprint" }).click();
+  await page.getByRole("button", { name: "Blueprint", exact: true }).click();
   await expect(page.getByText("No blueprint yet.")).toBeVisible();
 
   await page.locator('input[aria-label="Upload files"]').setInputFiles({

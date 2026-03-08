@@ -291,7 +291,7 @@ export function WorkspaceShell({
       }
       setThreads(mapped.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)));
     })();
-  }, [loading, workspace?.id, workspace?.updatedAt, workspace?.phase, workspaceId]);
+  }, [loading, workspace, workspaceId]);
 
   useEffect(() => {
     if (!workspace?.currentBlueprint) {
@@ -554,7 +554,7 @@ export function WorkspaceShell({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [refreshDocument, workspace?.autoRefreshEnabled, workspace?.phase, workspace?.sessionId]);
+  }, [refreshDocument, workspace]);
 
   const handlePromptSubmit = async (prompt: { text: string; files: FileUIPart[] }) => {
     const currentWorkspace = workspace;
