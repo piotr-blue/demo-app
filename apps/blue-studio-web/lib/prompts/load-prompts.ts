@@ -5,6 +5,7 @@ let architectPromptCache: string | null = null;
 let dslPromptCache: string | null = null;
 let documentStatusTemplatesPromptCache: string | null = null;
 let documentQaPromptCache: string | null = null;
+let documentReferenceRendererPromptCache: string | null = null;
 
 function promptCandidates(fileName: string): string[] {
   return [
@@ -59,4 +60,14 @@ export async function getDocumentQaPrompt(): Promise<string> {
   }
   documentQaPromptCache = await readPrompt("document-qa-prompt.md");
   return documentQaPromptCache;
+}
+
+export async function getDocumentReferenceRendererPrompt(): Promise<string> {
+  if (documentReferenceRendererPromptCache) {
+    return documentReferenceRendererPromptCache;
+  }
+  documentReferenceRendererPromptCache = await readPrompt(
+    "document-reference-renderer-prompt.md"
+  );
+  return documentReferenceRendererPromptCache;
 }

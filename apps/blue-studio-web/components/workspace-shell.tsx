@@ -12,10 +12,6 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import {
   PromptInput,
-  PromptInputActionAddAttachments,
-  PromptInputActionMenu,
-  PromptInputActionMenuContent,
-  PromptInputActionMenuTrigger,
   PromptInputAttachments,
   PromptInputBody,
   PromptInputFooter,
@@ -28,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DocumentAssistantPanel } from "@/components/document-assistant-panel";
 import { DocumentStatusPanel } from "@/components/document-status-panel";
+import { AttachSourceMenu } from "@/components/attach-source-menu";
 import { ThreadSidebar, type ThreadListItem } from "@/components/thread-sidebar";
 import {
   chooseDefaultViewer,
@@ -1232,7 +1229,7 @@ export function WorkspaceShell({
     selectedViewer && workspace ? workspace.statusTemplatesByViewer[selectedViewer] ?? null : null;
   const assistantMode: DocumentQaMode = latestSnapshot?.document ? "live-state" : "blueprint-only";
   const assistantSubmitBlockedReason =
-    !workspace.currentBlueprint
+    !workspace?.currentBlueprint
       ? "Blueprint is required before asking the assistant."
       : assistantBusy
         ? "Document assistant is already answering."
@@ -1409,12 +1406,22 @@ export function WorkspaceShell({
               <PromptInputTextarea placeholder="Send a message..." disabled={busy} />
             </PromptInputBody>
             <PromptInputFooter>
-              <PromptInputActionMenu>
-                <PromptInputActionMenuTrigger />
-                <PromptInputActionMenuContent>
-                  <PromptInputActionAddAttachments />
-                </PromptInputActionMenuContent>
-              </PromptInputActionMenu>
+              <AttachSourceMenu
+                credentials={credentials}
+                currentWorkspaceId={workspace.id}
+                disabled={busy}
+                onError={(message) =>
+                  setWorkspace((previous) =>
+                    previous
+                      ? {
+                          ...previous,
+                          errorMessage: message,
+                          updatedAt: new Date().toISOString(),
+                        }
+                      : previous
+                  )
+                }
+              />
               <PromptInputSubmit status={status} disabled={busy} onStop={() => void stop()} />
             </PromptInputFooter>
           </PromptInput>
