@@ -1,8 +1,11 @@
 import type {
-  BlueprintMetadata,
   ResolvedStatusMessage,
   WorkspaceState,
 } from "@/lib/workspace/types";
+import {
+  deriveThreadFallbackSummary,
+  deriveThreadFallbackTitle,
+} from "@/lib/blueprint/metadata";
 
 function firstUserPrompt(workspace: Pick<WorkspaceState, "messages">): string | null {
   for (const message of workspace.messages) {
@@ -32,36 +35,6 @@ function compact(value: string | null | undefined): string | null {
 
 function trimForLabel(value: string, maxLength: number): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}…`;
-}
-
-export function deriveThreadFallbackTitle(
-  metadata: BlueprintMetadata | null,
-  promptText: string | null
-): string {
-  const fromBlueprint = compact(metadata?.documentName);
-  if (fromBlueprint) {
-    return trimForLabel(fromBlueprint, 80);
-  }
-  const fromPrompt = compact(promptText);
-  if (fromPrompt) {
-    return trimForLabel(fromPrompt, 80);
-  }
-  return "Untitled thread";
-}
-
-export function deriveThreadFallbackSummary(
-  metadata: BlueprintMetadata | null,
-  promptText: string | null
-): string {
-  const fromBlueprint = compact(metadata?.summary);
-  if (fromBlueprint) {
-    return trimForLabel(fromBlueprint, 140);
-  }
-  const fromPrompt = compact(promptText);
-  if (fromPrompt) {
-    return trimForLabel(fromPrompt, 140);
-  }
-  return "No summary yet.";
 }
 
 export function deriveThreadMeta(workspace: Pick<
