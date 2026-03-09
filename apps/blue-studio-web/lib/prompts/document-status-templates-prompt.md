@@ -35,128 +35,165 @@ plural(N, 'item', 'items')   — pluralize
 Last entry MUST be: "when": "true" (the fallback).
 
 ════════════════════════════════════════════════════════════
-HOW TO GENERATE TEMPLATES
+HOW MANY TEMPLATES?
 ════════════════════════════════════════════════════════════
 
-STEP 1: LIST ALL STATES
+Generate exactly as many templates as the document needs. No more.
 
-Read the STATUS LIFECYCLE from the blueprint.
-For each status value, determine:
-- Is it a simple state (one template)?
-- Does it have sub-variants based on other fields?
-  (e.g., "active" + milestones completed = 0, 1, 2, 3)
+DETERMINE TEMPLATE COUNT FROM THE BLUEPRINT:
 
-For compound states, generate separate templates per variant.
-Order: most specific first, least specific last.
+1. Count the MEANINGFUL distinct states the viewer might see.
+   A state is meaningful if:
+    - The viewer might open the document and see it
+    - It looks or feels different from another state
+    - Different actions are available to the viewer
 
-STEP 2: WRITE FROM THE VIEWER'S PERSPECTIVE
+2. Transient states the viewer will rarely see (searching, analyzing,
+   processing) can be MERGED into one "in progress" template.
+   Don't generate separate templates for each transient phase.
 
+3. Compound states (status + sub-field) only when the blueprint
+   explicitly shows variants that matter to the viewer.
+   ✓ "active" + milestones 0/1/2/3 → 4 templates (each feels different)
+   ✗ "active" + internal processing phase → 1 template
+
+4. Always add one fallback ("when": "true") at the end.
+
+EXAMPLES OF RIGHT-SIZING:
+
+Counter (no lifecycle, one number):
+1 template showing current value + 1 fallback = 2 total
+
+Expense approval (draft → submitted → approved/rejected):
+3 status templates + 1 fallback = 4 total
+
+Milestone payment (active×4 variants + completed + cancelled):
+4 + 1 + 1 + 1 fallback = 7 total
+
+Complex agent (idle → multiple transient → negotiating → error → complete):
+idle + "working on it" (merged transient) + negotiating + error + complete + fallback = 6 total
+
+DO NOT pad simple documents. A counter needs 2 templates, not 6.
+DO NOT split transient states the viewer can't act on.
+
+════════════════════════════════════════════════════════════
+WRITING TEMPLATES
+════════════════════════════════════════════════════════════
+
+PERSPECTIVE:
 Check PARTICIPANTS to find the VIEWER's role.
-- "you" = the viewer
-- Other participants = their role description
+"you" = the viewer. Others = their role description.
 
 PayNote viewers:
 payerChannel → "your payment", "your funds"
 payeeChannel → "your earnings", "the payment to you"
-guarantorChannel → don't generate (system role)
-other (mechanic, courier) → "the payment", "the funds"
+guarantorChannel → skip (system role, don't generate)
+other participant → "the payment", "the funds"
 
-STEP 3: TRANSLATE TECHNICAL CONCEPTS
+TRANSLATE, DON'T EXPLAIN:
+Blueprint says             → Template says
+"reserve on init"          → "funds are held securely"
+"capture"                  → "payment released to [recipient]"
+"release"                  → "funds returned to you"
+"guard: status = Y"        → "[role] can [action] now"
+"AI analyzing"             → "reviewing your request"
+"validation failed"        → explain using the error field value
+"session active"           → "negotiating with [party]"
+transient processing       → "working on your request"
 
-Blueprint says → Template says
-"reserve on init" → "funds are held securely"
-"capture" → "payment released to [recipient]" / "you've been paid"
-"release" → "funds returned to [payer]"
-"operation X, guard: status = Y" → "[role] can [action] now"
-"waiting for AI" → "analyzing your request"
-"validation failed" → explain what went wrong using /validationError
-"negotiation active" → "negotiating with [vendor]"
-
-STEP 4: EACH TEMPLATE NEEDS
-
-title: One line. Format: "[DocumentName]: [what's happening now]"
+TITLE:
+One line. Include document name and current situation.
 Include key amounts or progress where relevant.
 Keep under 80 characters.
+✓ "Renovation: {{money(doc('/amount/captured'))}} paid — one milestone left"
+✓ "Counter: {{doc('/counter')}}"
+✓ "Expense: Waiting for manager review"
 
-body: 2-4 sentences answering:
-1. What just happened or where things stand
-2. What the VIEWER is waiting for or can do next
-3. Key numbers (amounts, progress, deadlines) if applicable
+BODY:
+2-4 sentences. Answer:
+- What's the current situation?
+- What is the viewer waiting for, or what can they do?
+- Key numbers if applicable.
 
-Don't explain the document's rules — just the current situation.
+For simple documents, 1-2 sentences is fine.
+Don't explain rules. Just describe the current moment.
+
+════════════════════════════════════════════════════════════
+ORDERING AND CONDITIONS
+════════════════════════════════════════════════════════════
+
+Most specific conditions first. Broader conditions later.
+✓ status=active && milestones=2  BEFORE  status=active
+✓ status=error && validationError  BEFORE  status=error
+
+EXPRESSIONS IN TEXT:
+Use {{...}} for dynamic values. Keep expressions simple.
+✓ {{money(doc('/amount/captured'))}}
+✓ {{doc('/searchQuery')}}
+✗ {{doc('/results').filter(x => x.active).length}}
+Complex logic belongs in "when" to pick the right template,
+not inside {{...}}.
+
+THE FALLBACK:
+Always last. "when": "true".
+Generic but not broken. Include document name and a useful hint.
+For documents with status: show the status value in human terms.
+For documents without status: show the main value.
 
 ════════════════════════════════════════════════════════════
 RULES
 ════════════════════════════════════════════════════════════
 
-COVERAGE:
-Every status value in STATUS LIFECYCLE gets at least one template.
-Compound states (status + progress) get one template per meaningful variant.
-The last template is always "when": "true" — a sensible fallback.
-
-ORDERING:
-Most specific conditions first. Broader conditions later.
-✓ status=active && milestones=2  BEFORE  status=active && milestones>0
-✓ status=error && validationError  BEFORE  status=error
-The fallback "true" is always last.
-
-EXPRESSIONS IN TEXT:
-Use {{...}} for dynamic values. Keep expressions simple.
-✓ {{money(doc('/amount/captured'))}}
-✓ {{doc('/aiPick/vendorName')}}
-✗ {{doc('/searchResults').filter(x => x.isFortune500).length}}
-If you need complex logic, use the "when" condition to pick the
-right template — don't put logic inside {{...}}.
-
-THE FALLBACK:
-The "when": "true" template should be generic but useful:
-- Include the document name
-- Show the raw status in human terms if possible
-- Say "check back for updates" or similar
-  It should never feel broken — just less specific.
-
-TONE:
-Friendly, clear, no jargon. Match the document's domain:
-- Payment docs: reassuring, focus on money safety
-- Approval docs: direct, focus on who needs to act
-- Agent/monitor docs: informative, focus on what was found
-
-Never mention: channels, signals, operations, guards, handlers,
-contracts, reactions, flows, document paths.
-
-LENGTH:
-Simple documents (3 states): ~4-6 templates
-Payment milestones (5+ states with variants): ~8-12 templates
-Complex agents (many states + errors): ~10-15 templates
-Don't generate more than 15 templates. Merge similar states if needed.
+1. Every status in STATUS LIFECYCLE gets at least one template
+   (transient states may be merged).
+2. Documents WITHOUT a status lifecycle get 1-2 templates + fallback.
+3. Compound states only for viewer-meaningful sub-variants.
+4. Last template is always "when": "true".
+5. Never mention: channels, signals, operations, guards, handlers,
+   contracts, reactions, flows, paths, document internals.
+6. Tone: friendly, clear, domain-appropriate.
+   Payment → reassuring about money safety.
+   Approval → direct about who needs to act.
+   Counter/simple → minimal and factual.
 
 ════════════════════════════════════════════════════════════
-EXAMPLE
+EXAMPLES
 ════════════════════════════════════════════════════════════
+
+--- SIMPLE: Counter ---
 
 BLUEPRINT:
-TYPE: PayNote
-BLUEPRINT: Bathroom Renovation Milestones
-SUMMARY: $9,000 for bathroom renovation in three milestones.
-PARTICIPANTS:
-- payerChannel — homeowner
-- payeeChannel — contractor
-- guarantorChannel — payment processor
-PAYMENT:
-Currency: USD. Amount: 900000. Reserve on init.
-Capture: partial $3,000 per milestone.
-Release: on cancel.
-FLOWS:
-1. confirmDemolition — payerChannel, guard: active + completed=0
-2. confirmPlumbing — payerChannel, guard: active + completed=1
-3. confirmFinishing — payerChannel, guard: active + completed=2
-4. cancel — payerChannel, guard: active
-STATUS LIFECYCLE:
-active → completed | cancelled
+TYPE: Document. SUMMARY: Counter that the owner can increment or reset.
+PARTICIPANTS: ownerChannel — increments and resets.
+STATE: /counter = 0. No status lifecycle.
+
+VIEWER: ownerChannel
+
+{
+"viewer": "ownerChannel",
+"templates": [
+{
+"when": "doc('/counter') === 0",
+"title": "Counter: Zero",
+"body": "Your counter is at zero. Increment it by any amount or leave it as is."
+},
+{
+"when": "true",
+"title": "Counter: {{doc('/counter')}}",
+"body": "Your counter is at {{doc('/counter')}}. You can increment it further or reset it back to zero."
+}
+]
+}
+
+--- PAYMENT: Milestone PayNote ---
+
+BLUEPRINT:
+TYPE: PayNote. SUMMARY: $9,000 for bathroom renovation in three milestones.
+PARTICIPANTS: payerChannel — homeowner, payeeChannel — contractor
+PAYMENT: Reserve on init. Partial capture $3,000 per milestone. Release on cancel.
+STATUS LIFECYCLE: active → completed | cancelled
 
 VIEWER: payerChannel
-
-OUTPUT:
 
 {
 "viewer": "payerChannel",
@@ -164,27 +201,27 @@ OUTPUT:
 {
 "when": "doc('/status') === 'active' && doc('/milestones/completed') === 0",
 "title": "Renovation: {{money(doc('/amount/reserved'))}} held — ready to begin",
-"body": "Your {{money(doc('/amount/total'))}} renovation payment is secured. The contractor will work through three milestones — demolition, plumbing, and finishing — at {{money(300000)}} each. Confirm each milestone as it's completed to release payment. You can cancel anytime to get the remaining balance back."
+"body": "Your {{money(doc('/amount/total'))}} renovation payment is secured. Three milestones at {{money(300000)}} each: demolition, plumbing, finishing. Confirm each one to release payment to the contractor. You can cancel anytime to get the remaining balance back."
 },
 {
 "when": "doc('/status') === 'active' && doc('/milestones/completed') === 1",
 "title": "Renovation: Demolition done — {{money(doc('/amount/captured'))}} paid",
-"body": "Demolition is confirmed and {{money(doc('/amount/captured'))}} has been paid to the contractor. Next up is plumbing. {{money(doc('/amount/reserved'))}} is still held securely. Confirm the plumbing milestone when it's done, or cancel to get the remaining balance back."
+"body": "Demolition is confirmed and {{money(doc('/amount/captured'))}} has been paid. Next up: plumbing. {{money(doc('/amount/reserved'))}} still held securely."
 },
 {
 "when": "doc('/status') === 'active' && doc('/milestones/completed') === 2",
 "title": "Renovation: Plumbing done — one milestone left",
-"body": "Two milestones complete, {{money(doc('/amount/captured'))}} paid so far. The last step is finishing. Once you confirm it, the final {{money(300000)}} goes to the contractor and the project is complete."
+"body": "Two milestones complete, {{money(doc('/amount/captured'))}} paid so far. Confirm finishing to release the final {{money(300000)}} and complete the project."
 },
 {
 "when": "doc('/status') === 'completed'",
 "title": "Renovation: Complete — {{money(doc('/amount/total'))}} paid",
-"body": "All three milestones are done and the full {{money(doc('/amount/total'))}} has been paid to the contractor. This project is now closed."
+"body": "All three milestones done. The full {{money(doc('/amount/total'))}} has been paid to the contractor. This project is closed."
 },
 {
 "when": "doc('/status') === 'cancelled'",
 "title": "Renovation: Cancelled",
-"body": "The project was cancelled. {{money(doc('/amount/captured'))}} was paid for completed milestones. {{money(doc('/amount/released'))}} has been returned to your account."
+"body": "Project cancelled. {{money(doc('/amount/captured'))}} was paid for completed work. {{money(doc('/amount/released'))}} returned to your account."
 },
 {
 "when": "true",
@@ -194,85 +231,47 @@ OUTPUT:
 ]
 }
 
+--- COMPLEX: Agent with transient states ---
 
-TYPE: Document
-BLUEPRINT: Supplier Selection and Negotiation Flow
+BLUEPRINT:
+TYPE: Document. SUMMARY: Find best Fortune 500 supplier and negotiate.
+PARTICIPANTS: requesterChannel — user seeking parts
+STATUS LIFECYCLE: idle → searching → analyzing → analyzing-ai → negotiating → complete | error
 
-SUMMARY: Helps user find the best Fortune 500 supplier for a needed part within budget, mediates AI selection and launches rules-bound negotiation, with live status and error feedback.
+VIEWER: requesterChannel
 
-PARTICIPANTS:
-- requesterChannel — user seeking parts, starts search and reviews errors
-- systemChannel — manages search, AI step, and negotiation setup
-
-STATE:
-/status = "idle" — tracks: idle, searching, analyzing, validating, negotiating, error, complete
-/searchQuery = "" — what the user is looking for
-/maxBudgetPerUnit = 0 — user budget per unit (cents)
-/searchResults = [] — supplier catalog offers (populated by search)
-/aiPick = null — AI’s recommended supplier result
-/validationError = "" — error from rules check, blank if none
-/negotiationSessionId = "" — active negotiation child doc (if any)
-
-FLOWS:
-
-1. OPERATION (startSearch) — requesterChannel
-   Input: query (Text), maxBudgetPerUnit (Integer)
-   Guard: none.
-   → set /status = "searching"
-   → set /searchQuery and /maxBudgetPerUnit
-   → call Supplier Parts Catalog.search({query, maxBudgetPerUnit})
-   → on result, set /searchResults, set /status = "analyzing"
-   → emit signal "begin-analysis"
-
-2. REACTION (signal "begin-analysis")
-   Guard: /status = "analyzing"
-   → filter /searchResults to Fortune 500 vendors
-   → call AI: "Select single best offer (lowest price, then fastest delivery, then best rating)"
-   Input: filtered results, budget
-   → set /status = "analyzing-ai"
-   → on AI response, set /aiPick with vendor fields
-   → emit signal "begin-validation"
-
-3. REACTION (signal "begin-validation")
-   Guard: /status = "analyzing-ai"
-   → Validate:
-    - aiPick.pricePerUnit ≤ /maxBudgetPerUnit
-    - 100 ≤ aiPick.moq ≤ 10000
-    - aiPick.deliveryDays ≤ 90
-    - aiPick.vendorEmail ≠ ""
-      → If any fail:
-      set /validationError = error message
-      set /status = "error"
-      Else:
-      set /validationError = ""
-      set /status = "negotiating"
-      launch negotiation (emit "setup-negotiation")
-
-4. REACTION (signal "setup-negotiation")
-   Guard: /status = "negotiating"
-   → create Order Negotiation session
-   - vendorName = aiPick.vendorName
-   - vendorEmail = aiPick.vendorEmail
-   - suggestedPrice = aiPick.pricePerUnit
-   - priceMin = aiPick.pricePerUnit // 2
-   - priceMax = /maxBudgetPerUnit
-   - currentQuantity = aiPick.moq
-   - quantityMin = 100
-   - quantityMax = 10000
-   - currentDeliveryDays = aiPick.deliveryDays
-   - deliveryMin = 7
-   - deliveryMax = 90
-   - negotiationNotes = "AI selected for Fortune 500, priority: price, delivery, rating"
-   → save negotiation session ID to /negotiationSessionId
-
-5. ACCESS ("negotiationSession")
-   target: Order Negotiation (session-id = /negotiationSessionId)
-   capabilities: subscribe, read terms/negotiationStatus
-
-6. REACTION (negotiationSession negotiationStatus = "agreed")
-   Guard: listen to child doc status
-   → set /status = "complete"
-
-7. REACTION (negotiationSession negotiationStatus = "withdrawn")
-   → set /status = "error"
-   → set /validationError = "Negotiation withdrawn."
+{
+"viewer": "requesterChannel",
+"templates": [
+{
+"when": "doc('/status') === 'idle'",
+"title": "Supplier Search: Ready",
+"body": "Enter what you're looking for and your max budget per unit to start searching."
+},
+{
+"when": "doc('/status') === 'searching' || doc('/status') === 'analyzing' || doc('/status') === 'analyzing-ai'",
+"title": "Supplier Search: Working on it…",
+"body": "Searching for \"{{doc('/searchQuery')}}\" within your {{money(doc('/maxBudgetPerUnit'))}} budget. The system is finding Fortune 500 suppliers and selecting the best match. This usually takes a moment."
+},
+{
+"when": "doc('/status') === 'negotiating'",
+"title": "Negotiating with {{doc('/aiPick/vendorName')}}",
+"body": "The system selected {{doc('/aiPick/vendorName')}} at {{money(doc('/aiPick/pricePerUnit'))}} per unit. A negotiation session has been opened where both sides can propose terms on price, quantity, and delivery within agreed limits."
+},
+{
+"when": "doc('/status') === 'complete'",
+"title": "Supplier Search: Agreement reached",
+"body": "Negotiation with {{doc('/aiPick/vendorName')}} is complete. Terms have been agreed. You can review the final terms in the negotiation document."
+},
+{
+"when": "doc('/status') === 'error' && doc('/validationError') !== ''",
+"title": "Supplier Search: Issue found",
+"body": "{{doc('/validationError')}} You can start a new search with a different query or a higher budget."
+},
+{
+"when": "true",
+"title": "Supplier Search",
+"body": "Your supplier search document. Start a search to find the best Fortune 500 supplier for your needs."
+}
+]
+}
