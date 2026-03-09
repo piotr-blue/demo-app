@@ -31,7 +31,6 @@ import {
   parseBlueprintMetadata,
 } from "@/lib/blueprint/metadata";
 import { getMessageText } from "@/lib/chat/message-utils";
-import { requiresUserBinding } from "@/lib/dsl/channel-extraction";
 import { resolveStatusMessage } from "@/lib/document/status-templates/evaluate";
 import {
   buildAccountHash,
@@ -1166,9 +1165,10 @@ export function WorkspaceShell({
               phase: "binding-review",
               selectedInspectorTab: "bindings",
               currentDocumentJson: payload.documentJson,
-              channelBindings: payload.bindings.filter((binding) =>
-                requiresUserBinding(binding.channelName)
-              ),
+              channelBindings: payload.bindings.map((binding) => ({
+                ...binding,
+                ignored: Boolean(binding.ignored),
+              })),
               compileStatus: {
                 ok: true,
                 checkedAt: new Date().toISOString(),
@@ -1246,6 +1246,27 @@ export function WorkspaceShell({
     });
   };
 
+  const handleBindingIgnoreToggle = (channelName: string, ignored: boolean) => {
+    setWorkspace((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        channelBindings: previous.channelBindings.map((binding) =>
+          binding.channelName === channelName
+            ? {
+                ...binding,
+                ignored,
+              }
+            : binding
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
+
   const handleBootstrap = async () => {
     const currentWorkspace = workspace;
 
@@ -1253,8 +1274,8 @@ export function WorkspaceShell({
       return;
     }
 
-    const bindingsToSubmit = currentWorkspace.channelBindings.filter((binding) =>
-      requiresUserBinding(binding.channelName)
+    const bindingsToSubmit = currentWorkspace.channelBindings.filter(
+      (binding) => !binding.ignored
     );
 
     const invalidBinding = bindingsToSubmit.find((binding) => !binding.value.trim());
@@ -1735,48 +1756,63 @@ export function WorkspaceShell({
                 <CardTitle className="text-sm">Review channel bindings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {workspace.channelBindings
-                  .filter((binding) => requiresUserBinding(binding.channelName))
-                  .map((binding) => (
-                    <div className="grid grid-cols-12 gap-2" key={binding.channelName}>
-                      <div className="col-span-3 flex items-center font-mono text-xs">
-                        {binding.channelName}
-                      </div>
-                      <div className="col-span-2 flex gap-2">
-                        <Button
-                          size="sm"
-                          type="button"
-                          variant={binding.mode === "email" ? "default" : "outline"}
-                          onClick={() => handleBindingChange(binding.channelName, "mode", "email")}
-                        >
-                          email
-                        </Button>
-                        <Button
-                          size="sm"
-                          type="button"
-                          variant={binding.mode === "accountId" ? "default" : "outline"}
-                          onClick={() => handleBindingChange(binding.channelName, "mode", "accountId")}
-                        >
-                          accountId
-                        </Button>
-                      </div>
-                      <Input
-                        className="col-span-4"
-                        value={binding.value}
-                        onChange={(event) =>
-                          handleBindingChange(binding.channelName, "value", event.target.value)
-                        }
-                      />
-                      <Input
-                        className="col-span-3"
-                        placeholder="timelineId (optional)"
-                        value={binding.timelineId ?? ""}
-                        onChange={(event) =>
-                          handleBindingChange(binding.channelName, "timelineId", event.target.value)
-                        }
-                      />
+                {workspace.channelBindings.map((binding) => (
+                  <div className="grid grid-cols-12 gap-2" key={binding.channelName}>
+                    <div className="col-span-2 flex items-center gap-2 text-xs">
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 font-medium">
+                        <input
+                          checked={Boolean(binding.ignored)}
+                          className="size-4"
+                          type="checkbox"
+                          onChange={(event) =>
+                            handleBindingIgnoreToggle(binding.channelName, event.target.checked)
+                          }
+                        />
+                        Ignore
+                      </label>
                     </div>
-                  ))}
+                    <div className="col-span-2 flex items-center font-mono text-xs">
+                      {binding.channelName}
+                    </div>
+                    <div className="col-span-2 flex gap-2">
+                      <Button
+                        disabled={Boolean(binding.ignored)}
+                        size="sm"
+                        type="button"
+                        variant={binding.mode === "email" ? "default" : "outline"}
+                        onClick={() => handleBindingChange(binding.channelName, "mode", "email")}
+                      >
+                        email
+                      </Button>
+                      <Button
+                        disabled={Boolean(binding.ignored)}
+                        size="sm"
+                        type="button"
+                        variant={binding.mode === "accountId" ? "default" : "outline"}
+                        onClick={() => handleBindingChange(binding.channelName, "mode", "accountId")}
+                      >
+                        accountId
+                      </Button>
+                    </div>
+                    <Input
+                      className="col-span-4"
+                      disabled={Boolean(binding.ignored)}
+                      value={binding.value}
+                      onChange={(event) =>
+                        handleBindingChange(binding.channelName, "value", event.target.value)
+                      }
+                    />
+                    <Input
+                      className="col-span-2"
+                      disabled={Boolean(binding.ignored)}
+                      placeholder="timelineId (optional)"
+                      value={binding.timelineId ?? ""}
+                      onChange={(event) =>
+                        handleBindingChange(binding.channelName, "timelineId", event.target.value)
+                      }
+                    />
+                  </div>
+                ))}
 
                 <div className="flex justify-end">
                   <Button disabled={busy} onClick={handleBootstrap}>

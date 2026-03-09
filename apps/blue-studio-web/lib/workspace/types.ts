@@ -61,6 +61,7 @@ export interface ChannelBindingDraft {
   mode: "email" | "accountId";
   value: string;
   timelineId?: string;
+  ignored?: boolean;
 }
 
 export interface BootstrapProgressEvent {

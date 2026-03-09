@@ -38,17 +38,19 @@ describe("extractChannelBindingsFromStructure", () => {
         mode: "accountId",
         value: "acc_1",
         timelineId: undefined,
+        ignored: false,
       },
       {
         channelName: "reviewerChannel",
         mode: "email",
         value: "",
         timelineId: undefined,
+        ignored: false,
       },
     ]);
   });
 
-  it("skips internal runtime channels from binding review", () => {
+  it("includes runtime channels by default so user can choose to ignore them", () => {
     const bindings = extractChannelBindingsFromStructure({
       accountId: "acc_1",
       structure: {
@@ -115,7 +117,13 @@ describe("extractChannelBindingsFromStructure", () => {
 
     expect(bindings.map((entry) => entry.channelName)).toEqual([
       "ownerChannel",
+      "Triggered Event Channel",
+      "Core/Triggered Event Channel",
+      "Core/Lifecycle Event Channel",
+      "Embedded Node Channel",
+      "Document Update Channel",
       "reviewerChannel",
     ]);
+    expect(bindings.every((entry) => entry.ignored === false)).toBe(true);
   });
 });
