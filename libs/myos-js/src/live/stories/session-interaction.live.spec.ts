@@ -13,6 +13,7 @@ import {
   waitForPredicate,
 } from '../helpers/index.js';
 import {
+  buildCounterDivisibleBy3WatcherDocument,
   buildCounterMirrorAgentDocument,
   buildPatternSourceDocument,
   buildPatternSubscriberDocument,
@@ -25,6 +26,7 @@ const gate = getCoreOrAccountLiveGate();
 const STORY_6_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_6 !== 'true';
 const STORY_7_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_7 !== 'true';
 const STORY_8_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_8 !== 'true';
+const STORY_9_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_9 !== 'true';
 
 describeLive('myos-js live stories: session interaction', gate, () => {
   itLive(
@@ -287,6 +289,96 @@ describeLive('myos-js live stories: session interaction', gate, () => {
         subscriber.sessionId,
         '/requestPatternTopic',
         'i-want-this-event',
+        {
+          timeoutMs: 120_000,
+          intervalMs: 2_000,
+        },
+      );
+    },
+    240_000,
+  );
+
+  itLive(
+    'story-9 counter watcher tracks divisible-by-3 epochs',
+    gate,
+    async () => {
+      const client = createLiveClient({}, gate.env);
+      const binding = defaultBootstrapBinding(gate.env);
+
+      const source = await bootstrapDslDocument(
+        client,
+        buildSourceCounterDocument(createUniqueName('Story9 Source Counter')),
+        {
+          ownerChannel: binding,
+        },
+      );
+      await waitForAllowedOperation(client, source.sessionId, 'increment');
+
+      if (STORY_9_LIVE_BLOCKED) {
+        await client.documents.runOperation(source.sessionId, 'increment', 1);
+        await client.documents.runOperation(source.sessionId, 'increment', 1);
+        await client.documents.runOperation(source.sessionId, 'increment', 1);
+        await waitForFieldValue(client, source.sessionId, '/counter', 3, {
+          timeoutMs: 40_000,
+        });
+        return;
+      }
+
+      const watcher = await bootstrapDslDocument(
+        client,
+        buildCounterDivisibleBy3WatcherDocument(
+          createUniqueName('Story9 Divisible Watcher'),
+          source.sessionId,
+        ),
+        {
+          ownerChannel: binding,
+          myOsAdminChannel: { accountId: '0' },
+        },
+      );
+
+      await waitForFieldValue(
+        client,
+        watcher.sessionId,
+        '/subscriptionState',
+        'subscribed',
+        {
+          timeoutMs: 120_000,
+          intervalMs: 2_000,
+        },
+      );
+
+      await client.documents.runOperation(source.sessionId, 'increment', 1);
+      await client.documents.runOperation(source.sessionId, 'increment', 1);
+      await client.documents.runOperation(source.sessionId, 'increment', 1);
+      await waitForFieldValue(client, source.sessionId, '/counter', 3, {
+        timeoutMs: 120_000,
+        intervalMs: 2_000,
+      });
+
+      await waitForFieldValue(
+        client,
+        watcher.sessionId,
+        '/lastKnownCounter',
+        3,
+        {
+          timeoutMs: 120_000,
+          intervalMs: 2_000,
+        },
+      );
+      await waitForPredicate(
+        client,
+        watcher.sessionId,
+        (latest) => Number(extractField(latest, '/divisibleBy3Count')) >= 1,
+        {
+          timeoutMs: 120_000,
+          intervalMs: 2_000,
+        },
+      );
+      await waitForFieldValue(
+        client,
+        watcher.sessionId,
+        '/lastDivisibleBy3Counter',
+        3,
         {
           timeoutMs: 120_000,
           intervalMs: 2_000,

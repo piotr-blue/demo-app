@@ -55,5 +55,5 @@ Legend:
 
 - ✅ `issues.md`
 - ✅ `mappings_diff.md`
-- ✅ runtime-first coverage matrix (`docs/coverage-matrix.md`)
+- ✅ construct-parity coverage matrix (`docs/coverage-matrix.md`)
 - ⚠️ Java reference parity remains selective where runtime/type availability differs

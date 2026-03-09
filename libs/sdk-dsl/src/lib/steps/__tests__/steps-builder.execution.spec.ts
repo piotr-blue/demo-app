@@ -213,6 +213,25 @@ describe('steps-builder execution', () => {
       operation: 'syncState',
       targetSessionId: 'target-session',
     });
+
+    const addParticipantRequest = triggeredEvents.find(
+      (triggeredEvent) =>
+        triggeredEvent.type === 'MyOS/Adding Participant Requested',
+    );
+    expect(addParticipantRequest).toMatchObject({
+      channelName: 'ownerChannel',
+      participantBinding: {
+        email: 'user@example.com',
+      },
+    });
+
+    const removeParticipantRequest = triggeredEvents.find(
+      (triggeredEvent) =>
+        triggeredEvent.type === 'MyOS/Removing Participant Requested',
+    );
+    expect(removeParticipantRequest).toMatchObject({
+      channelName: 'ownerChannel',
+    });
   });
 
   it('emits filtered matcher subscriptions through MyOS helper namespace', async () => {

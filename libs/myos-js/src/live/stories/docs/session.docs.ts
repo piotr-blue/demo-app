@@ -128,6 +128,71 @@ return {
     .buildDocument();
 }
 
+export function buildCounterDivisibleBy3WatcherDocument(
+  name: string,
+  targetSessionId: string,
+) {
+  return DocBuilder.doc()
+    .name(name)
+    .type('MyOS/Agent')
+    .sessionInteraction()
+    .field('/targetSessionId', targetSessionId)
+    .field('/lastKnownCounter', 0)
+    .field('/divisibleBy3Count', 0)
+    .field('/lastDivisibleBy3Counter', 0)
+    .field('/subscriptionState', 'idle')
+    .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })
+    .access('counterAccess')
+    .onBehalfOf('ownerChannel')
+    .targetSessionId(DocBuilder.expr("document('/targetSessionId')"))
+    .read(true)
+    .operations('increment')
+    .requestPermissionOnInit()
+    .subscribeAfterGranted()
+    .subscriptionEvents('MyOS/Session Epoch Advanced')
+    .statusPath('/subscriptionState')
+    .done()
+    .onTriggeredWithMatcher(
+      'captureDivisibleBy3CounterEpoch',
+      'MyOS/Session Epoch Advanced',
+      {
+        subscriptionId: 'SUB_ACCESS_COUNTERACCESS',
+      },
+      (steps) =>
+        steps
+          .jsRaw(
+            'PrepareCounterChanges',
+            `
+const directCounter = event?.document?.counter;
+const updateCounter = event?.update?.document?.counter;
+const candidate = directCounter ?? updateCounter;
+const normalized =
+  candidate && typeof candidate === 'object' && candidate.value !== undefined
+    ? candidate.value
+    : candidate;
+const counter = Number(normalized);
+if (!Number.isFinite(counter)) {
+  return { changeset: [] };
+}
+const changeset = [
+  { op: 'replace', path: '/lastKnownCounter', val: counter },
+];
+if (counter % 3 === 0) {
+  const current = Number(document('/divisibleBy3Count') ?? 0);
+  changeset.push({ op: 'replace', path: '/divisibleBy3Count', val: current + 1 });
+  changeset.push({ op: 'replace', path: '/lastDivisibleBy3Counter', val: counter });
+}
+return { changeset };
+`,
+          )
+          .updateDocumentFromExpression(
+            'ApplyCounterChanges',
+            'steps.PrepareCounterChanges.changeset',
+          ),
+    )
+    .buildDocument();
+}
+
 export function buildSourceProfileDocument(name: string) {
   return DocBuilder.doc()
     .name(name)

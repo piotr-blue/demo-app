@@ -140,3 +140,96 @@
       - expected emitted payment event payloads are not surfaced in feed/epoch APIs used by tests.
     - Action:
       - keep story gated unless `MYOS_ENABLE_STORY_15=true`.
+
+14. **Story 19 gating: propose/accept/reject lifecycle behavior not yet baseline-verified**
+    - Status: gated (verification pending)
+    - Story: `story-19 propose/accept/reject change flow mapping coverage` in
+      `src/live/stories/advanced-control.live.spec.ts`
+    - Current state:
+      - structural mapping assertions are active by default,
+      - behavioral lifecycle assertions are behind `MYOS_ENABLE_STORY_19=true`.
+    - Action:
+      - capture live request/response event shapes for propose/accept/reject and
+        remove gate after behavior is proven.
+
+15. **Story 20 gating: full single+linked permission revoke lifecycle pending runtime verification**
+    - Status: gated (verification pending)
+    - Story: `story-20 + story-21 permission revoke and subscription re-init flows`
+      in `src/live/stories/advanced-control.live.spec.ts`
+    - Current state:
+      - agent DSL and correlated response-matchers are asserted structurally,
+      - end-to-end permission grant/revoke counters are behind
+        `MYOS_ENABLE_STORY_20=true`.
+    - Action:
+      - capture runtime event correlation payloads for revoke responses and
+        remove gate once counter assertions are stable.
+
+16. **Story 21 gating: subscription re-init behavior pending runtime verification**
+    - Status: gated (verification pending)
+    - Story: `story-20 + story-21 permission revoke and subscription re-init flows`
+      in `src/live/stories/advanced-control.live.spec.ts`
+    - Current state:
+      - subscription initiation counter wiring is present,
+      - re-init behavior assertion is behind `MYOS_ENABLE_STORY_21=true`.
+    - Action:
+      - verify subscription lifecycle event shape after revoke/re-request and
+        un-gate once repeat-init signal is confirmed.
+
+17. **Story 23 gating: timeline permissions roundtrip requires accountId-backed run**
+    - Status: gated (environment precondition)
+    - Story: `story-23 timeline permissions inspection roundtrip` in
+      `src/live/stories/advanced-control.live.spec.ts`
+    - Current state:
+      - timeline extraction is asserted structurally,
+      - permissions create/list/retrieve/delete flow runs only when
+        `MYOS_ACCOUNT_ID` is present and `MYOS_ENABLE_STORY_23=true`.
+    - Action:
+      - execute on accountId-configured environment and remove gate if stable.
+
+18. **Story 24 gating: stop/resume behavior path pending dedicated live verification**
+    - Status: gated (verification pending)
+    - Story: `story-24 stop and resume processing roundtrip` in
+      `src/live/stories/advanced-control.live.spec.ts`
+    - Current state:
+      - operation and lifecycle structure checks are active,
+      - stop/resume behavior assertions are behind `MYOS_ENABLE_STORY_24=true`.
+    - Action:
+      - verify processing status transitions in live environment and remove gate.
+
+19. **Story 25 gating: MyOS events lifecycle observability pending live verification**
+    - Status: gated (verification pending)
+    - Story: `story-25 myos-events observability for document lifecycle` in
+      `src/live/stories/advanced-control.live.spec.ts`
+    - Current state:
+      - events API probe and debug-state capture path are implemented,
+      - lifecycle event assertions are behind `MYOS_ENABLE_STORY_25=true`.
+    - Action:
+      - validate paused/resumed event visibility in `myOsEvents.list` and
+        remove gate when stable.
+
+20. **Story 26 gating: optional worker-agency lifecycle verification pending**
+    - Status: gated (optional verification pending)
+    - Story: `story-26 worker agency optional lifecycle coverage` in
+      `src/live/stories/advanced-control.live.spec.ts`
+    - Current state:
+      - worker-agency marker and grant/revoke operation mappings are asserted
+        structurally,
+      - end-to-end worker-agency behavior assertions are behind
+        `MYOS_ENABLE_STORY_26=true`.
+    - Action:
+      - validate worker agency grant/revoke response correlation and remove
+        optional gate when runtime/type behavior is stable.
+
+21. **Story 9 blocker: divisible-by-3 watcher flow requires runtime subscription epoch delivery**
+    - Status: blocked (live assertion gated)
+    - Story: `story-9 counter watcher tracks divisible-by-3 epochs` in
+      `src/live/stories/session-interaction.live.spec.ts`
+    - Observed:
+      - source counter operations execute normally,
+      - watcher bootstrap succeeds,
+      - epoch-driven subscription updates are environment-dependent and not
+        consistently delivered in default live setup.
+    - Action:
+      - keep source counter assertions active;
+      - gate watcher divisible-by-3 assertions unless
+        `MYOS_ENABLE_STORY_9=true`.

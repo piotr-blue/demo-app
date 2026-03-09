@@ -29,6 +29,10 @@ describe('steps-builder mapping', () => {
         'target-session',
         MyOsPermissions.create().read(true).singleOps('increment'),
       )
+      .myOs()
+      .addParticipant('reviewerChannel', { email: 'reviewer@example.com' })
+      .myOs()
+      .removeParticipant('reviewerChannel')
       .build();
 
     const yaml = dump({ steps }, { noRefs: true, lineWidth: -1 });
@@ -63,6 +67,18 @@ describe('steps-builder mapping', () => {
         read: true
         singleOps:
           - increment
+  - name: AddParticipant
+    type: Conversation/Trigger Event
+    event:
+      type: MyOS/Adding Participant Requested
+      channelName: reviewerChannel
+      participantBinding:
+        email: reviewer@example.com
+  - name: RemoveParticipant
+    type: Conversation/Trigger Event
+    event:
+      type: MyOS/Removing Participant Requested
+      channelName: reviewerChannel
 `);
   });
 

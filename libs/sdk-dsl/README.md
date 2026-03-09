@@ -1,14 +1,14 @@
 # @blue-labs/sdk-dsl
 
-TypeScript DSL for composing Blue documents (`BlueNode`) with fluent builders, runtime-oriented helper flows, structure extraction, and edit/patch tooling.
+TypeScript DSL for composing Blue documents (`BlueNode`) with fluent builders, Java-parity constructs, structure extraction, and edit/patch tooling.
 
-## Runtime-first policy
+## Construct source-of-truth policy
 
-This SDK is **runtime-first**:
+This SDK follows a **Java-authoring-surface-first** policy for DSL constructs:
 
-- The current `@blue-labs/document-processor` runtime is the source of truth.
-- Java mapping docs are a useful reference, but runtime compatibility wins when they disagree.
-- Unsupported aliases/types from the installed `@blue-repository/types` package are handled with deterministic fail-fast errors.
+- The Java SDK fluent DSL surface is the source of truth for public construct names, signatures, and high-level semantics.
+- Runtime/document-processor compatibility differences belong in serializers, mappers, and emitted-node shape handling — not in canonical DSL construct naming.
+- Where installed `@blue-repository/types` aliases are unavailable, the SDK fails fast with explicit diagnostics and tracks those as runtime/type-availability gaps.
 
 ## Install in workspace
 
@@ -40,6 +40,7 @@ const doc = DocBuilder.doc()
 
 - `DocBuilder` / `SimpleDocBuilder` fluent authoring API
 - step composition (`StepsBuilder`) including MyOS and payment helpers
+- high-level interaction builders (`access`, `accessLinked`, `agency`) aligned to Java construct semantics
 - AI integration builder + response workflows
 - PayNote builder (`PayNotes.payNote(...)`)
 - `DocStructure.from(...)` for stable structure extraction + prompt summaries

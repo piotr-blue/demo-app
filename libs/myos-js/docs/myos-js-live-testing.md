@@ -36,6 +36,7 @@ Live files:
 - `src/live/stories/session-interaction.live.spec.ts`
 - `src/live/stories/links-and-participants.live.spec.ts`
 - `src/live/stories/bootstrap-and-payments.live.spec.ts`
+- `src/live/stories/advanced-control.live.spec.ts`
 
 ## Live scenarios covered
 
@@ -68,6 +69,13 @@ Story suite:
 7. PayNote shipment escrow lock/unlock/request flows
 8. Payment request emission variants (ACH, credit-line, ledger)
 9. Triggered matcher correlation flow
+10. Propose/accept/reject change mapping coverage
+11. Permission revoke + subscription re-init lifecycle coverage
+12. Document/document-type link mapping coverage
+13. Timeline permissions inspection roundtrip
+14. Stop/resume processing roundtrip
+15. MyOS events observability probe
+16. Optional worker agency lifecycle coverage
 
 Coverage matrix:
 
@@ -87,6 +95,13 @@ Runtime-gated stories:
   - `MYOS_ENABLE_STORY_13=true`
   - `MYOS_ENABLE_STORY_14=true`
   - `MYOS_ENABLE_STORY_15=true`
+  - `MYOS_ENABLE_STORY_19=true`
+  - `MYOS_ENABLE_STORY_20=true`
+  - `MYOS_ENABLE_STORY_21=true`
+  - `MYOS_ENABLE_STORY_23=true`
+  - `MYOS_ENABLE_STORY_24=true`
+  - `MYOS_ENABLE_STORY_25=true`
+  - `MYOS_ENABLE_STORY_26=true`
 
 Gated suite:
 
