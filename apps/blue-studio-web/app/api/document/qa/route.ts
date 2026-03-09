@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { parseRouteCredentials } from "@/lib/api/credentials";
 import {
+  OPENAI_TEXT_MODEL,
   countInputTokens,
   generateTextWithResponsesApi,
 } from "@/lib/openai/client";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 const requestSchema = z.object({
   credentials: z.unknown(),
   blueprint: z.string().min(1),
-  viewer: z.string().min(1),
+  viewer: z.string().min(1).nullable().optional(),
   question: z.string().min(1),
   state: z.unknown().nullable(),
   allowedOperations: z.array(z.string()).optional(),
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     const systemPrompt = await getDocumentQaPrompt();
     const input = buildDocumentQaInput({
       blueprint: body.blueprint,
-      viewer: body.viewer,
+      viewer: body.viewer ?? null,
       question: body.question,
       state: body.state,
       allowedOperations: body.allowedOperations,
@@ -41,13 +42,27 @@ export async function POST(request: Request) {
       apiKey: credentials.openAiApiKey,
       systemPrompt,
       input,
+      model: OPENAI_TEXT_MODEL,
     });
     assertWithinTokenBudget(inputTokens);
+
+    if (process.env.NODE_ENV !== "production") {
+      console.info(
+        "document-qa-debug",
+        JSON.stringify({
+          route: "/api/document/qa",
+          mode,
+          viewer: body.viewer ?? "neutral",
+          model: OPENAI_TEXT_MODEL,
+        })
+      );
+    }
 
     const generated = await generateTextWithResponsesApi({
       apiKey: credentials.openAiApiKey,
       systemPrompt,
       input,
+      model: OPENAI_TEXT_MODEL,
     });
 
     return NextResponse.json({

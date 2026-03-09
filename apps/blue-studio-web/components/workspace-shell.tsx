@@ -12,10 +12,6 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import {
   PromptInput,
-  PromptInputActionAddAttachments,
-  PromptInputActionMenu,
-  PromptInputActionMenuContent,
-  PromptInputActionMenuTrigger,
   PromptInputAttachments,
   PromptInputBody,
   PromptInputFooter,
@@ -28,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DocumentAssistantPanel } from "@/components/document-assistant-panel";
 import { DocumentStatusPanel } from "@/components/document-status-panel";
+import { AttachSourceMenu } from "@/components/attach-source-menu";
 import { ThreadSidebar, type ThreadListItem } from "@/components/thread-sidebar";
 import {
   chooseDefaultViewer,
@@ -35,10 +32,16 @@ import {
 } from "@/lib/blueprint/metadata";
 import { getMessageText } from "@/lib/chat/message-utils";
 import { resolveStatusMessage } from "@/lib/document/status-templates/evaluate";
-import { clearThreadRoutingStorage } from "@/lib/storage/local-storage";
+import {
+  buildAccountHash,
+  clearThreadRoutingStorage,
+  clearWebhookRegistration,
+  getOrCreateBrowserInstallId,
+  readWebhookRegistration,
+  writeWebhookRegistration,
+} from "@/lib/storage/local-storage";
 import {
   clearAllWorkspacePersistence,
-  clearWorkspacePersistence,
   listFileBlobs,
   listWorkspaces,
   readWorkspace,
@@ -127,9 +130,38 @@ export function WorkspaceShell({
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
   const [threads, setThreads] = useState<ThreadListItem[]>([]);
+  const [unreadThreadIds, setUnreadThreadIds] = useState<Set<string>>(new Set());
   const router = useRouter();
   const pendingQuestionRef = useRef<string | null>(null);
   const lastBlueprintRef = useRef<string | null>(null);
+  const liveEventSourceRef = useRef<EventSource | null>(null);
+  const liveIdentityRef = useRef<{ browserId: string; accountHash: string } | null>(null);
+  const workspaceRef = useRef<WorkspaceState | null>(null);
+  const unreadThreadIdsRef = useRef<Set<string>>(new Set());
+  const credentialsRef = useRef(credentials);
+  const workspaceIdRef = useRef(workspaceId);
+  const liveRegistrationInFlightRef = useRef<string | null>(null);
+  const liveRegistrationReadyRef = useRef<string | null>(null);
+  const accountHash = useMemo(
+    () => buildAccountHash(credentials.myOsBaseUrl, credentials.myOsAccountId),
+    [credentials.myOsAccountId, credentials.myOsBaseUrl]
+  );
+
+  useEffect(() => {
+    workspaceRef.current = workspace;
+  }, [workspace]);
+
+  useEffect(() => {
+    unreadThreadIdsRef.current = unreadThreadIds;
+  }, [unreadThreadIds]);
+
+  useEffect(() => {
+    credentialsRef.current = credentials;
+  }, [credentials]);
+
+  useEffect(() => {
+    workspaceIdRef.current = workspaceId;
+  }, [workspaceId]);
 
   const { messages, sendMessage, setMessages, status, stop } = useChat({
     transport: new DefaultChatTransport({
@@ -261,37 +293,74 @@ export function WorkspaceShell({
   }, [messages]);
 
   useEffect(() => {
-    if (!workspace) {
+    if (loading || !workspace) {
       return;
     }
     void saveWorkspace(workspace);
-  }, [workspace]);
+  }, [loading, workspace]);
+
+  const reloadThreadList = useCallback(async (priorityThreadIds: string[] = []) => {
+    const currentWorkspace = workspaceRef.current;
+    if (!currentWorkspace) {
+      return;
+    }
+    const all = await listWorkspaces();
+    const mapped = all.map((entry) => ({
+      id: entry.id,
+      threadTitle: entry.threadTitle,
+      threadSummary: entry.threadSummary,
+      phase: entry.phase,
+      updatedAt: entry.updatedAt,
+    }));
+    if (!mapped.some((entry) => entry.id === currentWorkspace.id)) {
+      mapped.unshift({
+        id: currentWorkspace.id,
+        threadTitle: currentWorkspace.threadTitle,
+        threadSummary: currentWorkspace.threadSummary,
+        phase: currentWorkspace.phase,
+        updatedAt: currentWorkspace.updatedAt,
+      });
+    }
+    const sorted = mapped.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    const mergedPriorityIds = [
+      ...priorityThreadIds,
+      ...[...unreadThreadIdsRef.current].filter((threadId) => !priorityThreadIds.includes(threadId)),
+    ];
+    const prioritySet = new Set(mergedPriorityIds);
+    const prioritized: typeof sorted = [];
+    if (prioritySet.size > 0) {
+      for (const threadId of mergedPriorityIds) {
+        const found = sorted.find((entry) => entry.id === threadId);
+        if (found && !prioritized.some((entry) => entry.id === threadId)) {
+          prioritized.push(found);
+        }
+      }
+    }
+    for (const entry of sorted) {
+      if (!prioritySet.has(entry.id)) {
+        prioritized.push(entry);
+      }
+    }
+    setThreads(prioritized);
+    setUnreadThreadIds((previous) => {
+      const validThreadIds = new Set(prioritized.map((entry) => entry.id));
+      const next = new Set<string>();
+      for (const threadId of previous) {
+        if (validThreadIds.has(threadId)) {
+          next.add(threadId);
+        }
+      }
+      unreadThreadIdsRef.current = next;
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!workspace || loading) {
       return;
     }
-    void (async () => {
-      const all = await listWorkspaces();
-      const mapped = all.map((entry) => ({
-        id: entry.id,
-        threadTitle: entry.threadTitle,
-        threadSummary: entry.threadSummary,
-        phase: entry.phase,
-        updatedAt: entry.updatedAt,
-      }));
-      if (!mapped.some((entry) => entry.id === workspace.id)) {
-        mapped.unshift({
-          id: workspace.id,
-          threadTitle: workspace.threadTitle,
-          threadSummary: workspace.threadSummary,
-          phase: workspace.phase,
-          updatedAt: workspace.updatedAt,
-        });
-      }
-      setThreads(mapped.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)));
-    })();
-  }, [loading, workspace, workspaceId]);
+    void reloadThreadList();
+  }, [loading, reloadThreadList, workspace, workspaceId]);
 
   useEffect(() => {
     if (!workspace?.currentBlueprint) {
@@ -536,6 +605,278 @@ export function WorkspaceShell({
       }
     },
     [refreshDocument]
+  );
+  const workspaceReady = !loading && workspace !== null;
+  const currentSessionId = workspace?.sessionId ?? null;
+
+  const sendLiveSubscriptions = useCallback(async () => {
+    const identity = liveIdentityRef.current;
+    if (!identity) {
+      return;
+    }
+    const all = await listWorkspaces();
+    const sessionIds = [...new Set(all.map((entry) => entry.sessionId).filter(Boolean))] as string[];
+    const threadIds = [...new Set(all.map((entry) => entry.id))];
+    await fetch("/api/myos/live/subscriptions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        browserId: identity.browserId,
+        accountHash: identity.accountHash,
+        sessionIds,
+        threadIds,
+      }),
+    });
+  }, []);
+
+  const handleLiveInvalidation = useCallback(
+    async (sessionId: string) => {
+      const response = await fetch("/api/myos/retrieve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials: credentialsRef.current,
+          sessionId,
+        }),
+      });
+      if (!response.ok) {
+        return;
+      }
+      const payload = (await response.json()) as
+        | { ok: true; retrieved: Record<string, unknown> }
+        | { ok: false; error: string };
+      if (!payload.ok) {
+        return;
+      }
+
+      const all = await listWorkspaces();
+      const matching = all.filter((entry) => entry.sessionId === sessionId);
+      if (matching.length === 0) {
+        return;
+      }
+
+      const updatedThreadIds: string[] = [];
+      for (const entry of matching) {
+        const selectedViewer = entry.viewerChannel;
+        const bundle = selectedViewer
+          ? entry.statusTemplatesByViewer[selectedViewer] ?? null
+          : null;
+        const refreshed = applyRetrievedDocumentRefresh({
+          workspace: entry,
+          retrieved: payload.retrieved,
+          selectedViewer,
+          templateBundle: bundle,
+          currencyCode: entry.blueprintMetadata?.currencyCode ?? null,
+        });
+        if (!refreshed.changed) {
+          continue;
+        }
+        await saveWorkspace(refreshed.workspace);
+        updatedThreadIds.unshift(refreshed.workspace.id);
+        if (refreshed.workspace.id === workspaceIdRef.current) {
+          setWorkspace(refreshed.workspace);
+        }
+      }
+
+      if (updatedThreadIds.length > 0) {
+        setUnreadThreadIds((previous) => {
+          const next = new Set(previous);
+          for (const threadId of updatedThreadIds) {
+            if (threadId !== workspaceIdRef.current) {
+              next.add(threadId);
+            }
+          }
+          unreadThreadIdsRef.current = next;
+          return next;
+        });
+        await reloadThreadList(updatedThreadIds);
+      } else {
+        await reloadThreadList();
+      }
+    },
+    [reloadThreadList]
+  );
+
+  const unregisterWebhookBestEffort = useCallback(async () => {
+    const identity = liveIdentityRef.current;
+    if (!identity) {
+      return;
+    }
+    const existing = readWebhookRegistration(identity.accountHash);
+    if (!existing) {
+      return;
+    }
+    try {
+      await fetch("/api/myos/webhooks/unregister", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials: credentialsRef.current,
+          registrationId: existing.registrationId,
+        }),
+      });
+    } catch {
+      // noop best-effort cleanup
+    }
+    clearWebhookRegistration(identity.accountHash);
+    liveRegistrationInFlightRef.current = null;
+    liveRegistrationReadyRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!workspaceReady) {
+      return;
+    }
+
+    if (window.location.hostname === "localhost") {
+      liveEventSourceRef.current?.close();
+      liveEventSourceRef.current = null;
+      liveIdentityRef.current = null;
+      liveRegistrationInFlightRef.current = null;
+      liveRegistrationReadyRef.current = null;
+      clearWebhookRegistration(accountHash);
+      return;
+    }
+
+    let cancelled = false;
+    const browserId = getOrCreateBrowserInstallId();
+    if (!browserId) {
+      return;
+    }
+
+    const previousIdentity = liveIdentityRef.current;
+    if (
+      previousIdentity &&
+      (previousIdentity.browserId !== browserId || previousIdentity.accountHash !== accountHash)
+    ) {
+      liveEventSourceRef.current?.close();
+      liveEventSourceRef.current = null;
+      liveRegistrationInFlightRef.current = null;
+      liveRegistrationReadyRef.current = null;
+    }
+
+    liveIdentityRef.current = { browserId, accountHash };
+    const registrationKey = `${browserId}:${accountHash}`;
+    if (liveRegistrationReadyRef.current === registrationKey) {
+      if (!liveEventSourceRef.current) {
+        const source = new EventSource(
+          `/api/myos/live?browserId=${encodeURIComponent(browserId)}&accountHash=${encodeURIComponent(accountHash)}`
+        );
+        source.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data) as Record<string, unknown>;
+            if (payload.type !== "myos-epoch-advanced") {
+              return;
+            }
+            const sessionId = typeof payload.sessionId === "string" ? payload.sessionId : null;
+            if (!sessionId) {
+              return;
+            }
+            void handleLiveInvalidation(sessionId);
+          } catch {
+            // noop
+          }
+        };
+        liveEventSourceRef.current = source;
+      }
+      void sendLiveSubscriptions();
+      return;
+    }
+
+    if (liveRegistrationInFlightRef.current === registrationKey) {
+      return;
+    }
+    liveRegistrationInFlightRef.current = registrationKey;
+
+    const knownRegistration = readWebhookRegistration(accountHash);
+    const knownRegistrationMatchesIdentity =
+      knownRegistration &&
+      knownRegistration.browserId === browserId &&
+      knownRegistration.accountHash === accountHash;
+
+    void (async () => {
+      const registerResponse = await fetch("/api/myos/webhooks/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials: credentialsRef.current,
+          browserId,
+          accountHash,
+          knownRegistrationId: knownRegistrationMatchesIdentity
+            ? knownRegistration.registrationId
+            : undefined,
+          knownWebhookId: knownRegistrationMatchesIdentity
+            ? knownRegistration.webhookId
+            : undefined,
+        }),
+      });
+      const registerPayload = (await registerResponse.json()) as
+        | {
+            ok: true;
+            registration: {
+              registrationId: string;
+              webhookId: string;
+              accountHash: string;
+              browserId: string;
+              createdAt: string;
+              updatedAt: string;
+            };
+          }
+        | { ok: false; error: string };
+      if (!registerResponse.ok || !registerPayload.ok || cancelled) {
+        return;
+      }
+
+      writeWebhookRegistration(accountHash, registerPayload.registration);
+      liveRegistrationReadyRef.current = registrationKey;
+
+      if (!liveEventSourceRef.current) {
+        const source = new EventSource(
+          `/api/myos/live?browserId=${encodeURIComponent(browserId)}&accountHash=${encodeURIComponent(accountHash)}`
+        );
+        source.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data) as Record<string, unknown>;
+            if (payload.type !== "myos-epoch-advanced") {
+              return;
+            }
+            const sessionId = typeof payload.sessionId === "string" ? payload.sessionId : null;
+            if (!sessionId) {
+              return;
+            }
+            void handleLiveInvalidation(sessionId);
+          } catch {
+            // noop
+          }
+        };
+        liveEventSourceRef.current = source;
+      }
+
+      await sendLiveSubscriptions();
+    })().finally(() => {
+      if (liveRegistrationInFlightRef.current === registrationKey) {
+        liveRegistrationInFlightRef.current = null;
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountHash, handleLiveInvalidation, sendLiveSubscriptions, workspaceId, workspaceReady]);
+
+  useEffect(() => {
+    if (!workspaceReady) {
+      return;
+    }
+    void sendLiveSubscriptions();
+  }, [currentSessionId, sendLiveSubscriptions, workspaceId, workspaceReady]);
+
+  useEffect(
+    () => () => {
+      liveEventSourceRef.current?.close();
+      liveEventSourceRef.current = null;
+    },
+    []
   );
 
   useEffect(() => {
@@ -954,7 +1295,16 @@ export function WorkspaceShell({
         }),
       });
       const payload = (await response.json()) as
-        | { ok: true; sessionId: string | null; bootstrap: Record<string, unknown> }
+        | {
+            ok: true;
+            sessionId: string | null;
+            initiatorSessionId: string | null;
+            bootstrapSessionId: string | null;
+            bootstrapSucceeded: boolean;
+            bootstrapState: string | null;
+            bootstrapStartOperation: string | null;
+            bootstrap: Record<string, unknown>;
+          }
         | { ok: false; error: string };
 
       if (!payload.ok) {
@@ -971,10 +1321,18 @@ export function WorkspaceShell({
               sessionId: payload.sessionId,
               bootstrapStatus: [
                 ...previous.bootstrapStatus,
-                createBootstrapEvent("session-created", `Session created: ${payload.sessionId}`),
+                createBootstrapEvent(
+                  "session-created",
+                  `Bootstrap succeeded. Session created: ${payload.sessionId}`
+                ),
               ],
               activityFeed: [
                 ...previous.activityFeed,
+                createActivity(
+                  "bootstrap",
+                  "Bootstrap succeeded",
+                  payload.bootstrapState ?? payload.bootstrapStartOperation ?? undefined
+                ),
                 createActivity("bootstrap", "Session created", payload.sessionId ?? undefined),
               ],
               updatedAt: new Date().toISOString(),
@@ -987,18 +1345,22 @@ export function WorkspaceShell({
       const message = error instanceof Error ? error.message : "Bootstrap failed.";
       setWorkspace((previous) =>
         previous
-          ? {
-              ...previous,
-              phase: "error",
-              errorMessage: message,
-              bootstrapStatus: [
-                ...previous.bootstrapStatus,
-                createBootstrapEvent("error", message),
-              ],
-              activityFeed: [...previous.activityFeed, createActivity("error", "Bootstrap error", message)],
-              updatedAt: new Date().toISOString(),
-            }
-          : previous
+            ? {
+                ...previous,
+                phase: "error",
+                errorMessage: message,
+                bootstrapStatus: [
+                  ...previous.bootstrapStatus,
+                  createBootstrapEvent("error", message),
+                ],
+                activityFeed: [
+                  ...previous.activityFeed,
+                  createActivity("bootstrap", "Bootstrap failed", message),
+                  createActivity("error", "Bootstrap error", message),
+                ],
+                updatedAt: new Date().toISOString(),
+              }
+            : previous
       );
     } finally {
       setBusy(false);
@@ -1020,26 +1382,34 @@ export function WorkspaceShell({
   };
 
   const handleHardLogout = async () => {
+    await unregisterWebhookBestEffort();
+    liveEventSourceRef.current?.close();
+    liveEventSourceRef.current = null;
+    liveIdentityRef.current = null;
+    liveRegistrationInFlightRef.current = null;
+    liveRegistrationReadyRef.current = null;
+    clearWebhookRegistration(accountHash);
     await clearAllWorkspacePersistence();
     clearThreadRoutingStorage();
     onLogout();
   };
 
   const handleClearWorkspace = async () => {
-    if (!workspace) {
-      return;
-    }
-
     stop();
     pendingQuestionRef.current = null;
-    const resetWorkspace = createWorkspace(workspace.id, credentials);
-
-    await clearWorkspacePersistence(workspace.id);
-    await saveWorkspace(resetWorkspace);
-
-    setWorkspace(resetWorkspace);
-    setMessages(resetWorkspace.messages);
-    setBusy(false);
+    await unregisterWebhookBestEffort();
+    liveEventSourceRef.current?.close();
+    liveEventSourceRef.current = null;
+    liveIdentityRef.current = null;
+    liveRegistrationInFlightRef.current = null;
+    liveRegistrationReadyRef.current = null;
+    clearWebhookRegistration(accountHash);
+    await clearAllWorkspacePersistence();
+    clearThreadRoutingStorage();
+    const nextThreadId = createThreadId();
+    const nextWorkspace = createWorkspace(nextThreadId, credentials);
+    await saveWorkspace(nextWorkspace);
+    router.push(`/t/${encodeURIComponent(nextThreadId)}`);
   };
 
   const handleRefreshNow = async () => {
@@ -1054,7 +1424,7 @@ export function WorkspaceShell({
     }
   };
 
-  const handleViewerChange = (viewer: string) => {
+  const handleViewerChange = (viewer: string | null) => {
     setWorkspace((previous) => {
       if (!previous) {
         return previous;
@@ -1066,6 +1436,14 @@ export function WorkspaceShell({
         ...previous,
         viewerChannel: viewer,
       };
+      if (!viewer) {
+        const meta = deriveThreadMeta(next);
+        return {
+          ...next,
+          ...meta,
+          updatedAt: new Date().toISOString(),
+        };
+      }
       const latestSnapshot = next.documentSnapshots.at(-1);
       const bundle = next.statusTemplatesByViewer[viewer];
       if (!latestSnapshot || !bundle) {
@@ -1108,12 +1486,44 @@ export function WorkspaceShell({
 
   const handleAskDocumentAssistant = async (question: string) => {
     const currentWorkspace = workspace;
-    if (
-      !currentWorkspace ||
-      !currentWorkspace.currentBlueprint ||
-      !currentWorkspace.viewerChannel ||
-      assistantBusy
-    ) {
+    if (!currentWorkspace) {
+      return;
+    }
+    if (assistantBusy) {
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: "Document assistant is already answering. Please wait.",
+              updatedAt: new Date().toISOString(),
+            }
+          : previous
+      );
+      return;
+    }
+    if (!currentWorkspace.currentBlueprint) {
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: "Generate a blueprint before asking the document assistant.",
+              updatedAt: new Date().toISOString(),
+            }
+          : previous
+      );
+      return;
+    }
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) {
+      setWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              errorMessage: "Question cannot be empty.",
+              updatedAt: new Date().toISOString(),
+            }
+          : previous
+      );
       return;
     }
     const latest = currentWorkspace.documentSnapshots.at(-1);
@@ -1127,7 +1537,7 @@ export function WorkspaceShell({
           credentials,
           blueprint: currentWorkspace.currentBlueprint,
           viewer: currentWorkspace.viewerChannel,
-          question,
+          question: trimmedQuestion,
           state: latest?.document ?? null,
           allowedOperations: latest?.allowedOperations ?? [],
         }),
@@ -1144,7 +1554,7 @@ export function WorkspaceShell({
         }
         const exchange = {
           id: nowId("docqa"),
-          question,
+          question: trimmedQuestion,
           answer: payload.answer,
           mode: payload.mode,
           createdAt: new Date().toISOString(),
@@ -1154,7 +1564,7 @@ export function WorkspaceShell({
           documentQaHistory: [...previous.documentQaHistory, exchange],
           activityFeed: [
             ...previous.activityFeed,
-            createActivity("document-qa", "Document question", question),
+            createActivity("document-qa", "Document question", trimmedQuestion),
           ],
           selectedInspectorTab: "assistant" as const,
           errorMessage: null,
@@ -1191,6 +1601,12 @@ export function WorkspaceShell({
   const selectedTemplateBundle =
     selectedViewer && workspace ? workspace.statusTemplatesByViewer[selectedViewer] ?? null : null;
   const assistantMode: DocumentQaMode = latestSnapshot?.document ? "live-state" : "blueprint-only";
+  const assistantSubmitBlockedReason =
+    !workspace?.currentBlueprint
+      ? "Blueprint is required before asking the assistant."
+      : assistantBusy
+        ? "Document assistant is already answering."
+        : null;
 
   const chatMessages = useMemo(() => messages as UIMessage[], [messages]);
 
@@ -1199,11 +1615,20 @@ export function WorkspaceShell({
   }
 
   return (
-    <div className="grid min-h-screen grid-cols-12 gap-4 bg-background p-4">
+    <div className="grid min-h-screen grid-cols-12 gap-4 bg-gradient-to-b from-background via-background to-muted/20 p-4">
       <ThreadSidebar
         activeThreadId={workspaceId}
         threads={threads}
+        unreadThreadIds={unreadThreadIds}
         onSelectThread={(threadId) => {
+          setUnreadThreadIds((previous) => {
+            if (!previous.has(threadId)) {
+              return previous;
+            }
+            const next = new Set(previous);
+            next.delete(threadId);
+            return next;
+          });
           router.push(`/t/${encodeURIComponent(threadId)}`);
         }}
         onCreateThread={() => {
@@ -1211,8 +1636,8 @@ export function WorkspaceShell({
         }}
       />
 
-      <section className="col-span-6 flex h-[calc(100vh-2rem)] flex-col rounded-xl border">
-        <header className="flex items-center justify-between border-b px-4 py-3">
+      <section className="col-span-6 flex h-[calc(100vh-2rem)] flex-col rounded-2xl border bg-card/95 shadow-sm">
+        <header className="flex items-center justify-between border-b bg-muted/30 px-4 py-3">
           <div>
             <h1 className="font-semibold text-lg">Blue Studio</h1>
             <p className="text-muted-foreground text-xs">
@@ -1222,7 +1647,7 @@ export function WorkspaceShell({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" disabled={busy} onClick={() => void handleClearWorkspace()}>
-              Clear workspace
+              Clear all threads
             </Button>
             <Button variant="outline" onClick={() => void handleHardLogout()}>
               Log out
@@ -1363,20 +1788,30 @@ export function WorkspaceShell({
               <PromptInputTextarea placeholder="Send a message..." disabled={busy} />
             </PromptInputBody>
             <PromptInputFooter>
-              <PromptInputActionMenu>
-                <PromptInputActionMenuTrigger />
-                <PromptInputActionMenuContent>
-                  <PromptInputActionAddAttachments />
-                </PromptInputActionMenuContent>
-              </PromptInputActionMenu>
+              <AttachSourceMenu
+                credentials={credentials}
+                currentWorkspaceId={workspace.id}
+                disabled={busy}
+                onError={(message) =>
+                  setWorkspace((previous) =>
+                    previous
+                      ? {
+                          ...previous,
+                          errorMessage: message,
+                          updatedAt: new Date().toISOString(),
+                        }
+                      : previous
+                  )
+                }
+              />
               <PromptInputSubmit status={status} disabled={busy} onStop={() => void stop()} />
             </PromptInputFooter>
           </PromptInput>
         </div>
       </section>
 
-      <section className="col-span-4 h-[calc(100vh-2rem)] rounded-xl border">
-        <header className="flex flex-wrap gap-2 border-b p-3">
+      <section className="col-span-4 h-[calc(100vh-2rem)] rounded-2xl border bg-card/95 shadow-sm">
+        <header className="flex flex-wrap gap-2 border-b bg-muted/30 p-3">
           {INSPECTOR_TABS.map((tab) => (
             <Button
               key={tab.key}
@@ -1436,7 +1871,7 @@ export function WorkspaceShell({
                   resolvedStatus={workspace.resolvedStatus}
                   statusHistory={workspace.statusHistory}
                   autoRefreshEnabled={workspace.autoRefreshEnabled}
-                  onViewerChange={handleViewerChange}
+                  onViewerChange={(viewer) => handleViewerChange(viewer)}
                   onAutoRefreshChange={(enabled) =>
                     setWorkspace((previous) =>
                       previous
@@ -1457,8 +1892,12 @@ export function WorkspaceShell({
                 <DocumentAssistantPanel
                   enabled={Boolean(workspace.currentBlueprint)}
                   mode={assistantMode}
+                  participants={workspace.blueprintMetadata?.participants ?? []}
+                  viewerChannel={workspace.viewerChannel}
                   history={workspace.documentQaHistory}
                   submitting={assistantBusy}
+                  submitBlockedReason={assistantSubmitBlockedReason}
+                  onViewerChange={handleViewerChange}
                   onSubmitQuestion={handleAskDocumentAssistant}
                 />
               )}

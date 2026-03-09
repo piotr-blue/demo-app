@@ -1,6 +1,6 @@
 # Blue Studio Web — proof of run
 
-This document captures the final validation evidence for the implemented plan.
+This document captures the final validation evidence for the phase-2 implementation.
 
 ## Static + automated checks
 
@@ -17,7 +17,13 @@ Result:
 
 - `typecheck` passed
 - `lint` passed
-- `vitest` passed (`59` tests across unit + route coverage, including status templates, document QA, thread metadata, and polling)
+- `vitest` passed (`91` tests across unit + route coverage)
+  - assistant viewer fallback + neutral QA input
+  - money minor-unit formatting
+  - synthetic file creation + workspace picker filters
+  - document reference render/fetch routes
+  - webhook register/unregister/incoming + subscription routes
+  - digest/timestamp/signature verification helpers + delivery dedupe
 - production build passed (all app routes compiled)
 
 ## Playwright UI smoke
@@ -32,13 +38,15 @@ Covered:
 
 - thread routing (`/` redirect + `/t/[threadId]` flow)
 - multi-thread switching + persistence
-- document assistant blueprint-only mode
-- status template resolution + refresh updates
-- workspace baseline interactions
+- document assistant blueprint-only mode + no-participant fallback guidance
+- `+` menu all three attachment paths (upload, app document, external session)
+- drag-and-drop attachment regression
+- clear-all thread reset behavior
+- webhook/SSE invalidation updates status + thread title/summary
 
 Result:
 
-- `4` Playwright tests passed
+- targeted Playwright scenarios passed (`6` tests)
 
 ## Live counter end-to-end flow
 

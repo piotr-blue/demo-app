@@ -24,6 +24,9 @@ These prompt files are synced into this app at build time and are **not** fetche
 - `document-qa-prompt.md`
   - local prompt for document assistant Q&A over blueprint + optional live state
 
+- `document-reference-renderer-prompt.md`
+  - local prompt for converting blueprint/schema/live-json sources into canonical text attachments
+
 ## Runtime note
 
 Prompt files are read from this directory during API route execution and shipped with the deployed artifact.

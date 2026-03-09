@@ -1,6 +1,6 @@
 export interface BuildDocumentQaInputParams {
   blueprint: string;
-  viewer: string;
+  viewer: string | null;
   question: string;
   state: unknown | null;
   allowedOperations?: string[];
@@ -11,6 +11,11 @@ function stableJson(value: unknown): string {
 }
 
 export function buildDocumentQaInput(params: BuildDocumentQaInputParams): string {
+  const resolvedViewer =
+    typeof params.viewer === "string" && params.viewer.trim().length > 0
+      ? params.viewer.trim()
+      : "neutral";
+
   const modeInstruction =
     params.state === null
       ? "STATE is null because the document has not been bootstrapped yet; answer from the blueprint only and say live state is not available yet."
@@ -26,7 +31,7 @@ export function buildDocumentQaInput(params: BuildDocumentQaInputParams): string
     params.blueprint,
     "",
     "VIEWER:",
-    params.viewer,
+    resolvedViewer,
     "",
     "QUESTION:",
     params.question,

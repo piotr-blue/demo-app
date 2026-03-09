@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 
+export const OPENAI_TEXT_MODEL = "gpt-5.4";
+
 export interface OpenAiCredentialsInput {
   apiKey: string;
 }
@@ -17,6 +19,7 @@ export interface GenerateTextParams {
   systemPrompt: string;
   input: string;
   apiKey: string;
+  model?: string;
 }
 
 export interface GenerateTextResult {
@@ -28,10 +31,11 @@ export async function countInputTokens(params: {
   apiKey: string;
   systemPrompt: string;
   input: string;
+  model?: string;
 }): Promise<number> {
   const client = createOpenAiClient({ apiKey: params.apiKey });
   const response = await client.responses.inputTokens.count({
-    model: "gpt-5.4",
+    model: params.model ?? OPENAI_TEXT_MODEL,
     input: [
       {
         role: "system",
@@ -52,7 +56,7 @@ export async function generateTextWithResponsesApi(
   const client = createOpenAiClient({ apiKey: params.apiKey });
 
   const response = await client.responses.create({
-    model: "gpt-5.4",
+    model: params.model ?? OPENAI_TEXT_MODEL,
     reasoning: {
       effort: "low",
     },
