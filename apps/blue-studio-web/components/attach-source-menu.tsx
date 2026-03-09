@@ -219,7 +219,7 @@ export function AttachSourceMenu({
       </PromptInputActionMenu>
 
       <Dialog open={workspaceDialogOpen} onOpenChange={setWorkspaceDialogOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-[min(56rem,calc(100%-2rem))] sm:!max-w-2xl">
           <DialogHeader>
             <DialogTitle>Attach app document</DialogTitle>
             <DialogDescription>
@@ -244,11 +244,11 @@ export function AttachSourceMenu({
                   className="space-y-1 rounded border bg-muted/20 p-2"
                   key={candidate.id}
                 >
-                  <p className="font-medium text-sm">{candidate.threadTitle}</p>
-                  <p className="line-clamp-2 text-muted-foreground text-xs">
+                  <p className="break-words font-medium text-sm">{candidate.threadTitle}</p>
+                  <p className="line-clamp-2 break-words text-muted-foreground text-xs">
                     {candidate.threadSummary}
                   </p>
-                  <p className="font-mono text-[11px] text-muted-foreground">
+                  <p className="break-all font-mono text-[11px] text-muted-foreground">
                     sessionId: {candidate.sessionId}
                   </p>
                   <div className="flex justify-end">

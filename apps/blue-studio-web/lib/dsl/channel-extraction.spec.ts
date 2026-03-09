@@ -47,4 +47,75 @@ describe("extractChannelBindingsFromStructure", () => {
       },
     ]);
   });
+
+  it("skips internal runtime channels from binding review", () => {
+    const bindings = extractChannelBindingsFromStructure({
+      accountId: "acc_1",
+      structure: {
+        name: "Counter",
+        description: undefined,
+        type: "Document",
+        fields: [],
+        contracts: [
+          {
+            key: "ownerChannel",
+            kind: "channel",
+            raw: {},
+            fingerprint: "fp_owner",
+            sectionKeys: [],
+          },
+          {
+            key: "Triggered Event Channel",
+            kind: "channel",
+            raw: {},
+            fingerprint: "fp_triggered_plain",
+            sectionKeys: [],
+          },
+          {
+            key: "Core/Triggered Event Channel",
+            kind: "channel",
+            raw: {},
+            fingerprint: "fp_triggered_core",
+            sectionKeys: [],
+          },
+          {
+            key: "Core/Lifecycle Event Channel",
+            kind: "channel",
+            raw: {},
+            fingerprint: "fp_lifecycle_core",
+            sectionKeys: [],
+          },
+          {
+            key: "Embedded Node Channel",
+            kind: "channel",
+            raw: {},
+            fingerprint: "fp_embedded_plain",
+            sectionKeys: [],
+          },
+          {
+            key: "Document Update Channel",
+            kind: "channel",
+            raw: {},
+            fingerprint: "fp_doc_update_plain",
+            sectionKeys: [],
+          },
+          {
+            key: "reviewerChannel",
+            kind: "channel",
+            raw: {},
+            fingerprint: "fp_reviewer",
+            sectionKeys: [],
+          },
+        ],
+        sections: [],
+        policies: [],
+        unclassifiedContracts: [],
+      },
+    });
+
+    expect(bindings.map((entry) => entry.channelName)).toEqual([
+      "ownerChannel",
+      "reviewerChannel",
+    ]);
+  });
 });
