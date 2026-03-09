@@ -120,7 +120,9 @@ test("simulated webhook SSE invalidation refreshes matching thread status", asyn
     });
   });
 
+  let registerCalls = 0;
   await page.route("**/api/myos/webhooks/register", async (route) => {
+    registerCalls += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -187,4 +189,5 @@ test("simulated webhook SSE invalidation refreshes matching thread status", asyn
   await expect(page.getByText("Counter is 1").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Counter active" }).first()).toBeVisible();
   expect(retrieveCalls).toBeGreaterThanOrEqual(2);
+  expect(registerCalls).toBe(1);
 });
