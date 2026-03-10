@@ -14,6 +14,20 @@ export interface DocumentPollOptions extends PollOptions {
   readonly sessionId: string;
 }
 
+export interface WaitForEmittedEventOptions extends PollOptions {
+  readonly feedLimit?: number;
+}
+
+export interface EmittedEventMatch {
+  readonly event: Record<string, unknown>;
+  readonly entry: Record<string, unknown>;
+}
+
+export interface DebugStateOptions {
+  readonly feedLimit?: number;
+  readonly includeDocumentSnapshot?: boolean;
+}
+
 export async function retrieveDocument(
   client: MyOsClient,
   sessionId: string,
@@ -36,18 +50,23 @@ export async function waitForPredicate(
   ) => boolean | Promise<boolean>,
   options: PollOptions = {},
 ): Promise<Record<string, unknown>> {
-  return pollUntil(
-    async () => {
-      const latest = await retrieveDocument(client, sessionId);
-      const matched = await predicate(latest);
-      return matched ? latest : undefined;
-    },
-    {
-      timeoutMs: options.timeoutMs,
-      intervalMs: options.intervalMs,
-      label: options.label ?? `waitForPredicate(sessionId=${sessionId})`,
-    },
-  );
+  const label = options.label ?? `waitForPredicate(sessionId=${sessionId})`;
+  try {
+    return await pollUntil(
+      async () => {
+        const latest = await retrieveDocument(client, sessionId);
+        const matched = await predicate(latest);
+        return matched ? latest : undefined;
+      },
+      {
+        timeoutMs: options.timeoutMs,
+        intervalMs: options.intervalMs,
+        label,
+      },
+    );
+  } catch (error) {
+    throw await createDebugError(client, sessionId, label, error);
+  }
 }
 
 export async function waitForAllowedOperation(
@@ -56,21 +75,31 @@ export async function waitForAllowedOperation(
   opName: string,
   options: PollOptions = {},
 ): Promise<Record<string, unknown>> {
-  return waitForPredicate(
-    client,
-    sessionId,
-    (latest) =>
-      readArray(latest.allowedOperations).some(
-        (value) => String(value) === opName,
-      ),
-    {
-      timeoutMs: options.timeoutMs,
-      intervalMs: options.intervalMs,
-      label:
-        options.label ??
-        `waitForAllowedOperation(sessionId=${sessionId}, op=${opName})`,
-    },
-  );
+  const label =
+    options.label ??
+    `waitForAllowedOperation(sessionId=${sessionId}, op=${opName})`;
+  let lastAllowedOperations: string[] = [];
+
+  try {
+    return await waitForPredicate(
+      client,
+      sessionId,
+      (latest) => {
+        lastAllowedOperations = toOperationNames(latest);
+        return lastAllowedOperations.includes(opName);
+      },
+      {
+        timeoutMs: options.timeoutMs,
+        intervalMs: options.intervalMs,
+        label,
+      },
+    );
+  } catch (error) {
+    throw await createDebugError(client, sessionId, label, error, {
+      operation: opName,
+      lastAllowedOperations,
+    });
+  }
 }
 
 export async function waitForFieldValue(
@@ -80,18 +109,32 @@ export async function waitForFieldValue(
   expected: unknown,
   options: PollOptions = {},
 ): Promise<Record<string, unknown>> {
-  return waitForPredicate(
-    client,
-    sessionId,
-    (latest) => deepEqual(extractField(latest, jsonPointer), expected),
-    {
-      timeoutMs: options.timeoutMs,
-      intervalMs: options.intervalMs,
-      label:
-        options.label ??
-        `waitForFieldValue(sessionId=${sessionId}, pointer=${jsonPointer}, expected=${compactJson(expected)})`,
-    },
-  );
+  const label =
+    options.label ??
+    `waitForFieldValue(sessionId=${sessionId}, pointer=${jsonPointer}, expected=${compactJson(expected)})`;
+  let lastActual: unknown;
+
+  try {
+    return await waitForPredicate(
+      client,
+      sessionId,
+      (latest) => {
+        lastActual = extractField(latest, jsonPointer);
+        return deepEqual(lastActual, expected);
+      },
+      {
+        timeoutMs: options.timeoutMs,
+        intervalMs: options.intervalMs,
+        label,
+      },
+    );
+  } catch (error) {
+    throw await createDebugError(client, sessionId, label, error, {
+      pointer: jsonPointer,
+      expected,
+      actual: lastActual,
+    });
+  }
 }
 
 export async function latestEpoch(
@@ -124,10 +167,11 @@ export async function latestEpoch(
 export async function listFeedEntries(
   client: MyOsClient,
   sessionId: string,
+  limit = 50,
 ): Promise<unknown[]> {
   const response = (await client.documents.feedEntries.list(sessionId, {
     order: 'desc',
-    limit: 50,
+    limit,
   })) as Record<string, unknown>;
   return readArray(response.items);
 }
@@ -140,6 +184,103 @@ export async function latestEmittedEvents(
   return items
     .map((item) => (item as Record<string, unknown>).message)
     .filter((value) => value !== undefined);
+}
+
+export async function waitForEmittedEvent(
+  client: MyOsClient,
+  sessionId: string,
+  predicate: (
+    event: Record<string, unknown>,
+    entry: Record<string, unknown>,
+  ) => boolean | Promise<boolean>,
+  options: WaitForEmittedEventOptions = {},
+): Promise<EmittedEventMatch> {
+  const feedLimit = options.feedLimit ?? 100;
+  const label =
+    options.label ??
+    `waitForEmittedEvent(sessionId=${sessionId}, limit=${feedLimit})`;
+  const lastObservedEventTypes: string[] = [];
+
+  try {
+    return await pollUntil(
+      async () => {
+        const entries = await listFeedEntries(client, sessionId, feedLimit);
+        lastObservedEventTypes.length = 0;
+        for (const entry of entries) {
+          const entryRecord = readRecord(entry);
+          if (!entryRecord) {
+            continue;
+          }
+          const eventRecord = readRecord(entryRecord.message);
+          if (!eventRecord) {
+            continue;
+          }
+          const eventType = readString(eventRecord.type);
+          if (eventType) {
+            lastObservedEventTypes.push(eventType);
+          }
+          if (await predicate(eventRecord, entryRecord)) {
+            return {
+              event: eventRecord,
+              entry: entryRecord,
+            };
+          }
+        }
+        return undefined;
+      },
+      {
+        timeoutMs: options.timeoutMs,
+        intervalMs: options.intervalMs,
+        label,
+      },
+    );
+  } catch (error) {
+    throw await createDebugError(client, sessionId, label, error, {
+      feedLimit,
+      lastObservedEventTypes,
+    });
+  }
+}
+
+export async function captureDebugState(
+  client: MyOsClient,
+  sessionId: string,
+  options: DebugStateOptions = {},
+): Promise<Record<string, unknown>> {
+  const feedLimit = options.feedLimit ?? 15;
+  const includeDocumentSnapshot = options.includeDocumentSnapshot ?? true;
+
+  const state: Record<string, unknown> = {
+    sessionId,
+    capturedAt: new Date().toISOString(),
+  };
+
+  try {
+    const retrieved = await retrieveDocument(client, sessionId);
+    state.documentName = readRetrievedDocumentName(retrieved);
+    state.allowedOperations = toOperationNames(retrieved);
+    if (includeDocumentSnapshot) {
+      state.document = unwrapDocumentValue(retrieved.document);
+    }
+  } catch (error) {
+    state.retrieveError = serializeError(error);
+  }
+
+  try {
+    const epoch = await latestEpoch(client, sessionId);
+    state.latestEpoch = readNumber(epoch.epoch) ?? epoch.epoch;
+  } catch (error) {
+    state.latestEpochError = serializeError(error);
+  }
+
+  try {
+    const feedEntries = await listFeedEntries(client, sessionId, feedLimit);
+    state.feedEntries = feedEntries.map((entry) => summarizeFeedEntry(entry));
+  } catch (error) {
+    state.feedEntriesError = serializeError(error);
+  }
+
+  return state;
 }
 
 export function extractField(
@@ -238,6 +379,72 @@ function findFirstStringByKey(value: unknown, key: string): string | undefined {
     }
   }
   return undefined;
+}
+
+function toOperationNames(retrievedDoc: Record<string, unknown>): string[] {
+  return readArray(retrievedDoc.allowedOperations).map((value) =>
+    String(value),
+  );
+}
+
+function readRetrievedDocumentName(
+  retrievedDoc: Record<string, unknown>,
+): string | undefined {
+  const document = unwrapDocumentValue(retrievedDoc.document);
+  const documentRecord = readRecord(document);
+  if (!documentRecord) {
+    return undefined;
+  }
+  return readString(documentRecord.name);
+}
+
+function summarizeFeedEntry(entry: unknown): Record<string, unknown> {
+  const record = readRecord(entry);
+  if (!record) {
+    return { raw: entry };
+  }
+  const message = readRecord(record.message);
+  return {
+    id: readString(record.id),
+    epoch: readNumber(record.epoch),
+    createdAt: readString(record.createdAt) ?? readString(record.at),
+    eventType: message ? readString(message.type) : undefined,
+    eventName: message ? readString(message.name) : undefined,
+    topic: message ? readString(message.topic) : undefined,
+    requestId: message ? readString(message.requestId) : undefined,
+    subscriptionId: message ? readString(message.subscriptionId) : undefined,
+    message: message ?? record.message,
+  };
+}
+
+function serializeError(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+  return {
+    message: compactJson(error),
+  };
+}
+
+async function createDebugError(
+  client: MyOsClient,
+  sessionId: string,
+  label: string,
+  sourceError: unknown,
+  context: Record<string, unknown> = {},
+): Promise<Error> {
+  const debugState = await captureDebugState(client, sessionId);
+  return new Error(
+    `${label} failed with debug snapshot: ${compactJson({
+      sourceError: serializeError(sourceError),
+      ...context,
+      debugState,
+    })}`,
+  );
 }
 
 function deepEqual(left: unknown, right: unknown): boolean {

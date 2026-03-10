@@ -694,6 +694,236 @@ Section-enabled docs sampled in tests:
 
 ---
 
+## Story 19 — Propose / accept / reject change lifecycle
+
+### What the story is about
+
+Covers first-class change-lifecycle contracts beyond direct-change:
+
+- propose change,
+- accept change,
+- reject change.
+
+### DSL docs used
+
+- `buildChangeLifecycleDocument`
+  - `proposeChange('proposeChange', 'ownerChannel')`
+  - `acceptChange('acceptChange', 'ownerChannel')`
+  - `rejectChange('rejectChange', 'ownerChannel')`
+  - inherited `contractsPolicy`.
+
+### How the test works
+
+1. bootstrap document,
+2. assert lifecycle contracts are present (`propose/accept/reject` + impl),
+3. optional env-gated behavioral probe sends a propose request and watches feed emission.
+
+### MyOS run result
+
+⚠️ **Structure proven**. Behavioral lifecycle execution remains env-gated pending
+dedicated runtime confirmation.
+
+---
+
+## Story 20 — Permission revoke lifecycle (single + linked)
+
+### What the story is about
+
+Adds full permission lifecycle surface for an agent:
+
+- request single-doc permission,
+- revoke single-doc permission,
+- request linked-doc permission,
+- revoke linked-doc permission.
+
+### DSL docs used
+
+- target source doc (`buildStopResumeControlDocument`) used as permission target,
+- anchor root + linked seed docs (`buildBaseAnchorDocument`, `buildLinkedDocument`),
+- lifecycle agent (`buildPermissionLifecycleAgentDocument`) with:
+  - `sessionInteraction()`,
+  - `myOsAdmin('myOsAdminChannel')`,
+  - request/revoke operations for single and linked permission flows,
+  - response matchers updating counters.
+
+### How the test works
+
+1. bootstrap source and linked graph docs,
+2. bootstrap lifecycle agent,
+3. assert lifecycle operations/contracts are present,
+4. optional env-gated behavioral path runs request/revoke operations and waits for counter updates.
+
+### MyOS run result
+
+⚠️ **Structure proven**. End-to-end revoke/grant behavior remains env-gated for
+runtime confirmation.
+
+---
+
+## Story 21 — Subscription revoked / reinitiated lifecycle
+
+### What the story is about
+
+Companion to Story 20, focusing on subscription lifecycle after permission
+roundtrips.
+
+### DSL docs used
+
+- Reuses `buildPermissionLifecycleAgentDocument`:
+  - single-doc permission request uses `grantSessionSubscriptionOnResult`,
+  - subscription initiation events increment `/subscriptionInitiatedCount`.
+
+### How the test works
+
+1. run single grant + revoke flow,
+2. request single grant again,
+3. verify subscription initiation count grows beyond initial value (env-gated).
+
+### MyOS run result
+
+⚠️ **Structure proven**. Runtime subscription revoke/re-init behavior remains
+env-gated for confirmation.
+
+---
+
+## Story 22 — Document + document-type link coverage
+
+### What the story is about
+
+Extends link coverage beyond session links by asserting:
+
+- `MyOS/Document Link`,
+- `MyOS/Document Type Link`,
+- alongside `MyOS/MyOS Session Link`.
+
+### DSL docs used
+
+- linked session seed (`buildStopResumeControlDocument`),
+- link-coverage doc (`buildLinkCoverageDocument`) with:
+  - `documentAnchors(...)`,
+  - explicit `documentLinks({...})` map containing all three link variants.
+
+### How the test works
+
+1. bootstrap linked session seed,
+2. bootstrap link coverage doc,
+3. retrieve and assert all link variant contracts are present.
+
+### MyOS run result
+
+✅ **Structure path works** (contract roundtrip proven).
+
+---
+
+## Story 23 — Timeline permissions inspection roundtrip
+
+### What the story is about
+
+Adds API-level coverage for timeline permission management on a document channel.
+
+### DSL docs used
+
+- `buildStopResumeControlDocument` for a stable `ownerChannel` timeline source.
+
+### How the test works
+
+1. bootstrap doc and extract `ownerChannel` timeline id,
+2. optional env-gated API flow:
+   - create permission,
+   - list permissions,
+   - retrieve permission,
+   - delete permission.
+
+### MyOS run result
+
+⚠️ **Structure + extraction proven**. Full permission CRUD run is env-gated and
+requires accountId-backed configuration.
+
+---
+
+## Story 24 — Stop / resume processing roundtrip
+
+### What the story is about
+
+Verifies document processing lifecycle controls:
+
+- stop processing,
+- resume processing.
+
+### DSL docs used
+
+- `buildStopResumeControlDocument` with a simple `tick` operation.
+
+### How the test works
+
+1. bootstrap doc and assert operation contracts,
+2. optional env-gated behavior path:
+   - run `tick`,
+   - stop processing and wait for paused status,
+   - resume processing and wait for active status.
+
+### MyOS run result
+
+⚠️ **Structure proven**. Full stop/resume behavior path currently runs behind
+story gate.
+
+---
+
+## Story 25 — MyOS events observability
+
+### What the story is about
+
+Adds direct visibility checks through `myOsEvents.list`, with debug-state
+capture assistance when event visibility diverges.
+
+### DSL docs used
+
+- `buildStopResumeControlDocument` (document lifecycle trigger source).
+
+### How the test works
+
+1. bootstrap doc,
+2. optional env-gated behavior path:
+   - stop + resume to trigger lifecycle events,
+   - list MyOS events and inspect lifecycle event types,
+   - fallback to `captureDebugState(sessionId)` evidence snapshot.
+
+### MyOS run result
+
+⚠️ **Story wired and observable helpers integrated**; behavioral event
+observability remains env-gated pending dedicated live verification.
+
+---
+
+## Story 26 — Worker agency optional lifecycle
+
+### What the story is about
+
+Optional coverage for worker-agency marker + permission lifecycle wiring.
+
+### DSL docs used
+
+- source control doc (`buildStopResumeControlDocument`),
+- worker agency agent (`buildWorkerAgencyLifecycleDocument`) with:
+  - `workerAgency()`,
+  - `myOsAdmin('myOsAdminChannel')`,
+  - worker agency grant/revoke operations,
+  - correlated response matchers updating counters.
+
+### How the test works
+
+1. bootstrap source + worker agent docs,
+2. assert worker agency marker and operations are present,
+3. optional env-gated behavior path runs grant/revoke operations and waits for
+   counter updates.
+
+### MyOS run result
+
+⚠️ **Structure proven**. Worker-agency behavior remains optional and env-gated
+pending runtime/type stability confirmation.
+
+---
+
 ## Final picture: what worked vs what failed
 
 ### Fully validated on live MyOS (current environment)
@@ -702,11 +932,15 @@ Section-enabled docs sampled in tests:
 
 ### Partially validated (core path works, deeper orchestration gated)
 
-- Stories: **6, 7, 8, 10**
+- Stories: **6, 7, 8, 10, 19, 20, 21, 23, 24, 25, 26**
 
 ### Blocked/gated by runtime constraints
 
 - Stories: **2, 13, 14, 15, 16**
+
+### Structure-proven mapping coverage
+
+- Story: **22**
 
 ---
 
@@ -727,6 +961,13 @@ To explicitly attempt blocked subflows while investigating runtime fixes, set:
 - `MYOS_ENABLE_STORY_13=true`
 - `MYOS_ENABLE_STORY_14=true`
 - `MYOS_ENABLE_STORY_15=true`
+- `MYOS_ENABLE_STORY_19=true`
+- `MYOS_ENABLE_STORY_20=true`
+- `MYOS_ENABLE_STORY_21=true`
+- `MYOS_ENABLE_STORY_23=true`
+- `MYOS_ENABLE_STORY_24=true`
+- `MYOS_ENABLE_STORY_25=true`
+- `MYOS_ENABLE_STORY_26=true`
 
 Then rerun targeted story files.
 

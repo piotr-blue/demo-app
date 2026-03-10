@@ -24,6 +24,7 @@ describe('access step helpers execution', () => {
       .targetSessionId('target-session')
       .requestId('REQ_ACCESS')
       .subscriptionId('SUB_ACCESS')
+      .subscriptionEvents('Conversation/Response')
       .done()
       .operation(
         'bootstrapAccess',
@@ -41,7 +42,7 @@ describe('access step helpers execution', () => {
               true,
             )
             .access('counterAccess')
-            .subscribe('Conversation/Response'),
+            .subscribe(),
       )
       .buildDocument();
 
@@ -106,6 +107,9 @@ describe('access step helpers execution', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('target-session')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()
@@ -123,7 +127,7 @@ describe('access step helpers execution', () => {
             .accessLinked('linkedAccess')
             .requestPermission({ anchorA: { read: true } })
             .accessLinked('linkedAccess')
-            .subscribe('Conversation/Event')
+            .subscribe()
             .accessLinked('linkedAccess')
             .call('syncState', {
               type: 'Conversation/Event',
@@ -259,6 +263,9 @@ describe('access step helpers execution', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('target-session')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()
@@ -438,6 +445,9 @@ describe('access step helpers execution', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('target-session')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()
@@ -595,6 +605,9 @@ describe('access step helpers execution', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('target-session')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()
@@ -786,6 +799,9 @@ describe('access step helpers execution', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('target-session')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()
@@ -1028,6 +1044,9 @@ describe('access step helpers execution', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('default-linked-target')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()
@@ -1136,6 +1155,9 @@ describe('access step helpers execution', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('default-linked-target')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()

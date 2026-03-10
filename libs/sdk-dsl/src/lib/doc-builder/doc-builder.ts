@@ -48,10 +48,7 @@ function requireText(value: string, field: string): string {
 }
 
 function defaultOperationImplementation(steps: StepsBuilder): void {
-  steps.jsRaw(
-    'EmitEvents',
-    'return { events: (event && event.message && event.message.request) || [] };',
-  );
+  steps.jsRaw('EmitEvents', 'return { events: event.message.request };');
 }
 
 function aiToken(name: string): string {
@@ -697,16 +694,18 @@ export class DocBuilder {
     customizerMaybe?: StepsCustomizer,
   ): this {
     const config = this.requireLinkedAccessConfig(linkedAccessName);
+    const subscriptionId =
+      config.subscriptionId ?? `SUB_LINKED_${config.token}`;
     if (customizerMaybe === undefined) {
       return this.onSubscriptionUpdate(
         workflowKey,
-        config.subscriptionId,
+        subscriptionId,
         updateTypeOrCustomizer as StepsCustomizer,
       );
     }
     return this.onSubscriptionUpdate(
       workflowKey,
-      config.subscriptionId,
+      subscriptionId,
       updateTypeOrCustomizer as TypeLike,
       customizerMaybe,
     );

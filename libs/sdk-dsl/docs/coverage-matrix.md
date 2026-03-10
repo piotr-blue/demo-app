@@ -1,4 +1,4 @@
-# SDK DSL Coverage Matrix (runtime-first)
+# SDK DSL Coverage Matrix (construct-parity tracking)
 
 Legend:
 - ✅ covered

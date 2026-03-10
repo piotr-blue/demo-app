@@ -18,6 +18,9 @@ describe('interaction builders mapping', () => {
       .accessLinked('linkedCounterAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('target-session')
+      .link('anchorA')
+      .read(true)
+      .done()
       .done()
       .agency('workerAgency')
       .permissionFrom('ownerChannel')
@@ -87,6 +90,9 @@ describe('interaction builders mapping', () => {
       .accessLinked('linkedCounterAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('target-session')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED_COUNTER')
       .subscriptionId('SUB_LINKED_COUNTER')
       .done()
@@ -98,7 +104,7 @@ describe('interaction builders mapping', () => {
         (steps) =>
           steps
             .accessLinked('linkedCounterAccess')
-            .subscribe('Conversation/Event')
+            .subscribe()
             .accessLinked('linkedCounterAccess')
             .call('syncLinkedState', {
               type: 'Conversation/Event',
@@ -125,6 +131,7 @@ describe('interaction builders mapping', () => {
       .targetSessionId('target-session')
       .requestId('REQ_COUNTER')
       .subscriptionId('SUB_COUNTER')
+      .subscriptionEvents('Conversation/Response')
       .done()
       .operation(
         'bootstrapAccess',
@@ -142,7 +149,7 @@ describe('interaction builders mapping', () => {
               true,
             )
             .access('counterAccess')
-            .subscribe('Conversation/Response'),
+            .subscribe(),
       )
       .buildDocument();
 
@@ -169,6 +176,9 @@ describe('interaction builders mapping', () => {
       .accessLinked('linkedCounterAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('target-session')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()
@@ -386,6 +396,9 @@ describe('interaction builders mapping', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('default-linked-target')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()
@@ -444,6 +457,9 @@ describe('interaction builders mapping', () => {
       .accessLinked('linkedAccess')
       .permissionFrom('ownerChannel')
       .targetSessionId('default-linked-target')
+      .link('anchorA')
+      .read(true)
+      .done()
       .requestId('REQ_LINKED')
       .subscriptionId('SUB_LINKED')
       .done()

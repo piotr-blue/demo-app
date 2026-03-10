@@ -1,144 +1,337 @@
-# JS live story mapping reference
+# JS live story mapping reference (MyOS baseline)
 
-This document captures the practical JS mappings used by the live story suite.
-It is intentionally runtime-first and reflects the combinations exercised in
-`libs/myos-js/src/live/stories`.
+This document is the practical mapping baseline for the MyOS live story track in:
 
-## 1) Basic operation and workflow mappings used live
+- `libs/myos-js/src/live/stories/*`
 
-### Counter operation
+It is intentionally runtime-first and reflects what we want to converge to in
+live MyOS integration stories. AI mappings are out of scope for this track.
 
-```ts
-DocBuilder.doc()
-  .field('/counter', 0)
-  .operation('increment', 'ownerChannel', BasicBlueTypes.Integer, '...', (steps) =>
-    steps.replaceExpression('IncrementCounter', '/counter', "document('/counter') + event.message.request"),
-  )
+## 1) Participant channels baseline for live MyOS stories
+
+For live stories, externally bound participant channels are modeled as:
+
+```yaml
+contracts:
+  ownerChannel:
+    type: MyOS/MyOS Timeline Channel
 ```
 
-Maps to:
+The same baseline applies to participant channels such as:
 
-- `Conversation/Operation` contract (`increment`)
-- `Conversation/Sequential Workflow Operation` contract (`incrementImpl`)
-- `Conversation/Update Document` step with expression changeset.
+- `aliceChannel`, `bobChannel`
+- `payerChannel`, `payeeChannel`, `guarantorChannel`
+- `shipmentCompanyChannel`
+- any additional externally bound participant channel.
 
-### Direct change mapping
+Notes:
 
-```ts
-DocBuilder.doc().directChange('changeDocument', 'ownerChannel', '...')
+- The historical generic `Core/Channel` notion remains a conceptual abstraction.
+- For live MyOS stories, `MyOS/MyOS Timeline Channel` is the practical mapping.
+
+## 2) myOsAdmin(...) canonical mapping
+
+`myOsAdmin('myOsAdminChannel')` should map to the standard admin-update pattern:
+
+```yaml
+contracts:
+  myOsAdminChannel:
+    type: MyOS/MyOS Timeline Channel
+
+  myOsAdminUpdate:
+    type: Conversation/Operation
+    channel: myOsAdminChannel
+    request:
+      type: List
+
+  myOsAdminUpdateImpl:
+    type: Conversation/Sequential Workflow Operation
+    operation: myOsAdminUpdate
+    steps:
+      - name: EmitAdminEvents
+        type: Conversation/JavaScript Code
+        code: |
+          return { events: event.message.request };
 ```
 
-Maps to:
+Canonical corrections:
 
-- `changeDocument` (`Conversation/Change Operation`)
-- `changeDocumentImpl` (`Conversation/Change Workflow`)
-- `contractsPolicy` (`Conversation/Contracts Change Policy`).
+- operation key is `...Update` (not `...Emit` for this baseline),
+- event pass-through uses `event.message.request` (not raw `event`).
 
-## 2) Event/listener mappings used live
+## 3) canEmit(...) naming convention
 
-### Named event listener
+For live stories:
 
-`onNamedEvent(...)` maps to matcher:
+```ts
+canEmit('ownerChannel')
+```
+
+maps to:
+
+```yaml
+contracts:
+  ownerUpdate:
+    type: Conversation/Operation
+    channel: ownerChannel
+    request:
+      type: List
+
+  ownerUpdateImpl:
+    type: Conversation/Sequential Workflow Operation
+    operation: ownerUpdate
+    steps:
+      - name: EmitEvents
+        type: Conversation/JavaScript Code
+        code: |
+          return { events: event.message.request };
+```
+
+Examples:
+
+- `canEmit('aliceChannel')` -> `aliceUpdate`
+- `canEmit('bobChannel', ...)` -> `bobUpdate` with typed list request items.
+
+## 4) directChange(...) mapping
+
+`directChange(...)` maps to contracts-based change lifecycle:
+
+```yaml
+contracts:
+  contractsPolicy:
+    type: Conversation/Contracts Change Policy
+    requireSectionChanges: true # when configured
+
+  changeDocument:
+    type: Conversation/Change Operation
+    channel: ownerChannel
+
+  changeDocumentImpl:
+    type: Conversation/Change Workflow
+    operation: changeDocument
+```
+
+Important:
+
+- `contractsPolicy` belongs under `/contracts`.
+- This baseline does not use a `/policies/contractsChangePolicy` path.
+
+## 5) Capability/helper mappings used in live stories
+
+### 5.1 Session interaction marker
+
+```yaml
+contracts:
+  sessionInteraction:
+    type: MyOS/MyOS Session Interaction
+```
+
+### 5.2 Participants orchestration marker
+
+```yaml
+contracts:
+  participantsOrchestration:
+    type: MyOS/MyOS Participants Orchestration
+```
+
+### 5.3 Anchors and links
+
+```yaml
+contracts:
+  anchors:
+    type: MyOS/Document Anchors
+    anchorA:
+      type: MyOS/Document Anchor
+
+  links:
+    type: MyOS/Document Links
+    link1:
+      type: MyOS/MyOS Session Link
+      anchor: anchorA
+      sessionId: <sessionId>
+```
+
+Sister link forms in this baseline:
+
+- `documentLink(...)` -> `MyOS/Document Link`
+- `documentTypeLink(...)` -> `MyOS/Document Type Link`
+
+## 6) Participant add/remove payload mapping
+
+Canonical add payload:
 
 ```yaml
 event:
-  type: Conversation/Event
-  name: <eventName>
+  type: MyOS/Adding Participant Requested
+  channelName: reviewerChannel
+  participantBinding:
+    email: someone@example.com
 ```
 
-### canEmit operation naming
-
-`canEmit('ownerChannel')` generates operation key:
-
-- `ownerUpdate` (JS runtime convention),
-- not Java reference `ownerEmit`.
-
-### Channel event listener
-
-Live channel-ingestion story listens on:
+Canonical remove payload:
 
 ```yaml
-event.type: Conversation/Timeline Entry
-channel: signalChannel
+event:
+  type: MyOS/Removing Participant Requested
+  channelName: reviewerChannel
 ```
 
-and consumes `event.message.*` payload from real timeline entries.
+`channelKey`/flat-email legacy payloads are not the preferred mapping baseline.
 
-## 3) Session interaction mappings used live
+## 7) Subscription request mappings
 
-### Permission and subscription
+### 7.1 subscribeToSession(...)
 
-`steps.myOs().requestSingleDocPermission(...)` emits:
+```yaml
+event:
+  type: MyOS/Subscribe to Session Requested
+  onBehalfOf: ownerChannel
+  targetSessionId: <targetSessionId>
+  subscription:
+    id: <subscriptionId>
+    events: []
+```
 
-- `MyOS/Single Document Permission Grant Requested`
+### 7.2 subscribeToSessionWithMatchers(...)
 
-`steps.myOs().subscribeToSession(...)` emits:
+```yaml
+event:
+  type: MyOS/Subscribe to Session Requested
+  onBehalfOf: ownerChannel
+  targetSessionId: <targetSessionId>
+  subscription:
+    id: <subscriptionId>
+    events:
+      - <matcher1>
+      - <matcher2>
+```
 
-- `MyOS/Subscribe to Session Requested`
-- `subscription.id`
-- `subscription.events` type list.
+This matcher-capable form is required for filtered subscription stories.
 
-### Filtered subscriptions (new helper)
+## 8) onChannelEvent(...) preferred mapping
 
-`steps.myOs().subscribeToSessionWithMatchers(...)` emits:
+Preferred live target:
 
-- `MyOS/Subscribe to Session Requested`
-- `subscription.events` preserving matcher objects (for example `type + topic`).
+```yaml
+contracts:
+  onShipmentConfirmed:
+    type: Conversation/Sequential Workflow
+    channel: shipmentCompanyChannel
+    event:
+      type: Shipping/Shipment Confirmed
+```
 
-## 4) Links + participants mappings used live
+Fallback pattern (timeline-entry + `event.message.*`) may still be used where
+runtime type coverage forces it, but it is not the preferred baseline.
 
-### Anchors and links
+## 9) Child bootstrap request mapping
 
-`documentAnchors([...])` + `sessionLink(...)` map to:
+`steps.myOs().bootstrapDocument(...)` should align to public bootstrap body
+shape:
 
-- `MyOS/Document Anchors`
-- `MyOS/Document Links`.
+```yaml
+event:
+  type: Conversation/Document Bootstrap Requested
+  document: <childDoc>
+  channelBindings: <bindings>
+  capabilities: <optional>
+  initialMessages: <optional>
+  initiatorChannel: <optional>
+```
 
-### Participants orchestration marker
+## 10) Payment mapping updates
 
-`participantsOrchestration()` maps to:
+### 10.1 triggerPayment(...)
 
-- `MyOS/MyOS Participants Orchestration` marker contract.
+Canonical intent is to emit an actual payment request type (not a stand-in
+reserve event alias):
 
-Participant add/remove flows are emitted via trigger-event steps:
+```yaml
+event:
+  type: <payment-request-type>
+  processor: ...
+  from: ...
+  to: ...
+  currency: ...
+  amountMinor: ...
+```
 
-- `MyOS/Adding Participant Requested`
-- `MyOS/Removing Participant Requested`.
+### 10.2 requestBackwardPayment(...)
 
-## 5) PayNote and payment mappings used live
+Canonical mapping remains:
 
-### PayNote capture flows
+```yaml
+event:
+  type: PayNote/Backward Payment Requested
+  processor: ...
+  from: ...
+  to: ...
+  amountMinor: ...
+  attachedPayNote: ...
+```
 
-`capture().lockOnInit()` / `unlockOnOperation(...)` / `requestOnOperation(...)`
-emit:
+If runtime type availability blocks execution, keep story gated without
+rewriting canonical mapping.
 
-- `PayNote/Card Transaction Capture Lock Requested`
-- `PayNote/Card Transaction Capture Unlock Requested`
-- `PayNote/Capture Funds Requested`.
+## 11) PayNote live baseline notes
 
-### Generic payment requests
+- Additional participant channels should be explicit `MyOS/MyOS Timeline Channel`.
+- `capture().lockOnInit()`, `unlockOnOperation(...)`, and
+  `requestOnOperation(...)` remain the primary live capture-path target.
+- Reserve/release mappings remain part of DSL mapping surface even when live
+  observability is currently gated.
 
-`steps.triggerPayment(...)` emits requested payment event type and rail payload
-fields under a single trigger-event step, including tested variants:
+## 12) Additional advanced-control mappings
 
-- `viaAch`
-- `viaCreditLine`
-- `viaLedger`.
+### 12.1 Propose/accept/reject change lifecycle
 
-## 6) Runtime-gated mapping (blocked)
+Canonical contracts:
 
-Backward payment flow (`steps.requestBackwardPayment`) depends on repository type
-alias availability for:
+```yaml
+contracts:
+  contractsPolicy:
+    type: Conversation/Contracts Change Policy
 
-- `PayNote/Backward Payment Requested`
+  proposeChange:
+    type: Conversation/Propose Change Operation
+  proposeChangeImpl:
+    type: Conversation/Propose Change Workflow
 
-In the current workspace runtime package this alias is unavailable, so live story
-execution is gated and tracked in `libs/myos-js/issues.md`.
+  acceptChange:
+    type: Conversation/Accept Change Operation
+  acceptChangeImpl:
+    type: Conversation/Accept Change Workflow
 
-Additional live-runtime gated areas tracked in `libs/myos-js/issues.md`:
+  rejectChange:
+    type: Conversation/Reject Change Operation
+  rejectChangeImpl:
+    type: Conversation/Reject Change Workflow
+```
 
-- deep session-interaction watcher updates (Stories 6-8),
-- linked-doc incremental grant watcher updates (Story 10),
-- parent-driven child bootstrap request validation (Story 13),
-- paynote/payment emitted-event observability via live APIs (Stories 14-15).
+### 12.2 Timeline permissions + processing controls + MyOS events
+
+Live story track also covers API-level roundtrips that complement DSL mapping:
+
+- `timelines.permissions.create/list/retrieve/delete`
+- `documents.stop` + `documents.resume`
+- `myOsEvents.list` lifecycle observability
+
+These are runtime API mappings rather than contract-generation mappings.
+
+## 13) Runtime-gated areas
+
+Known runtime-gated stories remain tracked in:
+
+- `libs/myos-js/issues.md`
+
+Current gated areas include:
+
+- direct change mutation visibility (Story 2),
+- deeper session-interaction orchestration (Stories 6-8),
+- linked-doc incremental grant updates (Story 10),
+- child bootstrap validation/runtime acceptance (Story 13),
+- paynote/payment emitted-event observability (Stories 14-15),
+- backward payment alias availability (Story 16),
+- advanced control behavior verification (Stories 19-21, 23-25),
+- optional worker-agency behavior verification (Story 26).
 

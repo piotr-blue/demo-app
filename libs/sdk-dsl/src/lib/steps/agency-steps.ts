@@ -5,20 +5,58 @@ import { AgencyBindingsBuilder } from '../interactions/agency-bindings-builder.j
 import { AgencyOptionsBuilder } from '../interactions/agency-options-builder.js';
 import type { StepsBuilder } from './steps-builder.js';
 
+function resolveOnBehalfOf(config: AgencyConfig): string {
+  return config.onBehalfOf ?? config.permissionFrom ?? 'ownerChannel';
+}
+
 export class AgencySteps {
   constructor(
     private readonly parent: StepsBuilder,
     private readonly config: AgencyConfig,
   ) {}
 
+  private defaultPermissions(): JsonObject {
+    const permissions: JsonObject = {};
+    if (this.config.allowedTypes.length > 0) {
+      permissions.allowedDocumentTypes = this.config.allowedTypes.map(
+        (type) => ({
+          type,
+        }),
+      );
+    }
+    if (this.config.allowedOperations.length > 0) {
+      permissions.allowedOperations = [...this.config.allowedOperations];
+    }
+    return permissions;
+  }
+
+  requestPermission(): StepsBuilder;
+  requestPermission(stepName: string): StepsBuilder;
   requestPermission(
     workerAgencyPermissions: JsonObject,
     targetSessionId?: string,
-  ): StepsBuilder {
+  ): StepsBuilder;
+  requestPermission(arg1?: string | JsonObject, arg2?: string): StepsBuilder {
+    if (typeof arg1 === 'string') {
+      return this.parent.emitType(
+        arg1,
+        'MyOS/Worker Agency Permission Grant Requested',
+        (payload) => {
+          payload.put('onBehalfOf', resolveOnBehalfOf(this.config));
+          payload.put('requestId', this.config.requestId);
+          payload.put('workerAgencyPermissions', this.defaultPermissions());
+          if (this.config.targetSessionId) {
+            payload.put('targetSessionId', this.config.targetSessionId);
+          }
+        },
+      );
+    }
+    const workerAgencyPermissions = arg1 ?? this.defaultPermissions();
+    const targetSessionId = arg2;
     return this.parent
       .myOs()
       .grantWorkerAgencyPermission(
-        this.config.permissionFrom,
+        resolveOnBehalfOf(this.config),
         this.config.requestId,
         workerAgencyPermissions,
         targetSessionId ?? this.config.targetSessionId,
@@ -36,7 +74,7 @@ export class AgencySteps {
     return this.parent
       .myOs()
       .revokeWorkerAgencyPermission(
-        this.config.permissionFrom,
+        resolveOnBehalfOf(this.config),
         this.config.requestId,
         targetSessionId ?? this.config.targetSessionId,
       );
@@ -50,7 +88,7 @@ export class AgencySteps {
     return this.parent
       .myOs()
       .callOperation(
-        this.config.permissionFrom,
+        resolveOnBehalfOf(this.config),
         this.requireTargetSessionId(),
         operation,
         request,
@@ -65,7 +103,7 @@ export class AgencySteps {
     return this.parent
       .myOs()
       .callOperation(
-        this.config.permissionFrom,
+        resolveOnBehalfOf(this.config),
         targetSessionId,
         operation,
         request,
@@ -78,7 +116,7 @@ export class AgencySteps {
     return this.parent
       .myOs()
       .subscribeToSession(
-        this.config.permissionFrom,
+        resolveOnBehalfOf(this.config),
         this.requireTargetSessionId(),
         subscriptionId,
         ...resolvedEventTypes,
@@ -95,21 +133,18 @@ export class AgencySteps {
     return this.parent
       .myOs()
       .subscribeToSession(
-        this.config.permissionFrom,
+        resolveOnBehalfOf(this.config),
         targetSessionId,
         subscriptionId,
         ...resolvedEventTypes,
       );
   }
 
-  startWorkerSession(
-    agentChannelKey: string,
-    document: JsonObject,
-  ): StepsBuilder {
+  startSession(agentChannelKey: string, document: JsonObject): StepsBuilder {
     return this.parent.myOs().startWorkerSession(agentChannelKey, document);
   }
 
-  startWorkerSessionWith(
+  startSessionWith(
     agentChannelKey: string,
     document: JsonObject,
     configureBindings?: (bindings: AgencyBindingsBuilder) => void,
@@ -128,6 +163,27 @@ export class AgencySteps {
         bindingsBuilder.build(),
         optionsBuilder.build(),
       );
+  }
+
+  startWorkerSession(
+    agentChannelKey: string,
+    document: JsonObject,
+  ): StepsBuilder {
+    return this.startSession(agentChannelKey, document);
+  }
+
+  startWorkerSessionWith(
+    agentChannelKey: string,
+    document: JsonObject,
+    configureBindings?: (bindings: AgencyBindingsBuilder) => void,
+    configureOptions?: (options: AgencyOptionsBuilder) => void,
+  ): StepsBuilder {
+    return this.startSessionWith(
+      agentChannelKey,
+      document,
+      configureBindings,
+      configureOptions,
+    );
   }
 
   private requireTargetSessionId(): string {

@@ -169,28 +169,43 @@ export class MyOsSteps {
     );
   }
 
-  addParticipant(channelKey: string, email: string): StepsBuilder {
+  addParticipant(
+    channelName: string,
+    participantBindingOrEmail: JsonObject | string,
+  ): StepsBuilder {
     return this.parent.emitType(
       'AddParticipant',
       'MyOS/Adding Participant Requested',
       (payload) => {
         payload.put(
-          'channelKey',
-          requireText(channelKey, 'channelKey is required'),
+          'channelName',
+          requireText(channelName, 'channelName is required'),
         );
-        payload.put('email', requireText(email, 'email is required'));
+        if (typeof participantBindingOrEmail === 'string') {
+          payload.put('participantBinding', {
+            email: requireText(
+              participantBindingOrEmail,
+              'email binding is required',
+            ),
+          });
+          return;
+        }
+        payload.put(
+          'participantBinding',
+          toNodeValue(participantBindingOrEmail),
+        );
       },
     );
   }
 
-  removeParticipant(channelKey: string): StepsBuilder {
+  removeParticipant(channelName: string): StepsBuilder {
     return this.parent.emitType(
       'RemoveParticipant',
       'MyOS/Removing Participant Requested',
       (payload) => {
         payload.put(
-          'channelKey',
-          requireText(channelKey, 'channelKey is required'),
+          'channelName',
+          requireText(channelName, 'channelName is required'),
         );
       },
     );

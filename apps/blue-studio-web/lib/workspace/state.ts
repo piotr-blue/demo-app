@@ -185,6 +185,13 @@ function normalizeInspectorTab(tab: unknown): InspectorTab {
   return "overview";
 }
 
+function normalizeBindingDraft(binding: ChannelBindingDraft): ChannelBindingDraft {
+  return {
+    ...binding,
+    ignored: Boolean(binding.ignored),
+  };
+}
+
 export function normalizeWorkspaceState(workspace: WorkspaceState): WorkspaceState {
   const now = new Date().toISOString();
   const fallback = createWorkspace(workspace.id, workspace.credentials ?? null);
@@ -222,6 +229,15 @@ export function normalizeWorkspaceState(workspace: WorkspaceState): WorkspaceSta
       typeof workspace.autoRefreshEnabled === "boolean"
         ? workspace.autoRefreshEnabled
         : true,
+    channelBindings: Array.isArray(workspace.channelBindings)
+      ? workspace.channelBindings.map(normalizeBindingDraft)
+      : [],
+    finalBindings:
+      workspace.finalBindings === null
+        ? null
+        : Array.isArray(workspace.finalBindings)
+          ? workspace.finalBindings.map(normalizeBindingDraft)
+          : null,
     selectedInspectorTab: normalizeInspectorTab(workspace.selectedInspectorTab),
   };
   const meta = deriveThreadMeta(normalizedBase);

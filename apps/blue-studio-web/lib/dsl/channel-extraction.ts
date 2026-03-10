@@ -18,6 +18,7 @@ export function extractChannelBindingsFromStructure(params: {
       mode: ownerLike ? "accountId" : "email",
       value: ownerLike ? params.accountId : "",
       timelineId: undefined,
+      ignored: false,
     };
   });
 }

@@ -1165,7 +1165,10 @@ export function WorkspaceShell({
               phase: "binding-review",
               selectedInspectorTab: "bindings",
               currentDocumentJson: payload.documentJson,
-              channelBindings: payload.bindings,
+              channelBindings: payload.bindings.map((binding) => ({
+                ...binding,
+                ignored: Boolean(binding.ignored),
+              })),
               compileStatus: {
                 ok: true,
                 checkedAt: new Date().toISOString(),
@@ -1243,6 +1246,27 @@ export function WorkspaceShell({
     });
   };
 
+  const handleBindingIgnoreToggle = (channelName: string, ignored: boolean) => {
+    setWorkspace((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        channelBindings: previous.channelBindings.map((binding) =>
+          binding.channelName === channelName
+            ? {
+                ...binding,
+                ignored,
+              }
+            : binding
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
+
   const handleBootstrap = async () => {
     const currentWorkspace = workspace;
 
@@ -1250,7 +1274,11 @@ export function WorkspaceShell({
       return;
     }
 
-    const invalidBinding = currentWorkspace.channelBindings.find((binding) => !binding.value.trim());
+    const bindingsToSubmit = currentWorkspace.channelBindings.filter(
+      (binding) => !binding.ignored
+    );
+
+    const invalidBinding = bindingsToSubmit.find((binding) => !binding.value.trim());
     if (invalidBinding) {
       setWorkspace((previous) =>
         previous
@@ -1277,7 +1305,7 @@ export function WorkspaceShell({
               ...previous.bootstrapStatus,
               createBootstrapEvent("bootstrap-submitted", "Bootstrap request submitted."),
             ],
-            finalBindings: previous.channelBindings,
+            finalBindings: bindingsToSubmit,
             activityFeed: [...previous.activityFeed, createActivity("bootstrap", "Bootstrap submitted")],
             updatedAt: new Date().toISOString(),
           }
@@ -1291,7 +1319,7 @@ export function WorkspaceShell({
         body: JSON.stringify({
           credentials,
           documentJson: currentWorkspace.currentDocumentJson,
-          bindings: currentWorkspace.channelBindings,
+          bindings: bindingsToSubmit,
         }),
       });
       const payload = (await response.json()) as
@@ -1730,11 +1758,25 @@ export function WorkspaceShell({
               <CardContent className="space-y-3">
                 {workspace.channelBindings.map((binding) => (
                   <div className="grid grid-cols-12 gap-2" key={binding.channelName}>
-                    <div className="col-span-3 flex items-center font-mono text-xs">
+                    <div className="col-span-2 flex items-center gap-2 text-xs">
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 font-medium">
+                        <input
+                          checked={Boolean(binding.ignored)}
+                          className="size-4"
+                          type="checkbox"
+                          onChange={(event) =>
+                            handleBindingIgnoreToggle(binding.channelName, event.target.checked)
+                          }
+                        />
+                        Ignore
+                      </label>
+                    </div>
+                    <div className="col-span-2 flex items-center font-mono text-xs">
                       {binding.channelName}
                     </div>
                     <div className="col-span-2 flex gap-2">
                       <Button
+                        disabled={Boolean(binding.ignored)}
                         size="sm"
                         type="button"
                         variant={binding.mode === "email" ? "default" : "outline"}
@@ -1743,6 +1785,7 @@ export function WorkspaceShell({
                         email
                       </Button>
                       <Button
+                        disabled={Boolean(binding.ignored)}
                         size="sm"
                         type="button"
                         variant={binding.mode === "accountId" ? "default" : "outline"}
@@ -1753,13 +1796,15 @@ export function WorkspaceShell({
                     </div>
                     <Input
                       className="col-span-4"
+                      disabled={Boolean(binding.ignored)}
                       value={binding.value}
                       onChange={(event) =>
                         handleBindingChange(binding.channelName, "value", event.target.value)
                       }
                     />
                     <Input
-                      className="col-span-3"
+                      className="col-span-2"
+                      disabled={Boolean(binding.ignored)}
                       placeholder="timelineId (optional)"
                       value={binding.timelineId ?? ""}
                       onChange={(event) =>
