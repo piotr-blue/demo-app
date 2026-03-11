@@ -17,5 +17,5 @@ Execute tests to confirm no regression.
 Work iteratively, make small commits with conventional commits format.
 
 Adhere to:
-- demo-app/.cursor/rules/blue-ts-dsl-version-a-mainline.mdc
-- demo-app/.cursor/rules/blue-ts-dsl-version-a-mainline-testing.mdc
+- demo-app/.cursor/rules/blue-ts-dsl-version-a-final-corrections.mdc
+- demo-app/.cursor/rules/blue-ts-dsl-version-a-final-corrections.mdc-testing.mdc

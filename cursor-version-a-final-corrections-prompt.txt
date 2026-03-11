@@ -1,0 +1,147 @@
+Work on the current Version-A `libs/sdk-dsl` branch after the mainline uplift.
+
+This is a very small correction pass.
+Do NOT widen scope.
+Do NOT redesign the SDK.
+Do NOT start demo-app migration in this pass.
+Do NOT touch unrelated packages except where explicitly allowed.
+Do NOT modify `document-processor` in this pass.
+
+Read first:
+- AGENTS.md
+- docs/ts-dsl-sdk/version-a-mainline/version-a-mainline-spec.md
+- docs/ts-dsl-sdk/version-a-mainline/version-a-mainline-plan.md
+- docs/ts-dsl-sdk/version-a-mainline/version-a-mainline-checklist.md
+- docs/ts-dsl-sdk/version-a-mainline/version-a-mainline-decisions.md
+
+If present, also inspect:
+- references/sdk-version-b/libs/sdk-dsl/**
+- references/java-sdk/**
+
+Mission:
+Close the last three review points for Version A, using the final runtime understanding.
+
+Important updated understanding:
+1. `onChannelEvent(...)` on timeline-like channels is NOT a direct-event matcher.
+   It is correct to materialize under `event.message` for timeline channels.
+   Triggered/lifecycle/document-update channels still use direct `event` matching.
+   Therefore this pass must NOT “fix” `onChannelEvent(...)` toward a direct matcher.
+   Instead, it must lock the correct semantics in tests/docs.
+
+2. Stage-6 operation-triggered PayNote macro branches should no longer emit synthetic
+   `Boolean` / `Integer` / `Text` request schemas when the intended semantics are
+   “requestless / any payload / empty payload allowed”.
+   For this pass, follow the resolved-content runtime path used by the real MyOS flow.
+   Do NOT modify `document-processor`.
+   Keep any proof path inside `sdk-dsl` test support if needed, and document it honestly.
+
+3. Release-quality docs in Version A are stale and must be updated to the final state.
+   The main stale files called out in review were:
+   - `libs/sdk-dsl/docs/coverage-matrix.md`
+   - `libs/sdk-dsl/issues.md`
+   - `libs/sdk-dsl/mappings_diff.md`
+   Update or replace them so they reflect the current, final runtime-correct state.
+
+Non-negotiable rules:
+- Do not change the public semantics of `subscribeToSession(...)` / `subscribeToSessionWithMatchers(...)`.
+  They must remain runtime-correct and must NOT take `onBehalfOf`.
+- Do not change `onChannelEvent(...)` away from timeline-channel `event.message` matching.
+- Do not touch `requestBackwardPayment(...)` in this pass; it remains deferred/runtime-guarded.
+- Do not add private provenance or references to external/private repos in public docs/tests.
+- Do not modify `document-processor`.
+
+====================
+POINT 1 — LOCK CORRECT `onChannelEvent(...)` SEMANTICS
+====================
+
+Goal:
+Keep the current correct runtime semantics and make them explicit in tests/docs.
+
+Required actions:
+1. Audit `DocBuilder.onChannelEvent(...)` and confirm the implementation behavior:
+   - timeline-like channels -> `event.message`
+   - triggered/lifecycle/document-update channels -> direct `event`
+2. Strengthen or add tests so this is explicit and future-proof.
+3. Update docs/deviations/spec text anywhere this distinction is unclear.
+
+Minimum expected proof:
+- a parity or shape test showing timeline channel materializes matcher under `event.message`
+- a runtime-backed proof for a timeline channel workflow reacting to a message type
+- a runtime-backed proof or explicit test for direct-event channels if not already present
+
+Important:
+Do NOT “fix” this to a direct matcher.
+
+====================
+POINT 2 — REMOVE SYNTHETIC REQUEST SCHEMAS FROM STAGE-6 OPERATION BRANCHES
+====================
+
+Goal:
+Operation-triggered PayNote macro branches should stop emitting artificial request schemas
+(`Boolean`, `Integer`, `Text`) when the intended semantics are requestless / wildcard payload.
+
+Affected areas:
+- `unlockOnOperation(...)`
+- `requestOnOperation(...)`
+- `requestPartialOnOperation(...)`
+and any equivalent Stage-6 operation-triggered PayNote macro branch helpers.
+
+Required actions:
+1. Remove synthetic request schema emission from these helpers where the intended semantics are requestless.
+2. Update parity tests, integration tests, and canonical PayNote tests accordingly.
+3. If the runtime proof still depends on a resolved-content operation contract path,
+   keep that inside `sdk-dsl` test support only and document it honestly.
+4. Do NOT modify `document-processor`.
+
+Documentation requirement:
+- describe this as “proved on the resolved-content / real MyOS path” if that is what the proof actually covers
+- do NOT overclaim broader public raw-node processor support if the test does not prove it
+
+====================
+POINT 3 — FINAL DOC / MATRIX CLEANUP
+====================
+
+Goal:
+Update stale docs so Version A looks like a finished, production-quality SDK.
+
+Required actions:
+1. Update or replace the stale package-level status docs:
+   - `libs/sdk-dsl/docs/coverage-matrix.md`
+   - `libs/sdk-dsl/issues.md`
+   - `libs/sdk-dsl/mappings_diff.md`
+2. Ensure they reflect:
+   - current supported features
+   - current deferred items
+   - current runtime-correct semantics
+   - current test corpus
+3. Remove stale statements such as:
+   - old named-event fallback assumptions
+   - old interaction drift notes already resolved
+   - old coverage counts
+4. If a file no longer makes sense in its old form, replace it with a cleaner final-status doc.
+   Keep public-repo-safe language.
+
+====================
+DELIVERABLE QUALITY BAR
+====================
+
+This pass is complete only if all are true:
+
+1. `onChannelEvent(...)` semantics are clearly locked by tests/docs.
+2. Stage-6 operation-triggered PayNote branches no longer emit artificial request schemas
+   where requestless semantics are intended.
+3. Docs are updated and no longer stale.
+4. Verification passes:
+   - `npm install`
+   - `npx tsc -p libs/sdk-dsl/tsconfig.lib.json --noEmit`
+   - `npx tsc -p libs/sdk-dsl/tsconfig.spec.json --noEmit`
+   - `npx eslint libs/sdk-dsl`
+   - `npx vitest run --config libs/sdk-dsl/vite.config.ts`
+   - `npx vite build --config libs/sdk-dsl/vite.config.ts`
+
+When done, report:
+- exact files changed
+- what was changed for point 1
+- what was changed for point 2
+- what stale docs were updated/replaced for point 3
+- exact verification commands run
