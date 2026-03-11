@@ -346,8 +346,26 @@ Known runtime-gated stories remain tracked in:
 Current gated areas include:
 
 - deeper session-interaction orchestration (Stories 6-8),
-- linked-doc incremental grant updates (Story 10),
 - paynote/payment emitted-event observability (Stories 14-15),
 - backward payment alias availability (Story 16),
 - advanced control behavior verification (Stories 19-21, 23-25),
 - optional worker-agency behavior verification (Story 26).
+
+## 14) Linked-doc permission watcher baseline
+
+For the linked-doc watcher flow used by Story 10:
+
+- the watcher requests permissions with a stable `requestId`
+  (`REQ_LINKED_GRANTS` in the live-story baseline),
+- response workflows should match either
+  `MyOS/Linked Documents Permission Granted` or fallback
+  `MyOS/Single Document Permission Granted`,
+- correlation should use `event.inResponseTo.incomingEvent.requestId`,
+- the practical live assertion surface is the latest epoch `emitted` snapshot,
+  not feed entries.
+
+The watcher stores the granted linked session via:
+
+```yaml
+${event.targetSessionId}
+```

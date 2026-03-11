@@ -114,15 +114,19 @@
      - keep source emission assertions active;
      - gate subscriber filtered-subscription assertions unless `MYOS_ENABLE_STORY_8=true`.
 
-10. **Story 10 blocker: watcher does not receive incremental grant updates for later linked docs**
-    - Status: blocked (partial)
+10. **Story 10 linked-doc watcher incremental grants**
+    - Status: implemented
     - Story: `story-10 linked-doc permission watcher sees grants for linked sessions`
-    - Observed:
-      - initial linked-doc grant events appear in watcher feed,
-      - later linked document bootstrap does not increase grant-update signal in watcher.
+    - Runtime-confirmed behavior:
+      - initial linked-doc permission grants are visible through the watcher's
+        latest epoch `emitted` snapshot,
+      - later linked document bootstrap produces a new correlated emitted grant
+        event after the previous epoch boundary,
+      - watcher state advances via `/grantSeenCount` and
+        `/lastGrantedTargetSessionId`.
     - Action:
-      - keep initial grant feed assertions active;
-      - gate incremental "later linked doc" assertion unless `MYOS_ENABLE_STORY_10=true`.
+      - keep Story 10 on emitted-event polling; do not regress it back to
+        feed-entry counting for grant detection.
 
 11. **Story 13 direct child bootstrap flow**
     - Status: implemented

@@ -422,22 +422,24 @@ Watcher agent requests linked-doc permissions and should track grants, including
 
 1. bootstrap base + seed link,
 2. bootstrap watcher agent,
-3. assert initial grant presence from watcher feed,
+3. assert the initial linked-doc permission grant via the watcher's latest
+   emitted event snapshot,
 4. bootstrap later linked doc,
-5. if enabled via `MYOS_ENABLE_STORY_10=true`, assert grant signal increases and target session ID updates.
+5. wait for a new correlated emitted grant event after the pre-link epoch
+   boundary,
+6. assert `/grantSeenCount` increases and `/lastGrantedTargetSessionId`
+   changes to the later linked session.
 
 ### MyOS run result
 
-⚠️ **Partially worked / blocked**.
-
-- Initial grant events are visible.
-- Incremental “later linked doc” propagation is runtime-gated by default.
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Initial grant batch reaches watcher feed.
-- Later linked docs do not consistently produce incremental watcher updates.
-- Tracked in issues as Story 10 blocker.
+- The watcher receives the initial correlated linked-doc grant.
+- Later linked docs also produce a new correlated grant event.
+- The reliable assertion surface is the latest epoch `emitted` snapshot, not
+  feed entries.
 
 ---
 
@@ -940,7 +942,7 @@ pending runtime/type stability confirmation.
 
 ### Partially validated (core path works, deeper orchestration gated)
 
-- Stories: **6, 7, 8, 10, 19, 20, 21, 23, 24, 25, 26**
+- Stories: **6, 7, 8, 19, 20, 21, 23, 24, 25, 26**
 
 ### Blocked/gated by runtime constraints
 
@@ -965,7 +967,6 @@ To explicitly attempt blocked subflows while investigating runtime fixes, set:
 - `MYOS_ENABLE_STORY_6=true`
 - `MYOS_ENABLE_STORY_7=true`
 - `MYOS_ENABLE_STORY_8=true`
-- `MYOS_ENABLE_STORY_10=true`
 - `MYOS_ENABLE_STORY_14=true`
 - `MYOS_ENABLE_STORY_15=true`
 - `MYOS_ENABLE_STORY_19=true`

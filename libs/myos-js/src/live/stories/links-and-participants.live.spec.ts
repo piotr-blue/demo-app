@@ -8,10 +8,11 @@ import {
   defaultBootstrapBinding,
   extractField,
   extractTimelineId,
-  listFeedEntries,
+  latestEpochNumber,
   retrieveDocument,
   waitForAllowedOperation,
   waitForFieldValue,
+  waitForLatestEmittedEvent,
   waitForPredicate,
 } from '../helpers/index.js';
 import {
@@ -22,7 +23,6 @@ import {
 } from './docs/links.docs.js';
 
 const gate = getCoreOrAccountLiveGate();
-const STORY_10_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_10 !== 'true';
 
 describeLive('myos-js live stories: links + participants', gate, () => {
   itLive(
@@ -106,20 +106,47 @@ describeLive('myos-js live stories: links + participants', gate, () => {
         },
       );
 
-      await waitForPredicate(
+      await waitForLatestEmittedEvent(
         client,
         watcher.sessionId,
-        async () => {
-          const entries = await listFeedEntries(client, watcher.sessionId);
-          return countLinkedGrantEvents(entries) >= 1;
+        (emittedEvents) => hasLinkedGrantEvent(emittedEvents),
+        {
+          timeoutMs: 120_000,
+          intervalMs: 2_000,
+        },
+      );
+      const watcherAfterFirstGrant = await waitForPredicate(
+        client,
+        watcher.sessionId,
+        (latest) => {
+          const grantSeenCount = extractField(latest, '/grantSeenCount');
+          const lastGrantedTargetSessionId = extractField(
+            latest,
+            '/lastGrantedTargetSessionId',
+          );
+          return (
+            typeof grantSeenCount === 'number' &&
+            grantSeenCount >= 1 &&
+            typeof lastGrantedTargetSessionId === 'string'
+          );
         },
         {
           timeoutMs: 120_000,
           intervalMs: 2_000,
         },
       );
-      const firstEntries = await listFeedEntries(client, watcher.sessionId);
-      const firstGrantCount = countLinkedGrantEvents(firstEntries);
+      const firstGrantCount = extractField(
+        watcherAfterFirstGrant,
+        '/grantSeenCount',
+      ) as number;
+      const firstGrantedTargetSessionId = extractField(
+        watcherAfterFirstGrant,
+        '/lastGrantedTargetSessionId',
+      ) as string;
+      const beforeLaterLinkedEpoch = await latestEpochNumber(
+        client,
+        watcher.sessionId,
+      );
 
       await bootstrapDslDocument(
         client,
@@ -133,21 +160,12 @@ describeLive('myos-js live stories: links + participants', gate, () => {
         },
       );
 
-      if (STORY_10_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // linked-doc grant updates for newly linked sessions are not emitted
-        // back into this watcher after the initial grant batch.
-        return;
-      }
-
-      await waitForPredicate(
+      await waitForLatestEmittedEvent(
         client,
         watcher.sessionId,
-        async () => {
-          const entries = await listFeedEntries(client, watcher.sessionId);
-          return countLinkedGrantEvents(entries) > firstGrantCount;
-        },
+        (emittedEvents) => hasLinkedGrantEvent(emittedEvents),
         {
+          afterEpoch: beforeLaterLinkedEpoch,
           timeoutMs: 120_000,
           intervalMs: 2_000,
         },
@@ -155,9 +173,19 @@ describeLive('myos-js live stories: links + participants', gate, () => {
       await waitForPredicate(
         client,
         watcher.sessionId,
-        (latest) =>
-          typeof extractField(latest, '/lastGrantedTargetSessionId') ===
-          'string',
+        (latest) => {
+          const grantSeenCount = extractField(latest, '/grantSeenCount');
+          const lastGrantedTargetSessionId = extractField(
+            latest,
+            '/lastGrantedTargetSessionId',
+          );
+          return (
+            typeof grantSeenCount === 'number' &&
+            grantSeenCount > firstGrantCount &&
+            typeof lastGrantedTargetSessionId === 'string' &&
+            lastGrantedTargetSessionId !== firstGrantedTargetSessionId
+          );
+        },
         {
           timeoutMs: 120_000,
           intervalMs: 2_000,
@@ -273,30 +301,24 @@ describeLive('myos-js live stories: links + participants', gate, () => {
   );
 });
 
-function countLinkedGrantEvents(entries: unknown[]): number {
-  let total = 0;
-  for (const entry of entries) {
-    const message = (entry as Record<string, unknown>).message as
+function hasLinkedGrantEvent(emittedEvents: unknown[]): boolean {
+  for (const emittedEvent of emittedEvents) {
+    const event = emittedEvent as Record<string, unknown>;
+    const type = event.type;
+    const inResponseTo = event.inResponseTo as Record<string, unknown> | undefined;
+    const incomingEvent = inResponseTo?.incomingEvent as
       | Record<string, unknown>
       | undefined;
-    const request = message?.request as Record<string, unknown> | undefined;
-    const items = request?.items;
-    if (!Array.isArray(items)) {
-      continue;
-    }
-    for (const item of items) {
-      const record = item as Record<string, unknown>;
-      if (
-        record.inResponseTo &&
-        record.targetSessionId &&
-        record.type &&
-        record.links
-      ) {
-        total += 1;
-      }
+    if (
+      (type === 'MyOS/Linked Documents Permission Granted' ||
+        type === 'MyOS/Single Document Permission Granted') &&
+      incomingEvent?.requestId === 'REQ_LINKED_GRANTS' &&
+      typeof event.targetSessionId === 'string'
+    ) {
+      return true;
     }
   }
-  return total;
+  return false;
 }
 
 function reviewerGroupContains(
