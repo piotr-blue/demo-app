@@ -163,84 +163,90 @@
     - Action:
       - keep story gated unless `MYOS_ENABLE_STORY_15=true`.
 
-14. **Story 19 gating: propose/accept/reject lifecycle behavior not yet baseline-verified**
-    - Status: gated (verification pending)
+14. **Story 19 blocker: built-in change workflows still fail on live runtime path**
+    - Status: blocked
     - Story: `story-19 propose/accept/reject change flow mapping coverage` in
       `src/live/stories/advanced-control.live.spec.ts`
     - Current state:
       - structural mapping assertions are active by default,
-      - behavioral lifecycle assertions are behind `MYOS_ENABLE_STORY_19=true`.
+      - live execution still fails when the document uses the repository-backed
+        `Conversation/Propose Change Workflow` path.
     - Action:
-      - capture live request/response event shapes for propose/accept/reject and
-        remove gate after behavior is proven.
+      - debug the runtime behavior of the built-in change workflows without
+        replacing them with custom document-local workflows.
 
-15. **Story 20 gating: full single+linked permission revoke lifecycle pending runtime verification**
-    - Status: gated (verification pending)
+15. **Story 20 blocker: revoke flow is modeled from the wrong document**
+    - Status: blocked
     - Story: `story-20 + story-21 permission revoke and subscription re-init flows`
       in `src/live/stories/advanced-control.live.spec.ts`
     - Current state:
-      - agent DSL and correlated response-matchers are asserted structurally,
-      - end-to-end permission grant/revoke counters are behind
-        `MYOS_ENABLE_STORY_20=true`.
+      - the grant side works when the request asks for the real target
+        operation (`tick`),
+      - the revoke side assumes an arbitrary agent document can send revoke
+        requests directly to MyOS Admin.
     - Action:
-      - capture runtime event correlation payloads for revoke responses and
-        remove gate once counter assertions are stable.
+      - rework the story around the actual grant-document-centric revoke model:
+        revoke should execute via the permission-grant document's `revoke`
+        operation, not via a direct revoke request emitted from another
+        document.
 
-16. **Story 21 gating: subscription re-init behavior pending runtime verification**
-    - Status: gated (verification pending)
+16. **Story 21 blocker: depends on the unresolved revoke model from Story 20**
+    - Status: blocked
     - Story: `story-20 + story-21 permission revoke and subscription re-init flows`
       in `src/live/stories/advanced-control.live.spec.ts`
     - Current state:
       - subscription initiation counter wiring is present,
-      - re-init behavior assertion is behind `MYOS_ENABLE_STORY_21=true`.
+      - the behavioral re-init assertion depends on Story 20 completing revoke
+        through the correct grant-document path.
     - Action:
-      - verify subscription lifecycle event shape after revoke/re-request and
-        un-gate once repeat-init signal is confirmed.
+      - revisit after Story 20 is rewritten around revoke on the permission
+        grant document.
 
-17. **Story 23 gating: timeline permissions roundtrip requires accountId-backed run**
-    - Status: gated (environment precondition)
+17. **Story 23 timeline permissions roundtrip**
+    - Status: implemented
     - Story: `story-23 timeline permissions inspection roundtrip` in
       `src/live/stories/advanced-control.live.spec.ts`
-    - Current state:
-      - timeline extraction is asserted structurally,
-      - permissions create/list/retrieve/delete flow runs only when
-        `MYOS_ACCOUNT_ID` is present and `MYOS_ENABLE_STORY_23=true`.
+    - Runtime-confirmed behavior:
+      - document bootstrap and channel timeline-id extraction work,
+      - `timelines.permissions.create/list/retrieve/delete` complete on an
+        accountId-backed run.
     - Action:
-      - execute on accountId-configured environment and remove gate if stable.
+      - keep the story enabled by default; only the `MYOS_ACCOUNT_ID`
+        precondition remains.
 
-18. **Story 24 gating: stop/resume behavior path pending dedicated live verification**
-    - Status: gated (verification pending)
+18. **Story 24 stop/resume processing roundtrip**
+    - Status: implemented
     - Story: `story-24 stop and resume processing roundtrip` in
       `src/live/stories/advanced-control.live.spec.ts`
-    - Current state:
-      - operation and lifecycle structure checks are active,
-      - stop/resume behavior assertions are behind `MYOS_ENABLE_STORY_24=true`.
+    - Runtime-confirmed behavior:
+      - `tick` executes before pause,
+      - `documents.stop` drives `processingStatus=PAUSED`,
+      - `documents.resume` clears the paused state again.
     - Action:
-      - verify processing status transitions in live environment and remove gate.
+      - keep the story enabled by default.
 
-19. **Story 25 gating: MyOS events lifecycle observability pending live verification**
-    - Status: gated (verification pending)
+19. **Story 25 MyOS events lifecycle observability**
+    - Status: implemented
     - Story: `story-25 myos-events observability for document lifecycle` in
       `src/live/stories/advanced-control.live.spec.ts`
-    - Current state:
-      - events API probe and debug-state capture path are implemented,
-      - lifecycle event assertions are behind `MYOS_ENABLE_STORY_25=true`.
+    - Runtime-confirmed behavior:
+      - stop/resume lifecycle events become visible through `myOsEvents.list`,
+      - the story keeps a debug-state fallback for future regressions.
     - Action:
-      - validate paused/resumed event visibility in `myOsEvents.list` and
-        remove gate when stable.
+      - keep the story enabled by default.
 
-20. **Story 26 gating: optional worker-agency lifecycle verification pending**
-    - Status: gated (optional verification pending)
+20. **Story 26 blocker: worker-agency revoke assumes the wrong runtime model**
+    - Status: blocked
     - Story: `story-26 worker agency optional lifecycle coverage` in
       `src/live/stories/advanced-control.live.spec.ts`
     - Current state:
       - worker-agency marker and grant/revoke operation mappings are asserted
         structurally,
-      - end-to-end worker-agency behavior assertions are behind
-        `MYOS_ENABLE_STORY_26=true`.
+      - the current behavior path assumes revoke can be requested directly from
+        the controller document.
     - Action:
-      - validate worker agency grant/revoke response correlation and remove
-        optional gate when runtime/type behavior is stable.
+      - rework the story around revoke executed on the worker-agency grant
+        document, matching the current MyOS Admin revoke model.
 
 21. **Story 9 divisible-by-3 watcher flow**
     - Status: implemented

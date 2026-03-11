@@ -93,9 +93,6 @@ Runtime-gated stories:
   - `MYOS_ENABLE_STORY_19=true`
   - `MYOS_ENABLE_STORY_20=true`
   - `MYOS_ENABLE_STORY_21=true`
-  - `MYOS_ENABLE_STORY_23=true`
-  - `MYOS_ENABLE_STORY_24=true`
-  - `MYOS_ENABLE_STORY_25=true`
   - `MYOS_ENABLE_STORY_26=true`
 
 Gated suite:

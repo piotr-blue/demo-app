@@ -347,8 +347,9 @@ Current gated areas include:
 
 - paynote/payment emitted-event observability (Stories 14-15),
 - backward payment alias availability (Story 16),
-- advanced control behavior verification (Stories 19-21, 23-25),
-- optional worker-agency behavior verification (Story 26).
+- built-in change-workflow live behavior (Story 19),
+- revoke scenarios that still assume direct controller-document revoke instead
+  of revoke on the permission-grant document (Stories 20-21, 26).
 
 ## 14) Linked-doc permission watcher baseline
 

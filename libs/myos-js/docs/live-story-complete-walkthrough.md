@@ -720,12 +720,13 @@ Covers first-class change-lifecycle contracts beyond direct-change:
 
 1. bootstrap document,
 2. assert lifecycle contracts are present (`propose/accept/reject` + impl),
-3. optional env-gated behavioral probe sends a propose request and watches feed emission.
+3. optional behavioral probe sends a propose request and watches feed emission.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Behavioral lifecycle execution remains env-gated pending
-dedicated runtime confirmation.
+⚠️ **Structure proven**. Live execution of the repository-backed
+`Conversation/Propose Change Workflow` path is still blocked and needs
+separate runtime debugging.
 
 ---
 
@@ -755,12 +756,13 @@ Adds full permission lifecycle surface for an agent:
 1. bootstrap source and linked graph docs,
 2. bootstrap lifecycle agent,
 3. assert lifecycle operations/contracts are present,
-4. optional env-gated behavioral path runs request/revoke operations and waits for counter updates.
+4. optional behavioral path runs request/revoke operations and waits for counter updates.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. End-to-end revoke/grant behavior remains env-gated for
-runtime confirmation.
+⚠️ **Grant request path is partially proven**. The revoke half of this story is
+currently modeled incorrectly: revoke should execute on the permission-grant
+document, not as a direct request from the controller agent document.
 
 ---
 
@@ -781,12 +783,13 @@ roundtrips.
 
 1. run single grant + revoke flow,
 2. request single grant again,
-3. verify subscription initiation count grows beyond initial value (env-gated).
+3. verify subscription initiation count grows beyond initial value.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Runtime subscription revoke/re-init behavior remains
-env-gated for confirmation.
+⚠️ **Blocked by Story 20's revoke model**. The re-init assertion only becomes
+meaningful after the story is rewritten around revoke on the actual permission
+grant document.
 
 ---
 
@@ -832,7 +835,7 @@ Adds API-level coverage for timeline permission management on a document channel
 ### How the test works
 
 1. bootstrap doc and extract `ownerChannel` timeline id,
-2. optional env-gated API flow:
+2. API flow:
    - create permission,
    - list permissions,
    - retrieve permission,
@@ -840,8 +843,7 @@ Adds API-level coverage for timeline permission management on a document channel
 
 ### MyOS run result
 
-⚠️ **Structure + extraction proven**. Full permission CRUD run is env-gated and
-requires accountId-backed configuration.
+✅ **Worked on MyOS** with an accountId-backed environment.
 
 ---
 
@@ -861,15 +863,14 @@ Verifies document processing lifecycle controls:
 ### How the test works
 
 1. bootstrap doc and assert operation contracts,
-2. optional env-gated behavior path:
+2. behavior path:
    - run `tick`,
    - stop processing and wait for paused status,
    - resume processing and wait for active status.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Full stop/resume behavior path currently runs behind
-story gate.
+✅ **Worked on MyOS**.
 
 ---
 
@@ -887,15 +888,15 @@ capture assistance when event visibility diverges.
 ### How the test works
 
 1. bootstrap doc,
-2. optional env-gated behavior path:
+2. behavior path:
    - stop + resume to trigger lifecycle events,
    - list MyOS events and inspect lifecycle event types,
    - fallback to `captureDebugState(sessionId)` evidence snapshot.
 
 ### MyOS run result
 
-⚠️ **Story wired and observable helpers integrated**; behavioral event
-observability remains env-gated pending dedicated live verification.
+✅ **Worked on MyOS**. The story still keeps debug-state capture as a regression
+fallback if event visibility diverges again.
 
 ---
 
@@ -923,8 +924,9 @@ Optional coverage for worker-agency marker + permission lifecycle wiring.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Worker-agency behavior remains optional and env-gated
-pending runtime/type stability confirmation.
+⚠️ **Structure proven**. The revoke half currently assumes the wrong runtime
+model: worker-agency revoke should execute on the grant document rather than as
+a direct request from the controller document.
 
 ---
 
@@ -936,11 +938,11 @@ pending runtime/type stability confirmation.
 
 ### Partially validated (core path works, deeper orchestration gated)
 
-- Stories: **6, 7, 8, 19, 20, 21, 23, 24, 25, 26**
+- Stories: **6, 7, 8**
 
 ### Blocked/gated by runtime constraints
 
-- Stories: **2, 13, 14, 15, 16**
+- Stories: **14, 15, 16, 19, 20, 21, 26**
 
 ### Structure-proven mapping coverage
 
@@ -963,9 +965,6 @@ To explicitly attempt still-gated subflows while investigating runtime fixes, se
 - `MYOS_ENABLE_STORY_19=true`
 - `MYOS_ENABLE_STORY_20=true`
 - `MYOS_ENABLE_STORY_21=true`
-- `MYOS_ENABLE_STORY_23=true`
-- `MYOS_ENABLE_STORY_24=true`
-- `MYOS_ENABLE_STORY_25=true`
 - `MYOS_ENABLE_STORY_26=true`
 
 Then rerun targeted story files.

@@ -31,10 +31,7 @@ const gate = getCoreOrAccountLiveGate();
 const STORY_19_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_19 !== 'true';
 const STORY_20_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_20 !== 'true';
 const STORY_21_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_21 !== 'true';
-const STORY_23_LIVE_BLOCKED =
-  process.env.MYOS_ENABLE_STORY_23 !== 'true' || !gate.env.accountId;
-const STORY_24_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_24 !== 'true';
-const STORY_25_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_25 !== 'true';
+const STORY_23_LIVE_BLOCKED = !gate.env.accountId;
 const STORY_26_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_26 !== 'true';
 
 describeLive('myos-js live stories: advanced control', gate, () => {
@@ -378,10 +375,6 @@ describeLive('myos-js live stories: advanced control', gate, () => {
     expect(extractField(retrieved, '/contracts/tick')).toBeTruthy();
     expect(extractField(retrieved, '/contracts/tickImpl')).toBeTruthy();
 
-    if (STORY_24_LIVE_BLOCKED) {
-      return;
-    }
-
     await waitForAllowedOperation(client, sessionId, 'tick');
     await client.documents.runOperation(sessionId, 'tick', 1);
     await waitForFieldValue(client, sessionId, '/ticks', 1, {
@@ -429,10 +422,6 @@ describeLive('myos-js live stories: advanced control', gate, () => {
           ownerChannel: defaultBootstrapBinding(gate.env),
         },
       );
-
-      if (STORY_25_LIVE_BLOCKED) {
-        return;
-      }
 
       await client.documents.stop(sessionId, {
         message: 'Story25 pause for observability',
