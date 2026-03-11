@@ -56,3 +56,28 @@ Potentially NOT relevant:
 - Do not replay these commits wholesale.
 - Port only what still makes sense after runtime alignment and compatibility uplift.
 - Record every decision in `version-a-mainline-decisions.md`.
+
+## Audit outcome
+
+### `de0dd4859075be3d0d3491f1d79898baa73fac55`
+- Ported: richer `http-client` validation/error message details plus unit tests.
+- Not applicable: the docs-only wording changes were deferred to the final docs
+  pass.
+
+### `6d5c4644c3aa7036d31f124296487ebd3c69283e`
+- Ported: emitted-event polling from epoch snapshots, schema-based polling
+  helpers, helper specs, and payment-story assertion rewrites.
+- Not applicable: deleting the old feed-entry helper entirely, because some
+  advanced-control stories still intentionally inspect feed entries.
+
+### `74a80ac33a8788319d81e811c80112bbe6d5167e`
+- Ported: `defaultBootstrapBinding(...)` now returns both `email` and
+  `accountId` when available.
+
+### `2ee6a8ce306ba820693455811e5e2dfb83eee13a`
+- Ported: `BasicBlueTypes.Integer` in the live counter example, default
+  bootstrap binding adoption, and emitted-event polling fixes in the payment
+  stories.
+- Not applicable: `ownerEmit` renames, paynote channel additions already present
+  in Version A output, and bootstrap-step object bindings that would require a
+  wider SDK API expansion.

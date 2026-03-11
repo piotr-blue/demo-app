@@ -135,3 +135,61 @@ For each section state:
 - Why: both behaviors showed up as real compatibility drifts under the new
   public test corpus. The fixes keep the intended public syntax working without
   reintroducing unsupported runtime fields.
+
+## Stage 4 reference-b tail-commit audit
+
+### `de0dd4859075be3d0d3491f1d79898baa73fac55`
+- Inspected: `libs/myos-js/src/lib/core/http-client.ts`,
+  `libs/myos-js/src/lib/core/__tests__/http-client.spec.ts`, plus associated
+  docs clarifications.
+- Ported: richer HTTP error messages that include request method/path/status and
+  summarized response body details (`type`, `reason`, `message`, `error`), plus
+  unit coverage.
+- Not ported: the reference docs wording changes.
+- Why: the runtime/client bug still existed, but the docs part was secondary and
+  can be covered in the final Stage 5 docs pass without mixing release-quality
+  copy edits into the transport fix.
+
+### `6d5c4644c3aa7036d31f124296487ebd3c69283e`
+- Inspected: `libs/myos-js/src/live/helpers/live-document.ts`,
+  `libs/myos-js/src/live/helpers/live-document.spec.ts`, and the live payment
+  stories using emitted-event assertions.
+- Ported: `latestEpochNumber(...)`, epoch-backed `latestEmittedEvents(...)`,
+  `waitForLatestEmittedEvent(...)`, `findEmittedEventBySchema(...)`,
+  `waitForLatestEmittedEventBySchema(...)`, helper unit tests, and the live
+  payment-story assertions that should key off emitted epoch events.
+- Not ported: removal of the older feed-entry-based `waitForEmittedEvent(...)`
+  helper.
+- Why: bootstrap/payment stories were still asserting against the wrong surface,
+  but some advanced-control stories intentionally inspect feed entries, so the
+  old helper remains as a separate tool instead of being deleted wholesale.
+
+### `74a80ac33a8788319d81e811c80112bbe6d5167e`
+- Inspected: `libs/myos-js/src/live/helpers/live-client.ts`.
+- Ported: `defaultBootstrapBinding(...)` now returns both `email` and
+  `accountId` when both are available, plus direct unit coverage.
+- Not ported: no additional bootstrap-binding API expansion beyond that helper.
+- Why: the binding bug still existed in Version A’s live helper, and returning
+  both identifiers is runtime-safe. The rest of the bootstrap API surface was
+  already aligned enough for this stage.
+
+### `2ee6a8ce306ba820693455811e5e2dfb83eee13a`
+- Inspected: live spec fixes in `myos.live.spec.ts`,
+  `recruitment-classifier.live.spec.ts`,
+  `basic-and-events.live.spec.ts`,
+  `bootstrap-and-payments.live.spec.ts`, and
+  `bootstrap-payments.docs.ts`.
+- Ported: `BasicBlueTypes.Integer` in the live counter story, migration from
+  manual email-only bindings to `defaultBootstrapBinding(...)`, and the
+  bootstrap/payment live assertions that now use the new emitted-event polling
+  helpers.
+- Not ported: `ownerUpdate` -> `ownerEmit` renames, paynote channel additions in
+  `bootstrap-payments.docs.ts`, the bootstrap-doc binding object change inside
+  `steps.myOs().bootstrapDocument(...)`, and the recruitment bootstrap error
+  wrapper.
+- Why: the rename changes compensate for Version B naming differences that
+  Version A intentionally does not adopt; the paynote channels already exist in
+  current Version A output; the bootstrap-doc object-binding change would
+  require expanding a currently string-only SDK step API outside this stage’s
+  scope; and the richer `http-client` error messages from `de0dd48...` already
+  address the underlying bootstrap-debug problem with less churn.

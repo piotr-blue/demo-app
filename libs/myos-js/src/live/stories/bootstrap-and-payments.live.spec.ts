@@ -1,4 +1,10 @@
 import { PayNotes, isRepositoryTypeAliasAvailable } from '@blue-labs/sdk-dsl';
+import {
+  CaptureFundsRequestedSchema,
+  CardTransactionCaptureLockRequestedSchema,
+  CardTransactionCaptureUnlockRequestedSchema,
+  ReserveFundsRequestedSchema,
+} from '@blue-repository/types/packages/paynote/schemas';
 import { expect } from 'vitest';
 import { describeLive, itLive } from '../../test-harness/live-mode.js';
 import { getCoreOrAccountLiveGate } from '../../test-harness/live-env.js';
@@ -8,10 +14,12 @@ import {
   createUniqueName,
   defaultBootstrapBinding,
   extractField,
-  latestEmittedEvents,
+  latestEpochNumber,
   retrieveDocument,
   waitForAllowedOperation,
   waitForFieldValue,
+  waitForLatestEmittedEvent,
+  waitForLatestEmittedEventBySchema,
   waitForPredicate,
 } from '../helpers/index.js';
 import {
@@ -23,8 +31,6 @@ import {
 
 const gate = getCoreOrAccountLiveGate();
 const STORY_13_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_13 !== 'true';
-const STORY_14_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_14 !== 'true';
-const STORY_15_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_15 !== 'true';
 
 describeLive('myos-js live stories: bootstrap + payments', gate, () => {
   itLive(
@@ -33,7 +39,7 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
     async () => {
       if (STORY_13_LIVE_BLOCKED) {
         // Runtime blocker documented in libs/myos-js/issues.md:
-        // MyOS bootstrap rejects parent worker child-bootstrap request payload.
+        // MyOS Admin does not support Conversation/Document Bootstrap Requested
         return;
       }
 
@@ -114,13 +120,6 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
     'story-14 paynote shipment escrow lock/unlock/request flow',
     gate,
     async () => {
-      if (STORY_14_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // emitted paynote lock/unlock/capture events are not observable via
-        // this environment's live retrieval/feed surfaces.
-        return;
-      }
-
       const client = createLiveClient({}, gate.env);
       const binding = defaultBootstrapBinding(gate.env);
       const payNote = await bootstrapDslDocument(
@@ -150,27 +149,36 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
         ),
       ).toBeTruthy();
 
-      await waitForPredicate(
+      await waitForLatestEmittedEventBySchema(
         client,
         payNote.sessionId,
-        async () =>
-          (await latestEmittedEvents(client, payNote.sessionId)).some(
-            (event) =>
-              (event as Record<string, unknown>).type ===
-              'PayNote/Card Transaction Capture Lock Requested',
-          ),
+        CardTransactionCaptureLockRequestedSchema,
         {
           timeoutMs: 90_000,
           intervalMs: 2_000,
         },
       );
 
+      const beforeConfirmShipmentEpoch = await latestEpochNumber(
+        client,
+        payNote.sessionId,
+      );
       await waitForAllowedOperation(
         client,
         payNote.sessionId,
         'confirmShipment',
       );
       await client.documents.runOperation(payNote.sessionId, 'confirmShipment');
+      await waitForLatestEmittedEventBySchema(
+        client,
+        payNote.sessionId,
+        CardTransactionCaptureUnlockRequestedSchema,
+        {
+          afterEpoch: beforeConfirmShipmentEpoch,
+          timeoutMs: 90_000,
+          intervalMs: 2_000,
+        },
+      );
       await waitForFieldValue(
         client,
         payNote.sessionId,
@@ -180,37 +188,23 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
           timeoutMs: 90_000,
         },
       );
-      await waitForPredicate(
+
+      const beforeRequestCaptureEpoch = await latestEpochNumber(
         client,
         payNote.sessionId,
-        async () =>
-          (await latestEmittedEvents(client, payNote.sessionId)).some(
-            (event) =>
-              (event as Record<string, unknown>).type ===
-              'PayNote/Card Transaction Capture Unlock Requested',
-          ),
-        {
-          timeoutMs: 90_000,
-          intervalMs: 2_000,
-        },
       );
-
       await waitForAllowedOperation(
         client,
         payNote.sessionId,
         'requestCapture',
       );
       await client.documents.runOperation(payNote.sessionId, 'requestCapture');
-      await waitForPredicate(
+      await waitForLatestEmittedEventBySchema(
         client,
         payNote.sessionId,
-        async () =>
-          (await latestEmittedEvents(client, payNote.sessionId)).some(
-            (event) =>
-              (event as Record<string, unknown>).type ===
-              'PayNote/Capture Funds Requested',
-          ),
+        CaptureFundsRequestedSchema,
         {
+          afterEpoch: beforeRequestCaptureEpoch,
           timeoutMs: 90_000,
           intervalMs: 2_000,
         },
@@ -223,12 +217,6 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
     'story-15 payment request emission supports ACH, credit line, and ledger rails',
     gate,
     async () => {
-      if (STORY_15_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // payment request trigger events are not surfaced in feed/epoch APIs.
-        return;
-      }
-
       const client = createLiveClient({}, gate.env);
       const binding = defaultBootstrapBinding(gate.env);
       const paymentDoc = await bootstrapDslDocument(
@@ -242,51 +230,57 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
         },
       );
 
-      for (const operation of [
-        'issuePayoutAch',
-        'issuePayoutCreditLine',
-        'issuePayoutLedger',
-      ]) {
-        await waitForAllowedOperation(client, paymentDoc.sessionId, operation);
-        await client.documents.runOperation(paymentDoc.sessionId, operation);
-        await waitForFieldValue(
+      const runAndAssertPaymentEmission = async (
+        operation:
+          | 'issuePayoutAch'
+          | 'issuePayoutCreditLine'
+          | 'issuePayoutLedger',
+        predicate: (event: Record<string, unknown>) => boolean,
+      ) => {
+        const beforeEpoch = await latestEpochNumber(
           client,
           paymentDoc.sessionId,
-          '/payment/requested',
-          true,
+        );
+        await waitForAllowedOperation(client, paymentDoc.sessionId, operation);
+        await client.documents.runOperation(paymentDoc.sessionId, operation);
+        const { event } = await waitForLatestEmittedEventBySchema(
+          client,
+          paymentDoc.sessionId,
+          ReserveFundsRequestedSchema,
           {
-            timeoutMs: 45_000,
+            afterEpoch: beforeEpoch,
+            timeoutMs: 90_000,
+            intervalMs: 2_000,
+            predicate,
           },
         );
-      }
+        return event;
+      };
 
-      const events = await latestEmittedEvents(client, paymentDoc.sessionId);
-      expect(
-        events.some(
-          (event) =>
-            (event as Record<string, unknown>).type ===
-            'PayNote/Reserve Funds Requested',
-        ),
-      ).toBe(true);
-      expect(
-        events.some(
-          (event) =>
-            (event as Record<string, unknown>).routingNumber === '111000025',
-        ),
-      ).toBe(true);
-      expect(
-        events.some(
-          (event) =>
-            (event as Record<string, unknown>).creditLineId === 'CL-100',
-        ),
-      ).toBe(true);
-      expect(
-        events.some(
-          (event) =>
-            (event as Record<string, unknown>).ledgerAccountTo ===
-            'payee-settlement',
-        ),
-      ).toBe(true);
+      const achEvent = await runAndAssertPaymentEmission(
+        'issuePayoutAch',
+        (event) => event.routingNumber === '111000025',
+      );
+      expect(achEvent.routingNumber).toBe('111000025');
+      await waitForFieldValue(
+        client,
+        paymentDoc.sessionId,
+        '/payment/requested',
+        true,
+        {
+          timeoutMs: 45_000,
+        },
+      );
+      const creditLineEvent = await runAndAssertPaymentEmission(
+        'issuePayoutCreditLine',
+        (event) => event.creditLineId === 'CL-100',
+      );
+      expect(creditLineEvent.creditLineId).toBe('CL-100');
+      const ledgerEvent = await runAndAssertPaymentEmission(
+        'issuePayoutLedger',
+        (event) => event.ledgerAccountTo === 'payee-settlement',
+      );
+      expect(ledgerEvent.ledgerAccountTo).toBe('payee-settlement');
     },
     240_000,
   );
@@ -329,17 +323,22 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
         voucherDoc.sessionId,
         'issueVoucher',
       );
-      await client.documents.runOperation(voucherDoc.sessionId, 'issueVoucher');
-      await waitForPredicate(
+      const beforeIssueVoucherEpoch = await latestEpochNumber(
         client,
         voucherDoc.sessionId,
-        async () =>
-          (await latestEmittedEvents(client, voucherDoc.sessionId)).some(
+      );
+      await client.documents.runOperation(voucherDoc.sessionId, 'issueVoucher');
+      await waitForLatestEmittedEvent(
+        client,
+        voucherDoc.sessionId,
+        (events) =>
+          events.some(
             (event) =>
               (event as Record<string, unknown>).type ===
               'PayNote/Backward Payment Requested',
           ),
         {
+          afterEpoch: beforeIssueVoucherEpoch,
           timeoutMs: 90_000,
           intervalMs: 2_000,
         },
