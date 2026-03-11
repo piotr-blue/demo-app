@@ -132,6 +132,49 @@ contracts:
       type: Common/Named Event`);
   });
 
+  it('keeps onChannelEvent direct for non-timeline channels', () => {
+    const document = DocBuilder.doc()
+      .name('Direct Channel Event Mapping')
+      .field('/handled', false)
+      .channel('webhookChannel')
+      .onChannelEvent('handleWebhook', 'webhookChannel', BasicBlueTypes.Integer, (
+        steps,
+      ) => steps.replaceValue('SetHandled', '/handled', true))
+      .buildDocument();
+
+    const yaml = toOfficialYaml(document);
+    expect(yaml).toContain(`handleWebhook:
+    type: Conversation/Sequential Workflow
+    channel: webhookChannel
+    event:
+      type: Integer`);
+  });
+
+  it('wraps timeline onChannelEvent message-type matchers under event.message', () => {
+    const document = DocBuilder.doc()
+      .name('Timeline Channel Event Mapping')
+      .field('/handled', false)
+      .channel('ownerChannel', {
+        type: 'Conversation/Timeline Channel',
+        timelineId: 'owner-timeline',
+      })
+      .onChannelEvent(
+        'handleOwnerMessage',
+        'ownerChannel',
+        'Conversation/Chat Message',
+        (steps) => steps.replaceValue('SetHandled', '/handled', true),
+      )
+      .buildDocument();
+
+    const yaml = toOfficialYaml(document);
+    expect(yaml).toContain(`handleOwnerMessage:
+    type: Conversation/Sequential Workflow
+    channel: ownerChannel
+    event:
+      message:
+        type: Conversation/Chat Message`);
+  });
+
   it('maps MyOS marker helper contracts', () => {
     const document = DocBuilder.doc()
       .name('MyOS Marker Helpers')

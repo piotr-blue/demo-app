@@ -221,3 +221,28 @@ For each section state:
 - Why: public tarballs should not ship `src/`, specs, or other workspace-only
   implementation files. `npm pack --dry-run` is the cleanest verification that
   the release surface matches the intended public contract.
+
+## Post-mainline correction pass
+
+### `onChannelEvent(...)` channel semantics
+- Decision: `onChannelEvent(...)` now treats timeline-like channels as
+  message-payload matchers (`event.message`) while keeping direct-event channels
+  on direct `event` matching; explicit timeline-entry event types remain direct.
+- Why: this is the final runtime-confirmed behavior. Flattening timeline entry
+  payloads into direct event matchers would be incorrect for the current public
+  runtime.
+
+### Stage-6 operation-triggered PayNote branches
+- Decision: `unlockOnOperation(...)`, `requestOnOperation(...)`, and
+  `requestPartialOnOperation(...)` no longer synthesize `Boolean`, `Integer`,
+  or `Text` request schemas on the operation contract.
+- Why: these helpers target requestless or wildcard operation semantics. The
+  runtime proof is the resolved-content MyOS-style operation request path in
+  sdk-dsl test support, not a broader raw-node processor-schema claim.
+
+### Package status docs refresh
+- Decision: replace stale package-level status docs with final runtime-correct
+  coverage, deferred-item, and mapping-note documents.
+- Why: the old files still described pre-mainline drift, outdated coverage
+  counts, and fallback assumptions that no longer reflect the production
+  Version-A SDK.

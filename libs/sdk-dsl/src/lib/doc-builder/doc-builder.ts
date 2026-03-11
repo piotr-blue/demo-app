@@ -328,10 +328,11 @@ export class DocBuilder {
     eventType: TypeLike,
     customizer: StepsCustomizer,
   ): this {
+    const normalizedChannelKey = requireText(channelKey, 'channel key');
     this.state.setContract(requireText(workflowKey, 'workflow key'), {
       type: 'Conversation/Sequential Workflow',
-      channel: requireText(channelKey, 'channel key'),
-      event: { type: toTypeAlias(eventType) },
+      channel: normalizedChannelKey,
+      event: this.resolveChannelEventMatcher(normalizedChannelKey, eventType),
       steps: this.buildSteps(customizer),
     });
     return this;
@@ -1524,6 +1525,42 @@ export class DocBuilder {
       type: 'Core/Lifecycle Event Channel',
       event: { type: 'Core/Document Processing Initiated' },
     });
+  }
+
+  private resolveChannelEventMatcher(
+    channelKey: string,
+    eventType: TypeLike,
+  ): JsonObject {
+    const matcher = { type: toTypeAlias(eventType) };
+    if (!this.isTimelineLikeChannel(channelKey)) {
+      return matcher;
+    }
+    if (this.isTimelineEntryMatcher(matcher.type)) {
+      return matcher;
+    }
+    return {
+      message: matcher,
+    };
+  }
+
+  private isTimelineLikeChannel(channelKey: string): boolean {
+    const contract = this.state.ensureContractsRoot()[channelKey];
+    if (!contract || typeof contract !== 'object' || Array.isArray(contract)) {
+      return false;
+    }
+    const type = (contract as JsonObject).type;
+    return (
+      type === 'Conversation/Timeline Channel' ||
+      type === 'Conversation/Composite Timeline Channel' ||
+      type === 'MyOS/MyOS Timeline Channel'
+    );
+  }
+
+  private isTimelineEntryMatcher(typeAlias: string): boolean {
+    return (
+      typeAlias === 'Conversation/Timeline Entry' ||
+      typeAlias === 'MyOS/MyOS Timeline Entry'
+    );
   }
 
   private setMyOsMarkerContract(

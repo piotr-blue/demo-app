@@ -27,3 +27,11 @@ Make Version A of `libs/sdk-dsl` the production mainline by:
 - compatibility surface good enough for low-diff demo-app migration
 - no private provenance in committed tests/docs
 - explicit decision record for the audited Version B commits
+
+## Final correction notes
+
+- `onChannelEvent(...)` on timeline-like channels matches message types under
+  `event.message`; direct-event channels remain direct matchers
+- Stage-6 operation-triggered PayNote branches omit synthetic request schemas;
+  the current runtime proof is on the resolved-content MyOS-style operation
+  request path exercised in `sdk-dsl` test support

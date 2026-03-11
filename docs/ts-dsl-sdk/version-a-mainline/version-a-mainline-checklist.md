@@ -18,3 +18,6 @@
 - [x] Stage 5 release-quality pass complete
 - [x] all verification green
 - [x] scorecard at 9+ in every category
+- [x] post-mainline correction pass complete
+- [x] `onChannelEvent(...)` semantics locked for timeline vs direct channels
+- [x] Stage-6 operation-triggered PayNote branches omit synthetic request schemas

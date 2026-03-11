@@ -4,6 +4,7 @@ import {
   createTestDocumentProcessor,
   expectSuccess,
   operationRequestEvent,
+  resolveOperationContracts,
   storedDocumentBlueId,
 } from '../../../test-harness/runtime.js';
 import { toOfficialJson } from '../../core/serialization.js';
@@ -35,7 +36,7 @@ describe('paynote execution', () => {
     );
   });
 
-  it('emits reserve requested event from operation-triggered paynote flow', async () => {
+  it('emits reserve requested event from requestless operation flow on the resolved-content path', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     // prettier-ignore
@@ -51,16 +52,17 @@ describe('paynote execution', () => {
       processor.initializeDocument(payNote),
       'reserve paynote initialization failed',
     );
-    const documentBlueId = storedDocumentBlueId(initialized.document);
+    const runtimeDocument = resolveOperationContracts(initialized.document, blue);
+    const documentBlueId = storedDocumentBlueId(runtimeDocument);
     const request = operationRequestEvent(blue, {
       operation: 'requestReserve',
-      request: 1,
+      request: true,
       timelineId: 'payer-timeline',
       allowNewerVersion: false,
       documentBlueId,
     });
     const processed = await expectSuccess(
-      processor.processDocument(initialized.document.clone(), request),
+      processor.processDocument(runtimeDocument.clone(), request),
       'reserve paynote operation failed',
     );
 
@@ -70,7 +72,7 @@ describe('paynote execution', () => {
     expect(eventTypes).toContain('PayNote/Reserve Funds Requested');
   });
 
-  it('emits capture unlock and partial capture events from advanced operation flows', async () => {
+  it('emits capture unlock and partial capture events from requestless and wildcard operation flows on the resolved-content path', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     // prettier-ignore
@@ -92,14 +94,15 @@ describe('paynote execution', () => {
       processor.initializeDocument(payNote),
       'advanced paynote initialization failed',
     );
-    const documentBlueId = storedDocumentBlueId(initialized.document);
+    const runtimeDocument = resolveOperationContracts(initialized.document, blue);
+    const documentBlueId = storedDocumentBlueId(runtimeDocument);
 
     const unlockResponse = await expectSuccess(
       processor.processDocument(
-        initialized.document.clone(),
+        runtimeDocument.clone(),
         operationRequestEvent(blue, {
           operation: 'unlockCapture',
-          request: 1,
+          request: true,
           timelineId: 'guarantor-timeline',
           allowNewerVersion: false,
           documentBlueId,
@@ -161,7 +164,7 @@ describe('paynote execution', () => {
     );
   });
 
-  it('emits capture request and release partial flows for operation helpers', async () => {
+  it('emits capture request and release partial flows for requestless and wildcard operation helpers on the resolved-content path', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     // prettier-ignore
@@ -194,14 +197,14 @@ describe('paynote execution', () => {
       processor.initializeDocument(payNote),
       'advanced release paynote initialization failed',
     );
-
-    const documentBlueId = storedDocumentBlueId(initialized.document);
+    const runtimeDocument = resolveOperationContracts(initialized.document, blue);
+    const documentBlueId = storedDocumentBlueId(runtimeDocument);
     const captureResponse = await expectSuccess(
       processor.processDocument(
-        initialized.document.clone(),
+        runtimeDocument.clone(),
         operationRequestEvent(blue, {
           operation: 'requestCapture',
-          request: 1,
+          request: true,
           timelineId: 'guarantor-timeline',
           allowNewerVersion: false,
           documentBlueId,
@@ -222,7 +225,7 @@ describe('paynote execution', () => {
         captureResponse.document.clone(),
         operationRequestEvent(blue, {
           operation: 'requestRelease',
-          request: 1,
+          request: true,
           timelineId: 'guarantor-timeline',
           allowNewerVersion: false,
           documentBlueId,

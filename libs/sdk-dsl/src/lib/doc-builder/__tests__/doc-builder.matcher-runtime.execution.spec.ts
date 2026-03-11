@@ -267,7 +267,7 @@ describe('doc-builder matcher runtime execution', () => {
     expect(toOfficialJson(processed.document).mirroredCounter).toBe(3);
   });
 
-  it('runs onChannelEvent workflow for timeline entry events', async () => {
+  it('runs onChannelEvent workflow for timeline message types', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     const document = DocBuilder.doc()
@@ -277,7 +277,7 @@ describe('doc-builder matcher runtime execution', () => {
       .onChannelEvent(
         'handleChannelEvent',
         'ownerChannel',
-        'Conversation/Timeline Entry',
+        'Conversation/Chat Message',
         (steps) => steps.replaceValue('SetHandled', '/handled', true),
       )
       .buildDocument();
@@ -292,8 +292,8 @@ describe('doc-builder matcher runtime execution', () => {
         timelineId: 'owner-timeline',
       },
       message: {
-        type: 'Conversation/Event',
-        topic: 'runtime',
+        type: 'Conversation/Chat Message',
+        message: 'runtime',
       },
     });
     const processed = await expectSuccess(
