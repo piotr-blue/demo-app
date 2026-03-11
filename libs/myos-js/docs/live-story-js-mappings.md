@@ -234,8 +234,25 @@ event:
   channelBindings: <bindings>
   onBehalfOf: <requester channel>
   bootstrapAssignee: <myOs admin channel>
+  requestId: <correlation id, recommended for direct bootstrap flows>
   capabilities: <optional>
   initialMessages: <optional>
+```
+
+For the direct MyOS Admin requester flow used by Story 13, the parent workflow
+should then match:
+
+```yaml
+event:
+  type: MyOS/Target Document Session Started
+  inResponseTo:
+    requestId: <same correlation id>
+```
+
+and store the child session id from:
+
+```yaml
+${event.initiatorSessionIds[0]}
 ```
 
 ## 10) Payment mapping updates
@@ -328,7 +345,6 @@ Current gated areas include:
 - direct change mutation visibility (Story 2),
 - deeper session-interaction orchestration (Stories 6-8),
 - linked-doc incremental grant updates (Story 10),
-- child bootstrap validation/runtime acceptance (Story 13),
 - paynote/payment emitted-event observability (Stories 14-15),
 - backward payment alias availability (Story 16),
 - advanced control behavior verification (Stories 19-21, 23-25),

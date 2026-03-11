@@ -13,6 +13,7 @@ export function buildVoucherChildDocument(name: string) {
 
 export function buildParentVoucherOrchestratorDocument(name: string) {
   const childTemplate = buildVoucherChildDocument(`${name} Child Voucher`);
+  const requestId = 'REQ_CHILD_VOUCHER_BOOTSTRAP';
   return DocBuilder.doc()
     .name(name)
     .type('MyOS/Agent')
@@ -42,17 +43,25 @@ export function buildParentVoucherOrchestratorDocument(name: string) {
               },
             },
             'ownerChannel',
+            (payload) => {
+              payload.put('requestId', requestId);
+            },
           ),
     )
-    .onEvent(
+    .onTriggeredWithMatcher(
       'onTargetSessionStarted',
       'MyOS/Target Document Session Started',
+      {
+        inResponseTo: {
+          requestId,
+        },
+      },
       (steps) =>
         steps
           .replaceExpression(
             'StoreChildSessionId',
             '/childSessionId',
-            'event.targetSessionId',
+            'event.initiatorSessionIds[0]',
           )
           .replaceValue('MarkChildReady', '/childStatus', 'ready'),
     )

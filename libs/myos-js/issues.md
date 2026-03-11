@@ -116,13 +116,18 @@
       - keep initial grant feed assertions active;
       - gate incremental "later linked doc" assertion unless `MYOS_ENABLE_STORY_10=true`.
 
-11. **Story 13 blocker: child bootstrap request rejected by runtime validation**
-    - Status: blocked (live story gated)
+11. **Story 13 direct child bootstrap flow**
+    - Status: implemented
     - Story: `story-13 parent document bootstraps child voucher document`
-    - Observed API error:
-      - `400` validation failure during parent bootstrap/child-bootstrap flow.
+    - Required runtime shape:
+      - bootstrap request includes `bootstrapAssignee`, `onBehalfOf`, and
+        correlated `requestId`
+      - parent workflow matches `MyOS/Target Document Session Started` via
+        `inResponseTo.requestId`
+      - child session id is read from `event.initiatorSessionIds[0]`
     - Action:
-      - keep story gated unless `MYOS_ENABLE_STORY_13=true`.
+      - keep this shape locked in docs and regression tests; do not fall back to
+        `event.targetSessionId` for this flow
 
 12. **Story 14 blocker: paynote emitted lock/unlock/capture events not visible through current live surfaces**
     - Status: blocked (live story gated)

@@ -30,19 +30,12 @@ import {
 } from './docs/bootstrap-payments.docs.js';
 
 const gate = getCoreOrAccountLiveGate();
-const STORY_13_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_13 !== 'true';
 
 describeLive('myos-js live stories: bootstrap + payments', gate, () => {
   itLive(
     'story-13 parent document bootstraps child voucher document',
     gate,
     async () => {
-      if (STORY_13_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // MyOS Admin does not support Conversation/Document Bootstrap Requested
-        return;
-      }
-
       const client = createLiveClient({}, gate.env);
       const binding = defaultBootstrapBinding(gate.env);
       const parent = await bootstrapDslDocument(
@@ -59,22 +52,14 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
       await waitForAllowedOperation(client, parent.sessionId, 'issueVoucher');
       await client.documents.runOperation(parent.sessionId, 'issueVoucher');
 
-      await waitForFieldValue(
-        client,
-        parent.sessionId,
-        '/childStatus',
-        'ready',
-        {
-          timeoutMs: 120_000,
-          intervalMs: 2_000,
-        },
-      );
       const parentUpdated = await waitForPredicate(
         client,
         parent.sessionId,
         (latest) => {
+          const childStatus = extractField(latest, '/childStatus');
           const childSessionId = extractField(latest, '/childSessionId');
           return (
+            childStatus === 'ready' &&
             typeof childSessionId === 'string' && childSessionId.length > 0
           );
         },
@@ -87,6 +72,7 @@ describeLive('myos-js live stories: bootstrap + payments', gate, () => {
         parentUpdated,
         '/childSessionId',
       ) as string;
+      expect(extractField(parentUpdated, '/childStatus')).toBe('ready');
 
       const childRetrieved = await retrieveDocument(client, childSessionId);
       expect(extractField(childRetrieved, '/voucher/status')).toBe('active');

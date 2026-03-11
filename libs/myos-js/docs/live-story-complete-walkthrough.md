@@ -513,12 +513,12 @@ Parent agent requests child bootstrap and tracks child session lifecycle.
    - operation `issueVoucher` using `steps.myOs().bootstrapDocument(...)`
      with explicit `onBehalfOf: ownerChannel`
    - reacts to `MyOS/Target Document Session Started`
+     matched by `inResponseTo.requestId`
+   - stores `/childSessionId` from `event.initiatorSessionIds[0]`
    - tracks `/childSessionId` and `/childStatus`
    - includes section metadata
 
 ### How the test works
-
-If enabled via `MYOS_ENABLE_STORY_13=true`:
 
 1. bootstrap parent,
 2. run `issueVoucher`,
@@ -528,12 +528,16 @@ If enabled via `MYOS_ENABLE_STORY_13=true`:
 
 ### MyOS run result
 
-❌ **Blocked** (gated by default).
+✅ **Implemented**
 
 ### What happened on MyOS
 
-- Parent/child flow hits runtime validation (`400`) in this environment for child-bootstrap request.
-- Tracked in issues as Story 13 blocker.
+- Parent emits `Conversation/Document Bootstrap Requested` with explicit
+  `onBehalfOf` and correlated `requestId`.
+- Parent workflow listens for `MyOS/Target Document Session Started` with
+  matching `inResponseTo.requestId`.
+- Child session id is read from `initiatorSessionIds[0]`, then the child
+  voucher document is retrieved and redeemed in the live test.
 
 ---
 
@@ -959,7 +963,6 @@ To explicitly attempt blocked subflows while investigating runtime fixes, set:
 - `MYOS_ENABLE_STORY_7=true`
 - `MYOS_ENABLE_STORY_8=true`
 - `MYOS_ENABLE_STORY_10=true`
-- `MYOS_ENABLE_STORY_13=true`
 - `MYOS_ENABLE_STORY_14=true`
 - `MYOS_ENABLE_STORY_15=true`
 - `MYOS_ENABLE_STORY_19=true`
