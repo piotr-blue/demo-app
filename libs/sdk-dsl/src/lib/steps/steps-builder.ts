@@ -677,13 +677,6 @@ export class StepsBuilder {
     channelBindings: Record<string, JsonObject | string>,
     onBehalfOf: string,
     options?: BootstrapPayloadCustomizer,
-  ): this;
-  bootstrapDocument(
-    stepName: string,
-    document: JsonObject,
-    channelBindings: Record<string, JsonObject | string>,
-    onBehalfOf: string,
-    options?: BootstrapPayloadCustomizer,
   ): this {
     return this.emitType(
       stepName,
@@ -697,13 +690,6 @@ export class StepsBuilder {
     );
   }
 
-  bootstrapDocumentExpr(
-    stepName: string,
-    documentExpression: string,
-    channelBindings: Record<string, string>,
-    onBehalfOf: string,
-    options?: BootstrapPayloadCustomizer,
-  ): this;
   bootstrapDocumentExpr(
     stepName: string,
     documentExpression: string,
