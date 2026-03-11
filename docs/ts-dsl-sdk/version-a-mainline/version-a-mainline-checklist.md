@@ -1,0 +1,20 @@
+# Version A mainline checklist (updated)
+
+- [ ] Stage 1 runtime alignment complete
+- [ ] `grantSessionSubscriptionOnResult` unsupported/deferred
+- [ ] `Common/Named Event` adopted
+- [ ] `MyOsPermissions.write(...)` aligned to `share`
+- [ ] worker-session envelope aligned
+- [ ] linked-doc semantics corrected
+- [ ] Stage 2 hardening imported from Version B
+- [ ] canonical scenario discipline ported
+- [ ] editing collision-safe behavior ported
+- [ ] Stage 3 ergonomics/compatibility complete
+- [ ] Stage 4 audited commits reviewed one by one
+- [ ] relevant changes from `de0dd48...` ported or documented as N/A
+- [ ] relevant changes from `6d5c464...` ported or documented as N/A
+- [ ] relevant changes from `74a80ac...` ported or documented as N/A
+- [ ] relevant changes from `2ee6a8c...` ported or documented as N/A
+- [ ] Stage 5 release-quality pass complete
+- [ ] all verification green
+- [ ] scorecard at 9+ in every category

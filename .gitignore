@@ -23,3 +23,5 @@ pnpm-debug.log*
 # Cursor/tool artifacts
 .cursor
 .idea
+
+references
