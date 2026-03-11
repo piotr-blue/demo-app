@@ -421,23 +421,52 @@ export class DocBuilder {
   onMyOsResponse(
     workflowKey: string,
     responseType: TypeLike,
-    requestIdOrCustomizer: string | StepsCustomizer,
+    customizer: StepsCustomizer,
+  ): this;
+  onMyOsResponse(
+    workflowKey: string,
+    responseType: TypeLike,
+    requestId: string,
+    customizer: StepsCustomizer,
+  ): this;
+  onMyOsResponse(
+    workflowKey: string,
+    responseType: TypeLike,
+    matcher: JsonObject,
+    customizer: StepsCustomizer,
+  ): this;
+  onMyOsResponse(
+    workflowKey: string,
+    responseType: TypeLike,
+    requestIdOrMatcherOrCustomizer: string | JsonObject | StepsCustomizer,
     customizerMaybe?: StepsCustomizer,
   ): this {
-    if (customizerMaybe === undefined) {
+    if (typeof requestIdOrMatcherOrCustomizer === 'function') {
       return this.onTriggeredWithMatcher(
         workflowKey,
         responseType,
         {},
-        requestIdOrCustomizer as StepsCustomizer,
+        requestIdOrMatcherOrCustomizer,
       );
     }
-    return this.onTriggeredWithId(
+    const customizer = customizerMaybe as StepsCustomizer;
+    if (typeof requestIdOrMatcherOrCustomizer !== 'string') {
+      return this.onTriggeredWithMatcher(
+        workflowKey,
+        responseType,
+        requestIdOrMatcherOrCustomizer,
+        customizer,
+      );
+    }
+    return this.onTriggeredWithMatcher(
       workflowKey,
       responseType,
-      'requestId',
-      requestIdOrCustomizer as string,
-      customizerMaybe,
+      {
+        inResponseTo: {
+          requestId: requestIdOrMatcherOrCustomizer,
+        },
+      },
+      customizer,
     );
   }
 

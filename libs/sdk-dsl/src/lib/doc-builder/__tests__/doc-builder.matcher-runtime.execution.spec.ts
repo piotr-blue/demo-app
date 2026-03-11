@@ -82,7 +82,6 @@ describe('doc-builder matcher runtime execution', () => {
           'EmitPermissionGranted',
           'MyOS/Single Document Permission Granted',
           (payload) => {
-            payload.put('requestId', 'REQ_RUNTIME');
             payload.put('inResponseTo', { requestId: 'REQ_RUNTIME' });
           },
         ),
@@ -116,6 +115,41 @@ describe('doc-builder matcher runtime execution', () => {
       .onMyOsResponse(
         'handleGranted',
         'MyOS/Single Document Permission Granted',
+        (steps) => steps.replaceValue('SetHandled', '/handled', true),
+      )
+      .buildDocument();
+
+    const { processed } = await processOperation(document, 'emit');
+    expect(toOfficialJson(processed.document).handled).toBe(true);
+  });
+
+  it('runs onMyOsResponse workflow with explicit matcher correlation', async () => {
+    const document = DocBuilder.doc()
+      .name('OnMyOsResponse Matcher Runtime')
+      .field('/handled', false)
+      .channel('ownerChannel', ownerChannelContract())
+      .operation(
+        'emit',
+        'ownerChannel',
+        Number,
+        'emit subscription initiated response',
+        (steps) =>
+          steps.emitType(
+            'EmitSubscriptionInitiated',
+            'MyOS/Subscription to Session Initiated',
+            (payload) => {
+              payload.put('subscriptionId', 'SUB_RUNTIME');
+              payload.put('targetSessionId', 'target-session');
+              payload.put('epoch', 0);
+            },
+          ),
+      )
+      .onMyOsResponse(
+        'handleSubscriptionInitiated',
+        'MyOS/Subscription to Session Initiated',
+        {
+          subscriptionId: 'SUB_RUNTIME',
+        },
         (steps) => steps.replaceValue('SetHandled', '/handled', true),
       )
       .buildDocument();

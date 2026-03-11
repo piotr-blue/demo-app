@@ -387,22 +387,41 @@ export class PayNoteBuilder {
   onMyOsResponse(
     workflowKey: string,
     responseType: TypeLike,
-    requestIdOrCustomizer: string | ((steps: StepsBuilder) => void),
+    matcher: JsonObject,
+    customizer: (steps: StepsBuilder) => void,
+  ): this;
+  onMyOsResponse(
+    workflowKey: string,
+    responseType: TypeLike,
+    requestIdOrMatcherOrCustomizer:
+      | string
+      | JsonObject
+      | ((steps: StepsBuilder) => void),
     customizerMaybe?: (steps: StepsBuilder) => void,
   ): this {
-    if (customizerMaybe === undefined) {
+    if (typeof requestIdOrMatcherOrCustomizer === 'function') {
       this.builder.onMyOsResponse(
         workflowKey,
         responseType,
-        requestIdOrCustomizer as (steps: StepsBuilder) => void,
+        requestIdOrMatcherOrCustomizer,
+      );
+      return this;
+    }
+    const customizer = customizerMaybe as (steps: StepsBuilder) => void;
+    if (typeof requestIdOrMatcherOrCustomizer === 'string') {
+      this.builder.onMyOsResponse(
+        workflowKey,
+        responseType,
+        requestIdOrMatcherOrCustomizer,
+        customizer,
       );
       return this;
     }
     this.builder.onMyOsResponse(
       workflowKey,
       responseType,
-      requestIdOrCustomizer as string,
-      customizerMaybe,
+      requestIdOrMatcherOrCustomizer,
+      customizer,
     );
     return this;
   }

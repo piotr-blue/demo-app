@@ -94,6 +94,77 @@ describe('access step helpers execution', () => {
     });
   });
 
+  it('marks access subscribed from a direct subscription initiated event', async () => {
+    const blue = createTestBlue();
+    const processor = createTestDocumentProcessor(blue);
+    const document = DocBuilder.doc()
+      .name('Access Subscription Ready Runtime')
+      .channel('ownerChannel', {
+        type: 'Conversation/Timeline Channel',
+        timelineId: 'owner-timeline',
+      })
+      .access('counterAccess')
+      .permissionFrom('ownerChannel')
+      .targetSessionId('target-session')
+      .requestId('REQ_ACCESS')
+      .subscriptionId('SUB_ACCESS')
+      .statusPath('/subscriptionState')
+      .subscribeAfterGranted()
+      .subscriptionEvents('MyOS/Session Epoch Advanced')
+      .done()
+      .operation(
+        'emitLifecycle',
+        'ownerChannel',
+        Number,
+        'emit access grant and subscription initiation',
+        (steps) =>
+          steps
+            .emitType(
+              'EmitAccessGranted',
+              'MyOS/Single Document Permission Granted',
+              (payload) => {
+                payload.put('inResponseTo', {
+                  requestId: 'REQ_ACCESS',
+                });
+              },
+            )
+            .emitType(
+              'EmitSubscriptionInitiated',
+              'MyOS/Subscription to Session Initiated',
+              (payload) => {
+                payload.put('subscriptionId', 'SUB_ACCESS');
+                payload.put('targetSessionId', 'target-session');
+                payload.put('epoch', 0);
+                payload.put('document', {
+                  name: 'Target Session',
+                });
+              },
+            ),
+      )
+      .buildDocument();
+
+    const initialized = await expectSuccess(
+      processor.initializeDocument(document),
+      'access subscription-ready initialization failed',
+    );
+    const documentBlueId = storedDocumentBlueId(initialized.document);
+    const request = operationRequestEvent(blue, {
+      operation: 'emitLifecycle',
+      request: 1,
+      timelineId: 'owner-timeline',
+      documentBlueId,
+      allowNewerVersion: false,
+    });
+    const processed = await expectSuccess(
+      processor.processDocument(initialized.document.clone(), request),
+      'access subscription-ready operation failed',
+    );
+
+    expect(toOfficialJson(processed.document).subscriptionState).toBe(
+      'subscribed',
+    );
+  });
+
   it('emits linked and agency permission requests through helper namespaces', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
