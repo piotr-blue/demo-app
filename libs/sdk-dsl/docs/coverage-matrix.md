@@ -23,7 +23,7 @@ after the Version-A mainline uplift and final correction pass.
 | MyOS helper surface | mapping + runtime | covered | admin channels, marker helpers, subscription helpers, and worker/session flows are exercised in public/runtime specs |
 | AI integrations and response workflows | mapping + runtime | covered | task and named-response matching are both exercised |
 | Access / linked access / agency | mapping + runtime | covered | runtime-correct request, grant, revoke, and linked-doc semantics are covered |
-| StepsBuilder core helpers | mapping + runtime | covered | document updates, raw helpers, bootstrap helpers, and capture helpers are exercised |
+| StepsBuilder core helpers | mapping + runtime | covered | document updates, raw helpers, bootstrap helpers including explicit `onBehalfOf`, and capture helpers are exercised |
 | PayNote runtime-confirmed subset | mapping + runtime + canonical | covered | init/event/doc-path/request flows are covered for reserve/capture/release in the currently supported runtime subset |
 | Stage-6 operation-triggered PayNote branches | mapping + runtime + canonical | covered | `unlockOnOperation(...)`, `requestOnOperation(...)`, and `requestPartialOnOperation(...)` now omit synthetic request schemas; runtime proof is through the resolved-content `Conversation/Operation Request` timeline-entry path used in sdk-dsl test support |
 | Deferred PayNote helpers | mapping + guard tests | covered | unsupported alias/type cases fail fast explicitly instead of emitting bad runtime shapes |

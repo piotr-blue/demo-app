@@ -64,6 +64,25 @@ function putTargetSessionId(
   }
 }
 
+function resolveBootstrapArgs(
+  onBehalfOfOrOptions?: string | ((payload: EventPayloadBuilder) => void),
+  optionsMaybe?: (payload: EventPayloadBuilder) => void,
+): {
+  readonly onBehalfOf?: string;
+  readonly options?: (payload: EventPayloadBuilder) => void;
+} {
+  if (typeof onBehalfOfOrOptions === 'function') {
+    return { options: onBehalfOfOrOptions };
+  }
+  if (typeof onBehalfOfOrOptions === 'string') {
+    return {
+      onBehalfOf: requireText(onBehalfOfOrOptions, 'onBehalfOf is required'),
+      options: optionsMaybe,
+    };
+  }
+  return { options: optionsMaybe };
+}
+
 function toSubscriptionMatcher(
   eventMatcher: JsonObject | TypeLike,
 ): JsonObject {
@@ -382,15 +401,36 @@ export class MyOsSteps {
   bootstrapDocument(
     stepName: string,
     document: JsonObject,
-    channelBindings: Record<string, string>,
+    channelBindings: Record<string, JsonObject | string>,
     options?: (payload: EventPayloadBuilder) => void,
+  ): StepsBuilder;
+  bootstrapDocument(
+    stepName: string,
+    document: JsonObject,
+    channelBindings: Record<string, JsonObject | string>,
+    onBehalfOf: string,
+    options?: (payload: EventPayloadBuilder) => void,
+  ): StepsBuilder;
+  bootstrapDocument(
+    stepName: string,
+    document: JsonObject,
+    channelBindings: Record<string, JsonObject | string>,
+    onBehalfOfOrOptions?: string | ((payload: EventPayloadBuilder) => void),
+    optionsMaybe?: (payload: EventPayloadBuilder) => void,
   ): StepsBuilder {
+    const { onBehalfOf, options } = resolveBootstrapArgs(
+      onBehalfOfOrOptions,
+      optionsMaybe,
+    );
     return this.parent.bootstrapDocument(
       stepName,
       document,
       channelBindings,
       (payload) => {
         payload.put('bootstrapAssignee', this.adminChannelKey);
+        if (onBehalfOf !== undefined) {
+          payload.put('onBehalfOf', onBehalfOf);
+        }
         options?.(payload);
       },
     );

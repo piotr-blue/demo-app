@@ -23,6 +23,14 @@ are intentionally not repeated here.
 - reason: timeline workflows react to the entry payload, not to a synthetic
   flattened event
 
+### `Conversation/Document Bootstrap Requested`
+
+- bootstrap helpers can now emit `onBehalfOf` alongside `document`,
+  `channelBindings`, and optional `bootstrapAssignee`
+- reason: the real MyOS Admin direct-bootstrap path validates the requester
+  channel from `onBehalfOf`; this is a runtime field on the event type, not a
+  subscription-helper concern
+
 ### Stage-6 operation-triggered PayNote branches
 
 - operation-triggered request/unlock/full-request branches do not declare a

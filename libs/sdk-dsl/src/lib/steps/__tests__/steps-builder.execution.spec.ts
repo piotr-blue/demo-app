@@ -97,6 +97,7 @@ describe('steps-builder execution', () => {
             {
               ownerChannel: 'target-session',
             },
+            'ownerChannel',
             (payload) => payload.put('bootstrapAssignee', 'myOsAdminChannel'),
           ),
       )
@@ -132,9 +133,76 @@ describe('steps-builder execution', () => {
         ownerChannel: 'target-session',
       },
       bootstrapAssignee: 'myOsAdminChannel',
+      onBehalfOf: 'ownerChannel',
       document: {
         name: 'Child Runtime',
         summary: 'child bootstrap payload',
+      },
+    });
+  });
+
+  it('emits MyOS bootstrap requests with bootstrapAssignee and explicit onBehalfOf', async () => {
+    const blue = createTestBlue();
+    const processor = createTestDocumentProcessor(blue);
+
+    const document = DocBuilder.doc()
+      .name('Step MyOS Bootstrap Runtime')
+      .channel('sellerChannel', {
+        type: 'Conversation/Timeline Channel',
+        timelineId: 'seller-timeline',
+      })
+      .operation(
+        'bootstrapDeal',
+        'sellerChannel',
+        Number,
+        'Emit MyOS bootstrap request',
+        (steps) =>
+          steps.myOs('myOsAdminChannel').bootstrapDocument(
+            'BootstrapDeal',
+            {
+              name: 'Child Deal',
+            },
+            {
+              sellerChannel: 'child-seller',
+            },
+            'sellerChannel',
+          ),
+      )
+      .buildDocument();
+
+    const initialized = await expectSuccess(
+      processor.initializeDocument(document),
+      'step MyOS bootstrap document initialization failed',
+    );
+    const documentBlueId = storedDocumentBlueId(initialized.document);
+
+    const event = operationRequestEvent(blue, {
+      operation: 'bootstrapDeal',
+      request: 1,
+      timelineId: 'seller-timeline',
+      documentBlueId,
+      allowNewerVersion: false,
+    });
+    const processed = await expectSuccess(
+      processor.processDocument(initialized.document.clone(), event),
+      'step MyOS bootstrap operation failed',
+    );
+
+    const bootstrapEvent = processed.triggeredEvents
+      .map((triggeredEvent) => toOfficialJson(triggeredEvent))
+      .find(
+        (triggeredEvent) =>
+          triggeredEvent.type === 'Conversation/Document Bootstrap Requested',
+      );
+    expect(bootstrapEvent).toBeDefined();
+    expect(bootstrapEvent).toMatchObject({
+      bootstrapAssignee: 'myOsAdminChannel',
+      onBehalfOf: 'sellerChannel',
+      channelBindings: {
+        sellerChannel: 'child-seller',
+      },
+      document: {
+        name: 'Child Deal',
       },
     });
   });

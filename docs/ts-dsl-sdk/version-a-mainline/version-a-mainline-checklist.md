@@ -21,3 +21,4 @@
 - [x] post-mainline correction pass complete
 - [x] `onChannelEvent(...)` semantics locked for timeline vs direct channels
 - [x] Stage-6 operation-triggered PayNote branches omit synthetic request schemas
+- [x] `bootstrapDocument(...)` supports explicit `onBehalfOf` for MyOS Admin bootstrap flows

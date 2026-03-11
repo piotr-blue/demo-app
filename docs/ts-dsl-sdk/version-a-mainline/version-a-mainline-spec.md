@@ -35,3 +35,7 @@ Make Version A of `libs/sdk-dsl` the production mainline by:
 - Stage-6 operation-triggered PayNote branches omit synthetic request schemas;
   the current runtime proof is on the resolved-content MyOS-style operation
   request path exercised in `sdk-dsl` test support
+- `bootstrapDocument(...)` now supports explicit `onBehalfOf` for
+  `Conversation/Document Bootstrap Requested`; this is required by the real
+  MyOS Admin bootstrap path and is intentionally separate from the runtime-
+  correct subscribe helpers, which still do not accept `onBehalfOf`

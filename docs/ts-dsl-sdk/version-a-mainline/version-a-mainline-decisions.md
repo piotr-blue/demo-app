@@ -222,6 +222,18 @@ For each section state:
   implementation files. `npm pack --dry-run` is the cleanest verification that
   the release surface matches the intended public contract.
 
+## Post-mainline bootstrap correction
+
+### `Conversation/Document Bootstrap Requested`
+- Decision: `steps.bootstrapDocument(...)`,
+  `steps.bootstrapDocumentExpr(...)`, and `steps.myOs().bootstrapDocument(...)`
+  now accept an explicit `onBehalfOf` argument in addition to the legacy
+  payload-customizer signature.
+- Why: the real MyOS Admin direct-bootstrap path validates `onBehalfOf` on
+  `Conversation/Document Bootstrap Requested`. Supporting it as first-class SDK
+  input closes the runtime gap without changing the runtime-correct subscribe
+  helper semantics or widening this correction into a broader API redesign.
+
 ## Post-mainline correction pass
 
 ### `onChannelEvent(...)` channel semantics

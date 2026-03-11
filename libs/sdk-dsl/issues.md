@@ -22,6 +22,14 @@ surface is considered production-ready within the current public runtime.
   `subscribeToSessionWithMatchers(...)` stay runtime-correct and do not accept
   `onBehalfOf`
 
+### `bootstrapDocument(...)`
+
+- `Conversation/Document Bootstrap Requested` bootstrap helpers now support an
+  explicit `onBehalfOf` field when the runtime path requires it
+- `steps.myOs().bootstrapDocument(...)` still injects `bootstrapAssignee`, but
+  the requester channel must be passed explicitly when using the real MyOS
+  Admin direct-bootstrap flow
+
 ### `onChannelEvent(...)`
 
 - timeline-like channels (`Conversation/Timeline Channel`,

@@ -111,6 +111,7 @@ describe('steps-builder mapping', () => {
         {
           ownerChannel: 'target-session',
         },
+        'ownerChannel',
         (payload) => payload.put('bootstrapAssignee', 'myOsAdminChannel'),
       )
       .bootstrapDocumentExpr(
@@ -119,6 +120,7 @@ describe('steps-builder mapping', () => {
         {
           ownerChannel: 'target-session',
         },
+        'ownerChannel',
       )
       .build();
 
@@ -130,9 +132,48 @@ describe('steps-builder mapping', () => {
     type: Conversation/Trigger Event`);
     expect(yaml).toContain(`type: Conversation/Document Bootstrap Requested`);
     expect(yaml).toContain(`bootstrapAssignee: myOsAdminChannel`);
+    expect(yaml).toContain(`onBehalfOf: ownerChannel`);
     expect(yaml).toContain(`name: BootstrapFromExpression
     type: Conversation/Trigger Event`);
     expect(yaml).toContain(`document: \${document('/childDocument')}`);
+  });
+
+  it('keeps legacy bootstrap callback signature available and adds MyOS bootstrap onBehalfOf when requested', () => {
+    const steps = new StepsBuilder()
+      .bootstrapDocument(
+        'BootstrapLegacy',
+        {
+          name: 'Legacy Child',
+        },
+        {
+          ownerChannel: 'target-session',
+        },
+        (payload) => payload.put('bootstrapAssignee', 'legacy-orchestrator'),
+      )
+      .myOs('myOsAdminChannel')
+      .bootstrapDocument(
+        'BootstrapMyOsChild',
+        {
+          name: 'MyOS Child',
+        },
+        {
+          ownerChannel: 'target-session',
+        },
+        'ownerChannel',
+      )
+      .build();
+
+    const yaml = dump({ steps }, { noRefs: true, lineWidth: -1 });
+    expect(yaml).toContain(`name: BootstrapLegacy`);
+    expect(yaml).toContain(`bootstrapAssignee: legacy-orchestrator`);
+    expect(yaml).not.toContain(`name: BootstrapLegacy
+    type: Conversation/Trigger Event
+    event:
+      type: Conversation/Document Bootstrap Requested
+      onBehalfOf: ownerChannel`);
+    expect(yaml).toContain(`name: BootstrapMyOsChild`);
+    expect(yaml).toContain(`bootstrapAssignee: myOsAdminChannel`);
+    expect(yaml).toContain(`onBehalfOf: ownerChannel`);
   });
 
   it('maps filtered subscription matcher helper for myos subscriptions', () => {
