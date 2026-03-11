@@ -79,7 +79,15 @@ describeLive('myos-js live stories: advanced control', gate, () => {
       await waitForAllowedOperation(client, sessionId, 'proposeChange');
       await client.documents.runOperation(sessionId, 'proposeChange', {
         type: 'Conversation/Change Request',
-        changeset: [{ op: 'replace', path: '/text', val: 'Proposed text' }],
+        summary: 'Propose text change',
+        changeset: [
+          {
+            type: 'Core/Json Patch Entry',
+            op: 'replace',
+            path: '/text',
+            val: 'Proposed text',
+          },
+        ],
       });
       await waitForEmittedEvent(
         client,

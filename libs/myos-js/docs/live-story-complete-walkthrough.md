@@ -144,18 +144,21 @@ Validates DSL `directChange(...)` contract generation and runtime application of
    - `changeDocument`
    - `changeDocumentImpl`
    - `contractsPolicy`
-3. mutation assertion is runtime-gated in spec (known blocker).
+3. run `changeDocument` with a runtime-correct `Conversation/Change Request`
+   payload including `summary` and typed `Core/Json Patch Entry` changeset
+   items,
+4. wait for `/text = "Updated text"`.
 
 ### MyOS run result
 
-⚠️ **Blocked** (structure works, mutation does not).
+✅ **Implemented**
 
 ### What happened on MyOS
 
-- Operation requests are accepted and visible in feed entries.
-- `/text` does not change from `"Initial"` after running `changeDocument`.
-- Both payload variants were tested (with and without explicit request `type`).
-- Tracked in `libs/myos-js/issues.md` (Story 2 blocker).
+- Direct change mutates the document when the request payload is fully typed for
+  the current runtime path.
+- The working live payload includes top-level `summary` plus
+  `type: Core/Json Patch Entry` on each changeset entry.
 
 ---
 

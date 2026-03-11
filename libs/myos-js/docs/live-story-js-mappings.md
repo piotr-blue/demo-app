@@ -115,6 +115,9 @@ Important:
 
 - `contractsPolicy` belongs under `/contracts`.
 - This baseline does not use a `/policies/contractsChangePolicy` path.
+- For the current MyOS runtime path, live callers should send
+  `Conversation/Change Request` with a top-level `summary` and explicit
+  `Core/Json Patch Entry`-typed changeset items.
 
 ## 5) Capability/helper mappings used in live stories
 
@@ -342,7 +345,6 @@ Known runtime-gated stories remain tracked in:
 
 Current gated areas include:
 
-- direct change mutation visibility (Story 2),
 - deeper session-interaction orchestration (Stories 6-8),
 - linked-doc incremental grant updates (Story 10),
 - paynote/payment emitted-event observability (Stories 14-15),

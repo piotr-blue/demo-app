@@ -47,8 +47,8 @@
      - keep story runtime-gated; enable once alias becomes available in installed
        `@blue-repository/types` package.
 
-6. **Story 2 blocker: directChange request accepted but not applied at runtime**
-   - Status: blocked (live assertion gated)
+6. **Story 2 directChange runtime path**
+   - Status: implemented
    - Story: `story-2 direct change operation applies incoming changeset` in
      `src/live/stories/basic-and-events.live.spec.ts`
    - Repro:
@@ -58,20 +58,28 @@
         ```json
         {
           "type": "Conversation/Change Request",
+          "summary": "Update text",
           "changeset": [
-            { "op": "replace", "path": "/text", "val": "Updated text" }
+            {
+              "type": "Core/Json Patch Entry",
+              "op": "replace",
+              "path": "/text",
+              "val": "Updated text"
+            }
           ]
         }
         ```
         against operation `changeDocument`.
-   - Observed runtime behavior:
-     - operation request appears in feed entries,
-     - `/text` remains `"Initial"` and no mutation is applied.
+   - Runtime-confirmed behavior:
+     - request applies successfully when the top-level change request includes
+       `summary`
+     - patch entries should carry explicit `type: "Core/Json Patch Entry"`
    - Notes:
-     - both payload variants (with and without explicit `type`) were tested.
+     - the earlier blocker came from an underspecified request payload, not from
+       the `directChange(...)` contract itself
    - Action:
-     - keep structural assertions for generated direct-change contracts,
-       but gate live state-change assertion until runtime applies change requests.
+     - keep Story 2 and similar change-request stories aligned to that runtime
+       payload shape
 
 7. **Story 6 blocker: permission/subscription orchestration not reflected into mirror agent**
    - Status: blocked (live assertion gated)
