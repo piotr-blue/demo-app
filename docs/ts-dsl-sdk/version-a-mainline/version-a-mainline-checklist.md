@@ -15,6 +15,6 @@
 - [x] relevant changes from `6d5c464...` ported or documented as N/A
 - [x] relevant changes from `74a80ac...` ported or documented as N/A
 - [x] relevant changes from `2ee6a8c...` ported or documented as N/A
-- [ ] Stage 5 release-quality pass complete
-- [ ] all verification green
-- [ ] scorecard at 9+ in every category
+- [x] Stage 5 release-quality pass complete
+- [x] all verification green
+- [x] scorecard at 9+ in every category

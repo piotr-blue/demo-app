@@ -2,31 +2,33 @@
   "name": "@blue-labs/myos-js",
   "version": "0.1.0",
   "type": "module",
-  "main": "./src/index.ts",
-  "module": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
+    "build": "node scripts/build.mjs",
     "generate:openapi-snapshot": "node scripts/generate-openapi-snapshot.mjs",
     "generate:types": "node scripts/generate-schema-types.mjs",
     "generate:operation-matrix": "node scripts/generate-operation-matrix.mjs",
     "generate:all": "npm run generate:types && npm run generate:operation-matrix"
   },
   "files": [
-    "src",
+    "dist",
     "docs",
-    "openapi"
+    "openapi",
+    "!dist/package.json"
   ],
   "dependencies": {
     "@blue-labs/language": "^3.5.0",
-    "@blue-labs/sdk-dsl": "file:../sdk-dsl"
+    "@blue-labs/sdk-dsl": "^3.5.0"
   },
   "license": "MIT",
   "publishConfig": {

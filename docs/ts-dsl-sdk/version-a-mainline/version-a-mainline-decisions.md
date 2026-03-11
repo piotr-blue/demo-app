@@ -193,3 +193,31 @@ For each section state:
   require expanding a currently string-only SDK step API outside this stage’s
   scope; and the richer `http-client` error messages from `de0dd48...` already
   address the underlying bootstrap-debug problem with less churn.
+
+## Stage 5 release quality and publish surface
+
+### Package entrypoints and runtime dependencies
+- Decision: both public package manifests now target `dist` JS/DTS entrypoints,
+  `@blue-repository/types` is a regular `sdk-dsl` runtime dependency, and
+  `myos-js` depends on the published `@blue-labs/sdk-dsl` semver instead of a
+  local `file:` link.
+- Why: Stage 5 requires publish-ready packages. Source entrypoints and local
+  file dependencies are acceptable in workspace-only development, but they are
+  not valid release artifacts for the production mainline SDK.
+
+### Build workflow hardening
+- Decision: both libraries now build through package-level `node
+  scripts/build.mjs` entrypoints that generate Vite JS output, declarations,
+  and a coherent `dist/package.json`; `blue-studio-web` prebuild/typecheck/test
+  hooks now prepare both libraries before consuming them.
+- Why: once package manifests point at `dist`, local consumer workflows must
+  remain zero-friction. The app should not depend on stale artifacts or manual
+  build ordering.
+
+### Public tarball discipline
+- Decision: package `files` now whitelist release artifacts (`dist`, plus
+  `docs`/`openapi` for `myos-js`) and exclude nested `dist/package.json`; Stage
+  5 verification includes `npm pack --dry-run` for both packages.
+- Why: public tarballs should not ship `src/`, specs, or other workspace-only
+  implementation files. `npm pack --dry-run` is the cleanest verification that
+  the release surface matches the intended public contract.

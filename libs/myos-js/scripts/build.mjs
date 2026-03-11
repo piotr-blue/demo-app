@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "vite";
@@ -8,6 +9,9 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const packageJsonPath = path.join(projectRoot, "package.json");
 const distPackageJsonPath = path.join(projectRoot, "dist", "package.json");
+const sdkDslDistIndex = path.resolve(projectRoot, "../sdk-dsl/dist/index.d.ts");
+
+await ensureSdkDslBuild();
 
 await build({
   configFile: path.join(projectRoot, "vite.config.ts"),
@@ -21,6 +25,41 @@ await writeFile(
   distPackageJsonPath,
   `${JSON.stringify(distPackageJson, null, 2)}\n`,
 );
+
+async function ensureSdkDslBuild() {
+  try {
+    await access(sdkDslDistIndex);
+  } catch {
+    await runSdkDslBuild();
+  }
+}
+
+function runSdkDslBuild() {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.platform === "win32" ? "npm.cmd" : "npm",
+      ["run", "build", "-w", "@blue-labs/sdk-dsl"],
+      {
+        cwd: path.resolve(projectRoot, "..", ".."),
+        stdio: "inherit",
+      },
+    );
+
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `Failed to build @blue-labs/sdk-dsl prerequisite (exit code ${code ?? "unknown"}).`,
+        ),
+      );
+    });
+    child.on("error", reject);
+  });
+}
 
 function createDistPackageJson(packageJson) {
   const distPackageJson = {

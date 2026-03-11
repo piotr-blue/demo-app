@@ -7,21 +7,22 @@
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
   },
   "files": [
-    "src",
-    "dist"
+    "dist",
+    "!dist/package.json"
   ],
   "dependencies": {
-    "@blue-labs/language": "^3.5.0"
+    "@blue-labs/language": "^3.5.0",
+    "@blue-repository/types": "^0.21.0"
   },
   "license": "MIT",
   "publishConfig": {
@@ -32,7 +33,6 @@
     "url": "git+https://github.com/bluecontract/blue-js.git"
   },
   "peerDependencies": {
-    "@blue-repository/types": "^0.21.0",
     "zod": "^3.20.0"
   }
 }
