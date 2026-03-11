@@ -360,7 +360,7 @@ For the linked-doc watcher flow used by Story 10:
 - response workflows should match either
   `MyOS/Linked Documents Permission Granted` or fallback
   `MyOS/Single Document Permission Granted`,
-- correlation should use `event.inResponseTo.incomingEvent.requestId`,
+- correlation should use `event.inResponseTo.requestId`,
 - the practical live assertion surface is the latest epoch `emitted` snapshot,
   not feed entries.
 

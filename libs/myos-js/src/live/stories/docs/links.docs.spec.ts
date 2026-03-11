@@ -55,9 +55,7 @@ describe('links story docs', () => {
       event: {
         type: 'MyOS/Linked Documents Permission Granted',
         inResponseTo: {
-          incomingEvent: {
-            requestId: 'REQ_LINKED_GRANTS',
-          },
+          requestId: 'REQ_LINKED_GRANTS',
         },
       },
     });
@@ -71,9 +69,7 @@ describe('links story docs', () => {
       event: {
         type: 'MyOS/Single Document Permission Granted',
         inResponseTo: {
-          incomingEvent: {
-            requestId: 'REQ_LINKED_GRANTS',
-          },
+          requestId: 'REQ_LINKED_GRANTS',
         },
       },
     });

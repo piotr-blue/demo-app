@@ -1,4 +1,8 @@
 import { expect } from 'vitest';
+import {
+  LinkedDocumentsPermissionGrantedSchema,
+  SingleDocumentPermissionGrantedSchema,
+} from '@blue-repository/types/packages/myos/schemas';
 import { describeLive, itLive } from '../../test-harness/live-mode.js';
 import { getCoreOrAccountLiveGate } from '../../test-harness/live-env.js';
 import {
@@ -7,6 +11,7 @@ import {
   createUniqueName,
   defaultBootstrapBinding,
   extractField,
+  findEmittedEventBySchema,
   extractTimelineId,
   latestEpochNumber,
   retrieveDocument,
@@ -302,23 +307,55 @@ describeLive('myos-js live stories: links + participants', gate, () => {
 });
 
 function hasLinkedGrantEvent(emittedEvents: unknown[]): boolean {
-  for (const emittedEvent of emittedEvents) {
-    const event = emittedEvent as Record<string, unknown>;
-    const type = event.type;
-    const inResponseTo = event.inResponseTo as Record<string, unknown> | undefined;
-    const incomingEvent = inResponseTo?.incomingEvent as
-      | Record<string, unknown>
-      | undefined;
-    if (
-      (type === 'MyOS/Linked Documents Permission Granted' ||
-        type === 'MyOS/Single Document Permission Granted') &&
-      incomingEvent?.requestId === 'REQ_LINKED_GRANTS' &&
-      typeof event.targetSessionId === 'string'
-    ) {
-      return true;
-    }
+  return findLinkedGrantEvent(emittedEvents) !== undefined;
+}
+
+function findLinkedGrantEvent(
+  emittedEvents: unknown[],
+): CorrelatedLinkedGrantEvent | undefined {
+  const linkedDocumentsGrant =
+    findEmittedEventBySchema<CorrelatedLinkedGrantEvent>(
+      emittedEvents,
+      LinkedDocumentsPermissionGrantedSchema,
+    );
+  if (isCorrelatedLinkedGrantEvent(linkedDocumentsGrant)) {
+    return linkedDocumentsGrant;
   }
-  return false;
+
+  const singleDocumentGrant =
+    findEmittedEventBySchema<CorrelatedLinkedGrantEvent>(
+      emittedEvents,
+      SingleDocumentPermissionGrantedSchema,
+    );
+  if (isCorrelatedLinkedGrantEvent(singleDocumentGrant)) {
+    return singleDocumentGrant;
+  }
+
+  return undefined;
+}
+
+function isCorrelatedLinkedGrantEvent(
+  event: CorrelatedLinkedGrantEvent | undefined,
+): event is CorrelatedLinkedGrantEvent & {
+  readonly targetSessionId: string;
+} {
+  const requestId =
+    event?.inResponseTo?.requestId ??
+    event?.inResponseTo?.incomingEvent?.requestId;
+  return (
+    requestId === 'REQ_LINKED_GRANTS' &&
+    typeof event.targetSessionId === 'string'
+  );
+}
+
+interface CorrelatedLinkedGrantEvent extends Record<string, unknown> {
+  readonly inResponseTo?: {
+    readonly requestId?: string;
+    readonly incomingEvent?: {
+      readonly requestId?: string;
+    };
+  };
+  readonly targetSessionId?: string;
 }
 
 function reviewerGroupContains(

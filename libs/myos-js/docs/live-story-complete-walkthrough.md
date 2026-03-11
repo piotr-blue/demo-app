@@ -415,6 +415,7 @@ Watcher agent requests linked-doc permissions and should track grants, including
    - matcher-based handlers for:
      - `MyOS/Linked Documents Permission Granted`
      - fallback `MyOS/Single Document Permission Granted`
+   - correlates responses via `event.inResponseTo.requestId`
    - increments `/grantSeenCount`
    - stores `/lastGrantedTargetSessionId`
 
