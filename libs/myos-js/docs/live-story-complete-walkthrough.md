@@ -511,6 +511,7 @@ Parent agent requests child bootstrap and tracks child session lifecycle.
 2. `buildParentVoucherOrchestratorDocument`
    - agent + `sessionInteraction`
    - operation `issueVoucher` using `steps.myOs().bootstrapDocument(...)`
+     with explicit `onBehalfOf: ownerChannel`
    - reacts to `MyOS/Target Document Session Started`
    - tracks `/childSessionId` and `/childStatus`
    - includes section metadata

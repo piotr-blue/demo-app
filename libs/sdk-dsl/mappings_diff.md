@@ -25,7 +25,7 @@ are intentionally not repeated here.
 
 ### `Conversation/Document Bootstrap Requested`
 
-- bootstrap helpers can now emit `onBehalfOf` alongside `document`,
+- bootstrap helpers now require `onBehalfOf` alongside `document`,
   `channelBindings`, and optional `bootstrapAssignee`
 - reason: the real MyOS Admin direct-bootstrap path validates the requester
   channel from `onBehalfOf`; this is a runtime field on the event type, not a

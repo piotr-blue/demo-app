@@ -477,11 +477,11 @@ BOOTSTRAP:
 ```ts
 steps.bootstrapDocument('BootstrapDeal', childDoc, {
   buyerChannel: 'ownerChannel',
-})
+}, 'ownerChannel')
 
 steps.bootstrapDocumentExpr('BootstrapFromExpr', "document('/templateDoc')", {
   buyerChannel: 'ownerChannel',
-})
+}, 'ownerChannel')
 ```
 
 ════════════════════════════════════════════════════════════

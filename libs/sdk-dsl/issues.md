@@ -24,11 +24,11 @@ surface is considered production-ready within the current public runtime.
 
 ### `bootstrapDocument(...)`
 
-- `Conversation/Document Bootstrap Requested` bootstrap helpers now support an
-  explicit `onBehalfOf` field when the runtime path requires it
+- `Conversation/Document Bootstrap Requested` bootstrap helpers require
+  `onBehalfOf`
 - `steps.myOs().bootstrapDocument(...)` still injects `bootstrapAssignee`, but
-  the requester channel must be passed explicitly when using the real MyOS
-  Admin direct-bootstrap flow
+  the requester channel must be passed explicitly because the real MyOS Admin
+  direct-bootstrap flow rejects requests that omit it
 
 ### `onChannelEvent(...)`
 

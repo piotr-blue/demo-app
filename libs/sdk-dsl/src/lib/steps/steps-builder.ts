@@ -98,31 +98,15 @@ function copyEntries(source: JsonObject): JsonObject {
 
 type BootstrapPayloadCustomizer = (payload: EventPayloadBuilder) => void;
 
-function requireText(value: string, message: string): string {
+function requireText(value: unknown, message: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(message);
+  }
   const normalized = value.trim();
   if (normalized.length === 0) {
     throw new Error(message);
   }
   return normalized;
-}
-
-function resolveBootstrapArgs(
-  onBehalfOfOrOptions?: string | BootstrapPayloadCustomizer,
-  optionsMaybe?: BootstrapPayloadCustomizer,
-): {
-  readonly onBehalfOf?: string;
-  readonly options?: BootstrapPayloadCustomizer;
-} {
-  if (typeof onBehalfOfOrOptions === 'function') {
-    return { options: onBehalfOfOrOptions };
-  }
-  if (typeof onBehalfOfOrOptions === 'string') {
-    return {
-      onBehalfOf: requireText(onBehalfOfOrOptions, 'onBehalfOf is required'),
-      options: optionsMaybe,
-    };
-  }
-  return { options: optionsMaybe };
 }
 
 type RailKey =
@@ -691,6 +675,7 @@ export class StepsBuilder {
     stepName: string,
     document: JsonObject,
     channelBindings: Record<string, JsonObject | string>,
+    onBehalfOf: string,
     options?: BootstrapPayloadCustomizer,
   ): this;
   bootstrapDocument(
@@ -699,27 +684,14 @@ export class StepsBuilder {
     channelBindings: Record<string, JsonObject | string>,
     onBehalfOf: string,
     options?: BootstrapPayloadCustomizer,
-  ): this;
-  bootstrapDocument(
-    stepName: string,
-    document: JsonObject,
-    channelBindings: Record<string, JsonObject | string>,
-    onBehalfOfOrOptions?: string | BootstrapPayloadCustomizer,
-    optionsMaybe?: BootstrapPayloadCustomizer,
   ): this {
-    const { onBehalfOf, options } = resolveBootstrapArgs(
-      onBehalfOfOrOptions,
-      optionsMaybe,
-    );
     return this.emitType(
       stepName,
       'Conversation/Document Bootstrap Requested',
       (payload) => {
         payload.put('document', copyEntries(document));
         payload.put('channelBindings', structuredClone(channelBindings));
-        if (onBehalfOf !== undefined) {
-          payload.put('onBehalfOf', onBehalfOf);
-        }
+        payload.put('onBehalfOf', requireText(onBehalfOf, 'onBehalfOf is required'));
         options?.(payload);
       },
     );
@@ -729,6 +701,7 @@ export class StepsBuilder {
     stepName: string,
     documentExpression: string,
     channelBindings: Record<string, string>,
+    onBehalfOf: string,
     options?: BootstrapPayloadCustomizer,
   ): this;
   bootstrapDocumentExpr(
@@ -737,27 +710,14 @@ export class StepsBuilder {
     channelBindings: Record<string, string>,
     onBehalfOf: string,
     options?: BootstrapPayloadCustomizer,
-  ): this;
-  bootstrapDocumentExpr(
-    stepName: string,
-    documentExpression: string,
-    channelBindings: Record<string, string>,
-    onBehalfOfOrOptions?: string | BootstrapPayloadCustomizer,
-    optionsMaybe?: BootstrapPayloadCustomizer,
   ): this {
-    const { onBehalfOf, options } = resolveBootstrapArgs(
-      onBehalfOfOrOptions,
-      optionsMaybe,
-    );
     return this.emitType(
       stepName,
       'Conversation/Document Bootstrap Requested',
       (payload) => {
         payload.putExpression('document', documentExpression);
         payload.put('channelBindings', structuredClone(channelBindings));
-        if (onBehalfOf !== undefined) {
-          payload.put('onBehalfOf', onBehalfOf);
-        }
+        payload.put('onBehalfOf', requireText(onBehalfOf, 'onBehalfOf is required'));
         options?.(payload);
       },
     );

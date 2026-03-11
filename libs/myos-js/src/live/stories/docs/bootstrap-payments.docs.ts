@@ -33,9 +33,16 @@ export function buildParentVoucherOrchestratorDocument(name: string) {
       (steps) =>
         steps
           .myOs('myOsAdminChannel')
-          .bootstrapDocument('BootstrapChildVoucher', childTemplate, {
-            ownerChannel: 'ownerChannel',
-          }),
+          .bootstrapDocument(
+            'BootstrapChildVoucher',
+            childTemplate,
+            {
+              ownerChannel: {
+                accountId: '${document("/contracts/ownerChannel/accountId")}',
+              },
+            },
+            'ownerChannel',
+          ),
     )
     .onEvent(
       'onTargetSessionStarted',
@@ -54,7 +61,11 @@ export function buildParentVoucherOrchestratorDocument(name: string) {
 }
 
 export function buildShipmentEscrowPayNoteDocument(name: string) {
+  // TODO: MyOS Bootstrap only supports MyOS/MyOS Timeline Channel, default PayNote builder uses Conversation/Timeline Channel.
   const payNoteJson = PayNotes.payNote(name)
+    .channel('payerChannel', { type: 'MyOS/MyOS Timeline Channel' })
+    .channel('payeeChannel', { type: 'MyOS/MyOS Timeline Channel' })
+    .channel('guarantorChannel', { type: 'MyOS/MyOS Timeline Channel' })
     .currency('USD')
     .amountMinor(10000)
     .capture()

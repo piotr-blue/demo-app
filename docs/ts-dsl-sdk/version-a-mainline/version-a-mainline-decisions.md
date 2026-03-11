@@ -227,12 +227,13 @@ For each section state:
 ### `Conversation/Document Bootstrap Requested`
 - Decision: `steps.bootstrapDocument(...)`,
   `steps.bootstrapDocumentExpr(...)`, and `steps.myOs().bootstrapDocument(...)`
-  now accept an explicit `onBehalfOf` argument in addition to the legacy
-  payload-customizer signature.
+  now require an explicit `onBehalfOf` argument; the legacy bootstrap form
+  without requester-channel input is no longer supported.
 - Why: the real MyOS Admin direct-bootstrap path validates `onBehalfOf` on
   `Conversation/Document Bootstrap Requested`. Supporting it as first-class SDK
-  input closes the runtime gap without changing the runtime-correct subscribe
-  helper semantics or widening this correction into a broader API redesign.
+  input closes the runtime gap and avoids authoring request shapes that would be
+  rejected at runtime. This stays separate from the runtime-correct subscribe
+  helper semantics, which still do not accept `onBehalfOf`.
 
 ## Post-mainline correction pass
 

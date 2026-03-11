@@ -926,6 +926,7 @@ export function bootstrapVoucherOnCapture(): BlueNode {
             payeeChannel: 'payeeChannel',
             merchantChannel: 'payeeChannel',
           },
+          'payeeChannel',
         ),
     )
     .onMyOsResponse(
@@ -962,6 +963,7 @@ export function bootstrapViaOrchestrator(): BlueNode {
           participantA: 'aliceChannel',
           participantB: 'bobChannel',
         },
+        'orchestratorChannel',
         (payload) => {
           payload.put('bootstrapAssignee', 'orchestratorChannel');
           payload.put('initialMessages', {
@@ -997,6 +999,7 @@ export function bootstrapWithMessages(): BlueNode {
           sellerChannel: 'sellerChannel',
           buyerChannel: 'buyerChannel',
         },
+        'sellerChannel',
         (payload) => {
           payload.put('initialMessages', {
             defaultMessage: 'A new deal has been created.',

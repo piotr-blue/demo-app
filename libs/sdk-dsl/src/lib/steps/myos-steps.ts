@@ -6,7 +6,10 @@ import {
 } from './myos-permissions.js';
 import type { EventPayloadBuilder, StepsBuilder } from './steps-builder.js';
 
-function requireText(value: string, message: string): string {
+function requireText(value: unknown, message: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(message);
+  }
   const normalized = value.trim();
   if (normalized.length === 0) {
     throw new Error(message);
@@ -62,25 +65,6 @@ function putTargetSessionId(
   if (targetSessionId !== undefined) {
     payload.put('targetSessionId', toNodeValue(targetSessionId));
   }
-}
-
-function resolveBootstrapArgs(
-  onBehalfOfOrOptions?: string | ((payload: EventPayloadBuilder) => void),
-  optionsMaybe?: (payload: EventPayloadBuilder) => void,
-): {
-  readonly onBehalfOf?: string;
-  readonly options?: (payload: EventPayloadBuilder) => void;
-} {
-  if (typeof onBehalfOfOrOptions === 'function') {
-    return { options: onBehalfOfOrOptions };
-  }
-  if (typeof onBehalfOfOrOptions === 'string') {
-    return {
-      onBehalfOf: requireText(onBehalfOfOrOptions, 'onBehalfOf is required'),
-      options: optionsMaybe,
-    };
-  }
-  return { options: optionsMaybe };
 }
 
 function toSubscriptionMatcher(
@@ -402,6 +386,7 @@ export class MyOsSteps {
     stepName: string,
     document: JsonObject,
     channelBindings: Record<string, JsonObject | string>,
+    onBehalfOf: string,
     options?: (payload: EventPayloadBuilder) => void,
   ): StepsBuilder;
   bootstrapDocument(
@@ -410,27 +395,14 @@ export class MyOsSteps {
     channelBindings: Record<string, JsonObject | string>,
     onBehalfOf: string,
     options?: (payload: EventPayloadBuilder) => void,
-  ): StepsBuilder;
-  bootstrapDocument(
-    stepName: string,
-    document: JsonObject,
-    channelBindings: Record<string, JsonObject | string>,
-    onBehalfOfOrOptions?: string | ((payload: EventPayloadBuilder) => void),
-    optionsMaybe?: (payload: EventPayloadBuilder) => void,
   ): StepsBuilder {
-    const { onBehalfOf, options } = resolveBootstrapArgs(
-      onBehalfOfOrOptions,
-      optionsMaybe,
-    );
     return this.parent.bootstrapDocument(
       stepName,
       document,
       channelBindings,
+      onBehalfOf,
       (payload) => {
         payload.put('bootstrapAssignee', this.adminChannelKey);
-        if (onBehalfOf !== undefined) {
-          payload.put('onBehalfOf', onBehalfOf);
-        }
         options?.(payload);
       },
     );

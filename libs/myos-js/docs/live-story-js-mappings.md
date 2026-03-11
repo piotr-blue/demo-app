@@ -232,9 +232,10 @@ event:
   type: Conversation/Document Bootstrap Requested
   document: <childDoc>
   channelBindings: <bindings>
+  onBehalfOf: <requester channel>
+  bootstrapAssignee: <myOs admin channel>
   capabilities: <optional>
   initialMessages: <optional>
-  initiatorChannel: <optional>
 ```
 
 ## 10) Payment mapping updates

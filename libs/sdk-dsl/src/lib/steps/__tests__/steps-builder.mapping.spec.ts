@@ -138,16 +138,17 @@ describe('steps-builder mapping', () => {
     expect(yaml).toContain(`document: \${document('/childDocument')}`);
   });
 
-  it('keeps legacy bootstrap callback signature available and adds MyOS bootstrap onBehalfOf when requested', () => {
+  it('keeps bootstrap customizers available alongside required onBehalfOf', () => {
     const steps = new StepsBuilder()
       .bootstrapDocument(
-        'BootstrapLegacy',
+        'BootstrapChildWithMessages',
         {
-          name: 'Legacy Child',
+          name: 'Child With Messages',
         },
         {
           ownerChannel: 'target-session',
         },
+        'ownerChannel',
         (payload) => payload.put('bootstrapAssignee', 'legacy-orchestrator'),
       )
       .myOs('myOsAdminChannel')
@@ -164,16 +165,32 @@ describe('steps-builder mapping', () => {
       .build();
 
     const yaml = dump({ steps }, { noRefs: true, lineWidth: -1 });
-    expect(yaml).toContain(`name: BootstrapLegacy`);
+    expect(yaml).toContain(`name: BootstrapChildWithMessages`);
     expect(yaml).toContain(`bootstrapAssignee: legacy-orchestrator`);
-    expect(yaml).not.toContain(`name: BootstrapLegacy
-    type: Conversation/Trigger Event
-    event:
-      type: Conversation/Document Bootstrap Requested
-      onBehalfOf: ownerChannel`);
+    expect(yaml).toContain(`onBehalfOf: ownerChannel`);
     expect(yaml).toContain(`name: BootstrapMyOsChild`);
     expect(yaml).toContain(`bootstrapAssignee: myOsAdminChannel`);
     expect(yaml).toContain(`onBehalfOf: ownerChannel`);
+  });
+
+  it('rejects legacy bootstrap call-shapes without onBehalfOf', () => {
+    expect(() =>
+      (
+        new StepsBuilder() as unknown as {
+          bootstrapDocument: (
+            stepName: string,
+            document: Record<string, unknown>,
+            channelBindings: Record<string, string>,
+            options: (payload: unknown) => void,
+          ) => unknown;
+        }
+      ).bootstrapDocument(
+        'BootstrapLegacy',
+        { name: 'Legacy Child' },
+        { ownerChannel: 'target-session' },
+        () => undefined,
+      ),
+    ).toThrow('onBehalfOf is required');
   });
 
   it('maps filtered subscription matcher helper for myos subscriptions', () => {
