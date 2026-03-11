@@ -50,9 +50,10 @@ export class MyOsPermissions {
     return this;
   }
 
-  singleOps(...operations: string[]): this {
+  singleOps(...operations: Array<string | null | undefined>): this {
     this.singleOpsSet = true;
     this.singleOpsValue = operations
+      .filter((operation): operation is string => typeof operation === 'string')
       .map((operation) => operation.trim())
       .filter((operation) => operation.length > 0);
     return this;

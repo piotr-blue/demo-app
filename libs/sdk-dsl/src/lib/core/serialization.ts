@@ -1,4 +1,4 @@
-import { Blue, type BlueNode } from '@blue-labs/language';
+import { Blue, BlueNode } from '@blue-labs/language';
 import { repository } from '@blue-repository/types';
 import type { JsonObject } from './types.js';
 
@@ -14,13 +14,22 @@ export function fromJsonDocument(document: JsonObject): BlueNode {
   return sdkBlue.jsonValueToNode(document);
 }
 
-export function toOfficialJson(input: BlueNode | DocumentBuilderLike): JsonObject {
+export function toOfficialJson(
+  input: BlueNode | DocumentBuilderLike | JsonObject,
+): JsonObject {
+  if (isJsonObjectInput(input)) {
+    return structuredClone(input);
+  }
   const inlineTypesNode = sdkBlue.restoreInlineTypes(resolveNode(input));
   return sdkBlue.nodeToJson(inlineTypesNode, 'simple') as JsonObject;
 }
 
-export function toOfficialYaml(input: BlueNode | DocumentBuilderLike): string {
-  const inlineTypesNode = sdkBlue.restoreInlineTypes(resolveNode(input));
+export function toOfficialYaml(
+  input: BlueNode | DocumentBuilderLike | JsonObject,
+): string {
+  const inlineTypesNode = sdkBlue.restoreInlineTypes(
+    isJsonObjectInput(input) ? fromJsonDocument(input) : resolveNode(input),
+  );
   return sdkBlue.nodeToYaml(inlineTypesNode, 'simple');
 }
 
@@ -43,5 +52,17 @@ function isBuilderLike(
     typeof value === 'object' &&
     value !== null &&
     typeof (value as DocumentBuilderLike).buildDocument === 'function'
+  );
+}
+
+function isJsonObjectInput(
+  value: BlueNode | DocumentBuilderLike | JsonObject,
+): value is JsonObject {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !(value instanceof BlueNode) &&
+    typeof (value as DocumentBuilderLike).buildDocument !== 'function'
   );
 }

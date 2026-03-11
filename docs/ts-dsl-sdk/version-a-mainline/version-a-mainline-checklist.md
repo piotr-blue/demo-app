@@ -9,7 +9,7 @@
 - [x] Stage 2 hardening imported from Version B
 - [x] canonical scenario discipline ported
 - [x] editing collision-safe behavior ported
-- [ ] Stage 3 ergonomics/compatibility complete
+- [x] Stage 3 ergonomics/compatibility complete
 - [ ] Stage 4 audited commits reviewed one by one
 - [ ] relevant changes from `de0dd48...` ported or documented as N/A
 - [ ] relevant changes from `6d5c464...` ported or documented as N/A

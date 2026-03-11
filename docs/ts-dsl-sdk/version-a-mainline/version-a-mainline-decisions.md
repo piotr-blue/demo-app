@@ -104,3 +104,34 @@ For each section state:
 - Why: Version B’s strongest contribution here was not its file layout but its
   discipline around public API and scenario coverage. Version A keeps its own
   modules and imports that testing discipline directly.
+
+## Stage 3 ergonomics and compatibility
+
+### Generic contract helpers
+- Decision: add `DocBuilder.contract(...)` and `DocBuilder.contracts(...)` as
+  additive convenience helpers.
+- Why: demo-app compatibility needs explicit contract insertion without falling
+  back to internal state APIs, and this ports one of Version B’s most useful
+  ergonomics without changing Version A’s builder layout.
+
+### Link helper accumulation
+- Decision: `documentAnchors(...)` and `documentLinks(...)` now merge into the
+  existing helper contracts instead of overwriting previous entries.
+- Why: low-diff migration requires cumulative `sessionLink(...)`,
+  `documentLink(...)`, and `documentTypeLink(...)` calls to behave like the old
+  authoring surface. Replacing the whole contract on every call was a real
+  compatibility bug.
+
+### Serialization helper tolerance
+- Decision: `toOfficialJson(...)` and `toOfficialYaml(...)` now also accept
+  plain `JsonObject` inputs in addition to `BlueNode` and builder-like inputs.
+- Why: demo-app and test helpers sometimes pass already-materialized step or
+  document JSON through the same public serialization path. Returning a cloned
+  JSON object is the clean, runtime-safe behavior.
+
+### AI and permissions overload polish
+- Decision: fix the 4-argument `onAIResponseForTask(...)` overload and relax
+  `MyOsPermissions.singleOps(...)` to ignore `null`/`undefined`/blank entries.
+- Why: both behaviors showed up as real compatibility drifts under the new
+  public test corpus. The fixes keep the intended public syntax working without
+  reintroducing unsupported runtime fields.

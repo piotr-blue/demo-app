@@ -166,6 +166,21 @@ export class DocBuilder {
     return this;
   }
 
+  contract(contractKey: string, contract: JsonObject): this {
+    this.state.setContract(
+      requireText(contractKey, 'contract key'),
+      cloneObject(contract),
+    );
+    return this;
+  }
+
+  contracts(contracts: Record<string, JsonObject>): this {
+    for (const [contractKey, contract] of Object.entries(contracts)) {
+      this.contract(contractKey, contract);
+    }
+    return this;
+  }
+
   operation(key: string): OperationBuilder<this>;
   operation(
     key: string,
@@ -540,14 +555,14 @@ export class DocBuilder {
   ): this {
     const integration = this.requireAiIntegration(integrationName);
     if (customizerMaybe === undefined) {
-      const taskName = taskNameOrCustomizer as string;
+      const taskName = responseTypeOrTaskName as string;
       return this.onAIResponseWithMatcher(
         integration,
         workflowKey,
         'Conversation/Response',
         taskName,
         undefined,
-        responseTypeOrTaskName as StepsCustomizer,
+        taskNameOrCustomizer as StepsCustomizer,
       );
     }
     return this.onAIResponseWithMatcher(
@@ -1213,9 +1228,14 @@ export class DocBuilder {
       | ((anchors: JsonObject) => void),
     contractKey = 'anchors',
   ): this {
-    const contract: JsonObject = {
-      type: 'MyOS/Document Anchors',
-    };
+    const existing = this.state.ensureContractsRoot()[contractKey];
+    const contract: JsonObject =
+      isObject(existing) && typeof existing.type === 'string'
+        ? cloneObject(existing)
+        : {
+            type: 'MyOS/Document Anchors',
+          };
+    contract.type = 'MyOS/Document Anchors';
     if (Array.isArray(anchors)) {
       for (const anchorName of anchors) {
         const key = requireText(anchorName, 'anchor name');
@@ -1237,9 +1257,14 @@ export class DocBuilder {
     links: Record<string, JsonObject>,
     contractKey = 'links',
   ): this {
-    const contract: JsonObject = {
-      type: 'MyOS/Document Links',
-    };
+    const existing = this.state.ensureContractsRoot()[contractKey];
+    const contract: JsonObject =
+      isObject(existing) && typeof existing.type === 'string'
+        ? cloneObject(existing)
+        : {
+            type: 'MyOS/Document Links',
+          };
+    contract.type = 'MyOS/Document Links';
     for (const [linkName, linkDef] of Object.entries(links)) {
       contract[requireText(linkName, 'link name')] = cloneObject(linkDef);
     }
