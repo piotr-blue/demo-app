@@ -237,15 +237,12 @@ export class PayNoteBuilder {
       .type('PayNote/PayNote')
       .channel('payerChannel', {
         type: 'Conversation/Timeline Channel',
-        timelineId: 'payer-timeline',
       })
       .channel('payeeChannel', {
         type: 'Conversation/Timeline Channel',
-        timelineId: 'payee-timeline',
       })
       .channel('guarantorChannel', {
         type: 'Conversation/Timeline Channel',
-        timelineId: 'guarantor-timeline',
       });
     return new PayNoteBuilder(builder);
   }
