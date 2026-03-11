@@ -57,9 +57,10 @@ This document records current differences between TypeScript SDK output behavior
 ### 2.2 Named-event helper emitted type
 
 - **Java reference**: `Common/Named Event`
-- **TypeScript runtime mapping**: `Conversation/Event` + `name` (+ optional payload)
+- **TypeScript runtime mapping**: `Common/Named Event` with root-level fields
 - **Reason**:
-  - `Common/Named Event` alias unavailable in current installed repository package.
+  - Resolved by adopting `@blue-repository/types` `0.21.x` and removing the
+    fallback `Conversation/Event` wrapper shape.
 
 ### 2.3 Backward-payment requested type availability
 
@@ -80,4 +81,3 @@ This document records current differences between TypeScript SDK output behavior
   - Helpers exist; unavailable aliases fail fast explicitly.
 - **Reason**:
   - Alias coverage differs in installed repository package version.
-

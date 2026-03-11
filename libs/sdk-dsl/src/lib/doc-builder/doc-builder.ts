@@ -585,7 +585,7 @@ export class DocBuilder {
       return this.onAIResponseWithMatcher(
         integration,
         workflowKey,
-        'Conversation/Event',
+        RuntimeEventTypes.NamedEvent,
         undefined,
         namedEventName,
         taskNameOrCustomizer as StepsCustomizer,
@@ -594,7 +594,7 @@ export class DocBuilder {
     return this.onAIResponseWithMatcher(
       integration,
       workflowKey,
-      'Conversation/Event',
+      RuntimeEventTypes.NamedEvent,
       taskNameOrCustomizer as string,
       namedEventName,
       customizerMaybe,
@@ -894,12 +894,7 @@ export class DocBuilder {
     workflowKey: string,
     customizer: StepsCustomizer,
   ): this {
-    this.requireLinkedAccessConfig(linkedAccessName);
-    return this.onEvent(
-      workflowKey,
-      'MyOS/Single Document Permission Revoked',
-      customizer,
-    );
+    return this.onLinkedAccessRevoked(linkedAccessName, workflowKey, customizer);
   }
 
   onLinkedDocRejected(
@@ -907,12 +902,7 @@ export class DocBuilder {
     workflowKey: string,
     customizer: StepsCustomizer,
   ): this {
-    this.requireLinkedAccessConfig(linkedAccessName);
-    return this.onEvent(
-      workflowKey,
-      'MyOS/Single Document Permission Rejected',
-      customizer,
-    );
+    return this.onLinkedAccessRejected(linkedAccessName, workflowKey, customizer);
   }
 
   onSessionStarting(
@@ -1078,7 +1068,6 @@ export class DocBuilder {
           steps
             .myOs()
             .subscribeToSession(
-              config.permissionFrom,
               config.sessionId,
               config.subscriptionId,
               'Conversation/Response',

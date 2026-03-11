@@ -29,7 +29,6 @@ export function simpleAgentWithPermissions(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'ownerChannel',
             DocBuilder.expr("document('/providerSessionId')"),
             'SUB_PROVIDER',
           )
@@ -112,7 +111,6 @@ export function cvClassifierAgent(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'recruitmentChannel',
             DocBuilder.expr("document('/llmProviderSessionId')"),
             'SUB_RECRUITMENT_PROVIDER',
           ),
@@ -273,7 +271,6 @@ export function simplePermissionAndSubscribe(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'ownerChannel',
             DocBuilder.expr("document('/weatherSessionId')"),
             'SUB_WEATHER',
           )
@@ -314,7 +311,6 @@ export function callRemoteOperationSample(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'ownerChannel',
             DocBuilder.expr("document('/llmSessionId')"),
             'SUB_LLM_PROVIDER',
           ),
@@ -404,7 +400,6 @@ export function linkedDocsWithUpdates(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'accountingChannel',
             DocBuilder.expr('event.targetSessionId'),
             DocBuilder.expr("document('/invoiceSubscriptionId')"),
           ),
@@ -459,7 +454,6 @@ export function cvClassifierFull(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'recruitmentChannel',
             DocBuilder.expr('event.targetSessionId'),
             DocBuilder.expr("document('/cvSubscriptionId')"),
           ),
@@ -472,7 +466,6 @@ export function cvClassifierFull(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'recruitmentChannel',
             DocBuilder.expr("document('/llmProviderSessionId')"),
             'SUB_RECRUITMENT_PROVIDER',
           ),

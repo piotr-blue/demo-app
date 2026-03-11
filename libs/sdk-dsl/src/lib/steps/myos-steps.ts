@@ -1,6 +1,9 @@
 import { toTypeAlias, type TypeLike } from '../core/type-alias.js';
 import type { JsonObject, JsonValue } from '../core/types.js';
-import { MyOsPermissions } from './myos-permissions.js';
+import {
+  MyOsPermissions,
+  normalizeMyOsPermissionObject,
+} from './myos-permissions.js';
 import type { EventPayloadBuilder, StepsBuilder } from './steps-builder.js';
 
 function requireText(value: string, message: string): string {
@@ -27,12 +30,35 @@ function toNodeValue(
   return value;
 }
 
+function toPermissionValue(
+  value: JsonValue | MyOsPermissions | JsonObject | null | undefined,
+  defaultToPermissions = false,
+): JsonValue {
+  if (value === null || value === undefined) {
+    return defaultToPermissions ? MyOsPermissions.create().build() : null;
+  }
+  if (value instanceof MyOsPermissions) {
+    return value.build();
+  }
+  if (typeof value === 'object') {
+    return normalizeMyOsPermissionObject(value as JsonObject);
+  }
+  return value;
+}
+
 function putOnBehalfOf(
   payload: EventPayloadBuilder,
   onBehalfOf: string,
   targetSessionId?: JsonValue,
 ): void {
   payload.put('onBehalfOf', requireText(onBehalfOf, 'onBehalfOf is required'));
+  putTargetSessionId(payload, targetSessionId);
+}
+
+function putTargetSessionId(
+  payload: EventPayloadBuilder,
+  targetSessionId?: JsonValue,
+): void {
   if (targetSessionId !== undefined) {
     payload.put('targetSessionId', toNodeValue(targetSessionId));
   }
@@ -86,7 +112,6 @@ export class MyOsSteps {
     requestId: string,
     targetSessionId: JsonValue,
     permissions: JsonValue | MyOsPermissions | JsonObject,
-    grantSessionSubscriptionOnResult = false,
   ): StepsBuilder {
     return this.parent.emitType(
       'RequestSingleDocumentPermission',
@@ -97,10 +122,7 @@ export class MyOsSteps {
           'requestId',
           requireText(requestId, 'requestId is required'),
         );
-        payload.put('permissions', toNodeValue(permissions, true));
-        if (grantSessionSubscriptionOnResult) {
-          payload.put('grantSessionSubscriptionOnResult', true);
-        }
+        payload.put('permissions', toPermissionValue(permissions, true));
       },
     );
   }
@@ -126,7 +148,7 @@ export class MyOsSteps {
           if (normalizedKey.length === 0) {
             continue;
           }
-          linksObject[normalizedKey] = toNodeValue(value, true);
+          linksObject[normalizedKey] = toPermissionValue(value, true);
         }
         payload.put('links', linksObject);
       },
@@ -234,7 +256,6 @@ export class MyOsSteps {
   }
 
   subscribeToSession(
-    onBehalfOf: string,
     targetSessionId: JsonValue,
     subscriptionId: string,
     ...eventTypes: TypeLike[]
@@ -243,7 +264,7 @@ export class MyOsSteps {
       'SubscribeToSession',
       'MyOS/Subscribe to Session Requested',
       (payload) => {
-        putOnBehalfOf(payload, onBehalfOf, targetSessionId);
+        putTargetSessionId(payload, targetSessionId);
         payload.put('subscription', {
           id: requireText(subscriptionId, 'subscriptionId is required'),
           events: eventTypes.map((typeRef) => ({ type: toTypeAlias(typeRef) })),
@@ -253,7 +274,6 @@ export class MyOsSteps {
   }
 
   subscribeToSessionWithMatchers(
-    onBehalfOf: string,
     targetSessionId: JsonValue,
     subscriptionId: string,
     eventMatchers: Array<TypeLike | JsonObject>,
@@ -262,7 +282,7 @@ export class MyOsSteps {
       'SubscribeToSession',
       'MyOS/Subscribe to Session Requested',
       (payload) => {
-        putOnBehalfOf(payload, onBehalfOf, targetSessionId);
+        putTargetSessionId(payload, targetSessionId);
         payload.put('subscription', {
           id: requireText(subscriptionId, 'subscriptionId is required'),
           events: eventMatchers.map((eventMatcher) =>
@@ -274,7 +294,7 @@ export class MyOsSteps {
   }
 
   startWorkerSession(
-    agentChannelKey: string,
+    onBehalfOf: string,
     document: JsonObject,
     channelBindings?: Record<string, JsonObject>,
     options?: JsonObject,
@@ -284,15 +304,35 @@ export class MyOsSteps {
       'MyOS/Start Worker Session Requested',
       (payload) => {
         payload.put(
-          'agentChannelKey',
-          requireText(agentChannelKey, 'agentChannelKey is required'),
+          'onBehalfOf',
+          requireText(onBehalfOf, 'onBehalfOf is required'),
         );
         payload.put('document', structuredClone(document));
         if (channelBindings && Object.keys(channelBindings).length > 0) {
           payload.put('channelBindings', structuredClone(channelBindings));
         }
         if (options && Object.keys(options).length > 0) {
-          payload.put('options', structuredClone(options));
+          const normalizedOptions = structuredClone(options);
+          if (
+            Object.prototype.hasOwnProperty.call(
+              normalizedOptions,
+              'bootstrapAssignee',
+            )
+          ) {
+            throw new Error(
+              'MyOS/Start Worker Session Requested does not support bootstrapAssignee; use onBehalfOf plus initialMessages/capabilities',
+            );
+          }
+          const initialMessages =
+            normalizedOptions.initialMessages as JsonValue | undefined;
+          const capabilities =
+            normalizedOptions.capabilities as JsonValue | undefined;
+          if (initialMessages !== undefined) {
+            payload.put('initialMessages', initialMessages);
+          }
+          if (capabilities !== undefined) {
+            payload.put('capabilities', capabilities);
+          }
         }
       },
     );

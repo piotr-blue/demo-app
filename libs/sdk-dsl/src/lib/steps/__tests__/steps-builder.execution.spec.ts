@@ -65,11 +65,9 @@ describe('steps-builder execution', () => {
         topic: 'hello',
       },
       {
-        type: 'Conversation/Event',
+        type: 'Common/Named Event',
         name: 'status',
-        payload: {
-          state: 'ok',
-        },
+        state: 'ok',
       },
     ]);
   });
@@ -168,7 +166,6 @@ describe('steps-builder execution', () => {
             })
             .myOs()
             .subscribeToSession(
-              'ownerChannel',
               'target-session',
               'SUB_MYOS',
               'Conversation/Response',
@@ -232,6 +229,19 @@ describe('steps-builder execution', () => {
     expect(removeParticipantRequest).toMatchObject({
       channelName: 'ownerChannel',
     });
+
+    const subscriptionRequest = triggeredEvents.find(
+      (triggeredEvent) =>
+        triggeredEvent.type === 'MyOS/Subscribe to Session Requested',
+    );
+    expect(subscriptionRequest).toMatchObject({
+      targetSessionId: 'target-session',
+      subscription: {
+        id: 'SUB_MYOS',
+        events: [{ type: 'Conversation/Response' }],
+      },
+    });
+    expect(subscriptionRequest).not.toHaveProperty('onBehalfOf');
   });
 
   it('emits filtered matcher subscriptions through MyOS helper namespace', async () => {
@@ -253,7 +263,6 @@ describe('steps-builder execution', () => {
           steps
             .myOs()
             .subscribeToSessionWithMatchers(
-              'ownerChannel',
               'target-session',
               'SUB_FILTERED',
               [

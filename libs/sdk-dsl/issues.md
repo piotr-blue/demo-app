@@ -46,11 +46,12 @@ This file tracks known gaps between the TypeScript SDK DSL and Java SDK referenc
 - **Expected (Java mapping reference)**:
   - `type: Common/Named Event`
 - **Actual**:
-  - Runtime SDK emits/listens using `type: Conversation/Event` with `name` matcher.
+  - Resolved in the Stage 1 mainline uplift: runtime SDK emits/listens using
+    `type: Common/Named Event` with root-level event fields.
 - **Likely cause**:
-  - `Common/Named Event` alias is unavailable in `@blue-repository/types@0.9.0`.
+  - Version A was still pinned to an older `@blue-repository/types` range.
 - **Next actions**:
-  - Keep deterministic runtime behavior until alias becomes available.
+  - Keep tests/docs aligned to the public named-event type.
 
 ### B2) PayNote default channels adjusted for processor compatibility
 
@@ -108,4 +109,3 @@ This file tracks known gaps between the TypeScript SDK DSL and Java SDK referenc
   - Alias/type coverage differences in installed repository package.
 - **Next actions**:
   - Revalidate alias availability against target runtime version and re-enable once supported.
-

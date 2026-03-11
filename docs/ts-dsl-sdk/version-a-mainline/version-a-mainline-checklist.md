@@ -1,11 +1,11 @@
 # Version A mainline checklist (updated)
 
-- [ ] Stage 1 runtime alignment complete
-- [ ] `grantSessionSubscriptionOnResult` unsupported/deferred
-- [ ] `Common/Named Event` adopted
-- [ ] `MyOsPermissions.write(...)` aligned to `share`
-- [ ] worker-session envelope aligned
-- [ ] linked-doc semantics corrected
+- [x] Stage 1 runtime alignment complete
+- [x] `grantSessionSubscriptionOnResult` unsupported/deferred
+- [x] `Common/Named Event` adopted
+- [x] `MyOsPermissions.write(...)` aligned to `share`
+- [x] worker-session envelope aligned
+- [x] linked-doc semantics corrected
 - [ ] Stage 2 hardening imported from Version B
 - [ ] canonical scenario discipline ported
 - [ ] editing collision-safe behavior ported

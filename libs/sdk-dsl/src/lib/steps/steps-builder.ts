@@ -1,7 +1,10 @@
 import { ensureExpression } from '../core/serialization.js';
 import { toTypeAlias, type TypeLike } from '../core/type-alias.js';
 import type { JsonObject, JsonValue } from '../core/types.js';
-import { assertRepositoryTypeAliasAvailable } from '../core/runtime-type-support.js';
+import {
+  assertRepositoryTypeAliasAvailable,
+  RuntimeEventTypes,
+} from '../core/runtime-type-support.js';
 import type { AIIntegrationConfig } from '../ai/ai-types.js';
 import type {
   AccessConfig,
@@ -573,11 +576,9 @@ export class StepsBuilder {
     this.steps.push(
       step(name, 'Conversation/Trigger Event', {
         event: {
-          type: 'Conversation/Event',
+          ...payloadObject,
+          type: RuntimeEventTypes.NamedEvent,
           name: eventName,
-          ...(Object.keys(payloadObject).length > 0
-            ? { payload: payloadObject }
-            : {}),
         },
       }),
     );

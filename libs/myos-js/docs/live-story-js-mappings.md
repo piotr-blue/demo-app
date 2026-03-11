@@ -185,7 +185,6 @@ event:
 ```yaml
 event:
   type: MyOS/Subscribe to Session Requested
-  onBehalfOf: ownerChannel
   targetSessionId: <targetSessionId>
   subscription:
     id: <subscriptionId>
@@ -197,7 +196,6 @@ event:
 ```yaml
 event:
   type: MyOS/Subscribe to Session Requested
-  onBehalfOf: ownerChannel
   targetSessionId: <targetSessionId>
   subscription:
     id: <subscriptionId>
@@ -334,4 +332,3 @@ Current gated areas include:
 - backward payment alias availability (Story 16),
 - advanced control behavior verification (Stories 19-21, 23-25),
 - optional worker-agency behavior verification (Story 26).
-

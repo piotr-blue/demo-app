@@ -139,7 +139,6 @@ describe('steps-builder mapping', () => {
     const steps = new StepsBuilder()
       .myOs()
       .subscribeToSessionWithMatchers(
-        'ownerChannel',
         'target-session',
         'SUB_FILTERED',
         [
@@ -159,6 +158,22 @@ describe('steps-builder mapping', () => {
     expect(yaml).toContain(`id: SUB_FILTERED`);
     expect(yaml).toContain(`topic: i-want-this-event`);
     expect(yaml).toContain(`type: Conversation/Request`);
+    expect(yaml).not.toContain(`onBehalfOf`);
+  });
+
+  it('maps MyOsPermissions.write(...) to runtime-correct share semantics', () => {
+    expect(
+      MyOsPermissions.create()
+        .read(true)
+        .write(false)
+        .singleOps('one')
+        .singleOps()
+        .build(),
+    ).toEqual({
+      read: true,
+      share: false,
+      singleOps: [],
+    });
   });
 
   it('maps raw extension hook steps', () => {

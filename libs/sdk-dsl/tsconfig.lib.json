@@ -9,14 +9,6 @@
     "types": ["node", "vite/client"]
   },
   "include": ["src/**/*.ts"],
-  "references": [
-    {
-      "path": "../language/tsconfig.lib.json"
-    },
-    {
-      "path": "../document-processor/tsconfig.lib.json"
-    }
-  ],
   "exclude": [
     "vite.config.ts",
     "vite.config.mts",

@@ -174,7 +174,7 @@ Tests event emission/listening with both:
   - constructs:
     - `canEmit('ownerChannel')` (JS mapping produces `ownerUpdate`)
     - `onNamedEvent('shipment-confirmed', ...)`
-    - `onTriggeredWithMatcher('Conversation/Event', {name: ...}, ...)`
+    - `onTriggeredWithMatcher('Common/Named Event', {name: ...}, ...)`
     - field updates via `replaceValue` and `replaceExpression`
 
 ### How the test works
@@ -234,7 +234,7 @@ Verifies a second timeline channel can trigger workflow logic from real timeline
 
 1. bootstrap with two bindings,
 2. resolve `signalChannel` timeline ID,
-3. create timeline entry with message `{ type: 'Conversation/Event', name: 'shipment-confirmed' }`,
+3. create timeline entry with message `{ type: 'Common/Named Event', name: 'shipment-confirmed' }`,
 4. assert `/shipmentConfirmed == true`,
 5. assert `/shipmentSource == 'shipment-confirmed'`.
 
@@ -770,7 +770,7 @@ roundtrips.
 ### DSL docs used
 
 - Reuses `buildPermissionLifecycleAgentDocument`:
-  - single-doc permission request uses `grantSessionSubscriptionOnResult`,
+  - single-doc permission request stays runtime-correct and uses an explicit subscribe step,
   - subscription initiation events increment `/subscriptionInitiatedCount`.
 
 ### How the test works

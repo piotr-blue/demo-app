@@ -34,13 +34,10 @@ describe('access step helpers execution', () => {
         (steps) =>
           steps
             .access('counterAccess')
-            .requestPermission(
-              {
-                read: true,
-                write: true,
-              },
-              true,
-            )
+            .requestPermission({
+              read: true,
+              write: true,
+            })
             .access('counterAccess')
             .subscribe(),
       )
@@ -77,12 +74,14 @@ describe('access step helpers execution', () => {
           event.type === 'MyOS/Single Document Permission Grant Requested',
       );
     expect(permissionRequest).toMatchObject({
-      grantSessionSubscriptionOnResult: true,
       permissions: {
         read: true,
-        write: true,
+        share: true,
       },
     });
+    expect(permissionRequest).not.toHaveProperty(
+      'grantSessionSubscriptionOnResult',
+    );
 
     const subscriptionRequest = processed.triggeredEvents
       .map((event) => toOfficialJson(event))
@@ -203,8 +202,10 @@ describe('access step helpers execution', () => {
               }),
             (options) =>
               options
-                .bootstrapAssignee('myOsAdminChannel')
-                .defaultMessage('Worker start'),
+                .defaultMessage('Worker start')
+                .capabilities((capabilities) =>
+                  capabilities.participantsOrchestration(true),
+                ),
           ),
       )
       .buildDocument();
@@ -231,16 +232,17 @@ describe('access step helpers execution', () => {
       .find((event) => event.type === 'MyOS/Start Worker Session Requested');
     expect(startEvent).toBeDefined();
     expect(startEvent).toMatchObject({
+      onBehalfOf: 'ownerChannel',
       channelBindings: {
         ownerChannel: {
           accountId: 'acc-owner',
         },
       },
-      options: {
-        bootstrapAssignee: 'myOsAdminChannel',
-        initialMessages: {
-          defaultMessage: 'Worker start',
-        },
+      initialMessages: {
+        defaultMessage: 'Worker start',
+      },
+      capabilities: {
+        participantsOrchestration: true,
       },
     });
   });
@@ -916,7 +918,7 @@ describe('access step helpers execution', () => {
             )
             .emitType(
               'EmitLinkedDocRejected',
-              'MyOS/Single Document Permission Rejected',
+              'MyOS/Linked Documents Permission Rejected',
             )
             .emitType(
               'EmitAccessRevoked',
@@ -960,7 +962,7 @@ describe('access step helpers execution', () => {
             )
             .emitType(
               'EmitLinkedDocRevoked',
-              'MyOS/Single Document Permission Revoked',
+              'MyOS/Linked Documents Permission Revoked',
             )
             .emitType(
               'EmitAgencyGranted',
@@ -1172,7 +1174,6 @@ describe('access step helpers execution', () => {
             .requestPermissionForTarget(
               'override-access-target',
               { read: true, write: true },
-              true,
             )
             .access('counterAccess')
             .revokePermissionForTarget('override-access-target')
@@ -1210,7 +1211,10 @@ describe('access step helpers execution', () => {
         expect.objectContaining({
           type: 'MyOS/Single Document Permission Grant Requested',
           targetSessionId: 'override-access-target',
-          grantSessionSubscriptionOnResult: true,
+          permissions: {
+            read: true,
+            share: true,
+          },
         }),
         expect.objectContaining({
           type: 'MyOS/Single Document Permission Revoke Requested',
@@ -1415,12 +1419,13 @@ describe('access step helpers execution', () => {
       .find((event) => event.type === 'MyOS/Start Worker Session Requested');
     expect(startEvent).toBeDefined();
     expect(startEvent).toMatchObject({
-      agentChannelKey: 'ownerChannel',
+      onBehalfOf: 'ownerChannel',
       document: {
         name: 'Basic Worker',
       },
     });
     expect(startEvent).not.toHaveProperty('channelBindings');
-    expect(startEvent).not.toHaveProperty('options');
+    expect(startEvent).not.toHaveProperty('initialMessages');
+    expect(startEvent).not.toHaveProperty('capabilities');
   });
 });

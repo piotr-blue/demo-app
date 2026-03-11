@@ -9,6 +9,10 @@ const PERMISSION_REQUEST_IDS = {
   workerRevoke: 'REQ_WORKER_REVOKE',
 } as const;
 
+const SUBSCRIPTION_IDS = {
+  singleGrant: 'SUB_SINGLE_GRANT',
+} as const;
+
 export function buildChangeLifecycleDocument(name: string) {
   return DocBuilder.doc()
     .name(name)
@@ -40,7 +44,7 @@ export function buildPermissionLifecycleAgentDocument(
     .operation(
       'requestSingleGrant',
       'ownerChannel',
-      'Request single-doc permission with auto-subscribe',
+      'Request single-doc permission and subscribe after grant',
       (steps) =>
         steps.myOs('myOsAdminChannel').requestSingleDocPermission(
           'ownerChannel',
@@ -50,7 +54,6 @@ export function buildPermissionLifecycleAgentDocument(
             read: true,
             singleOps: ['increment'],
           },
-          true,
         ),
     )
     .operation(
@@ -112,6 +115,9 @@ export function buildPermissionLifecycleAgentDocument(
           'IncrementSingleGrantedCount',
           '/singleGrantedCount',
           "document('/singleGrantedCount') + 1",
+        ).myOs('myOsAdminChannel').subscribeToSession(
+          DocBuilder.expr("document('/targetSessionId')"),
+          SUBSCRIPTION_IDS.singleGrant,
         ),
     )
     .onTriggeredWithMatcher(

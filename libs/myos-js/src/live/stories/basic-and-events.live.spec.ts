@@ -169,7 +169,7 @@ describeLive('myos-js live stories: basic + events', gate, () => {
       await waitForAllowedOperation(client, sessionId, 'ownerUpdate');
       await client.documents.runOperation(sessionId, 'ownerUpdate', [
         {
-          type: 'Conversation/Event',
+          type: 'Common/Named Event',
           name: 'shipment-confirmed',
         },
       ]);
@@ -182,11 +182,9 @@ describeLive('myos-js live stories: basic + events', gate, () => {
 
       await client.documents.runOperation(sessionId, 'ownerUpdate', [
         {
-          type: 'Conversation/Event',
+          type: 'Common/Named Event',
           name: 'shipment-confirmed-with-payload',
-          payload: {
-            orderId: 'ORD-100',
-          },
+          orderId: 'ORD-100',
         },
       ]);
       await waitForFieldValue(
@@ -237,7 +235,7 @@ describeLive('myos-js live stories: basic + events', gate, () => {
 
       await client.timelines.entries.create(signalTimelineId!, {
         message: {
-          type: 'Conversation/Event',
+          type: 'Common/Named Event',
           name: 'shipment-confirmed',
         },
       });

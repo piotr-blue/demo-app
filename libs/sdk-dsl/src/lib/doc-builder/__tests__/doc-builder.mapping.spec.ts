@@ -114,7 +114,7 @@ contracts:
 `);
   });
 
-  it('maps onNamedEvent matcher to runtime-compatible Conversation/Event shape', () => {
+  it('maps onNamedEvent matcher to runtime-compatible Common/Named Event shape', () => {
     const document = DocBuilder.doc()
       .name('Named Event Mapping')
       .field('/handled', false)
@@ -129,7 +129,7 @@ contracts:
     channel: triggeredEventChannel
     event:
       name: status-ready
-      type: Conversation/Event`);
+      type: Common/Named Event`);
   });
 
   it('maps MyOS marker helper contracts', () => {

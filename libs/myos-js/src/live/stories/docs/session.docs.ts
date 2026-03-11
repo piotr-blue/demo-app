@@ -66,7 +66,6 @@ export function buildCounterMirrorAgentDocument(
         steps
           .myOs('myOsAdminChannel')
           .subscribeToSession(
-            'ownerChannel',
             DocBuilder.expr("document('/targetSessionId')"),
             'SUB_COUNTER_MIRROR',
           ),
@@ -255,7 +254,6 @@ export function buildSnapshotWatcherDocument(
         steps
           .myOs('myOsAdminChannel')
           .subscribeToSession(
-            'ownerChannel',
             DocBuilder.expr("document('/targetSessionId')"),
             'SUB_PROFILE_SNAPSHOT',
           ),
@@ -379,7 +377,6 @@ export function buildPatternSubscriberDocument(
         steps
           .myOs('myOsAdminChannel')
           .subscribeToSessionWithMatchers(
-            'ownerChannel',
             DocBuilder.expr("document('/targetSessionId')"),
             'SUB_EVENT_PATTERN',
             [
@@ -391,7 +388,6 @@ export function buildPatternSubscriberDocument(
           )
           .myOs('myOsAdminChannel')
           .subscribeToSessionWithMatchers(
-            'ownerChannel',
             DocBuilder.expr("document('/targetSessionId')"),
             'SUB_REQUEST_PATTERN',
             [
