@@ -88,9 +88,6 @@ Runtime-gated stories:
 - Some live stories are intentionally gated due current runtime behavior.
 - See `libs/myos-js/issues.md` for exact blockers.
 - To force-run a gated story while validating a runtime fix, set:
-  - `MYOS_ENABLE_STORY_6=true`
-  - `MYOS_ENABLE_STORY_7=true`
-  - `MYOS_ENABLE_STORY_8=true`
   - `MYOS_ENABLE_STORY_14=true`
   - `MYOS_ENABLE_STORY_15=true`
   - `MYOS_ENABLE_STORY_19=true`

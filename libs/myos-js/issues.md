@@ -81,38 +81,43 @@
      - keep Story 2 and similar change-request stories aligned to that runtime
        payload shape
 
-7. **Story 6 blocker: permission/subscription orchestration not reflected into mirror agent**
-   - Status: blocked (live assertion gated)
+7. **Story 6 mirror orchestration runtime path**
+   - Status: implemented
    - Story: `story-6 subscribe + remote operation + mirror cross-document flow`
-   - Observed:
-     - permission grant side-document is created,
-     - mirror agent remains with `/subscriptionState = idle`,
-     - source counter never receives remote increment call.
+   - Runtime-confirmed behavior:
+     - permission grant correlates by `inResponseTo.requestId`,
+     - subscription initiation is consumed as a direct
+       `MyOS/Subscription to Session Initiated` event,
+     - epoch updates arrive through `MyOS/Subscription Update`,
+     - mirror agent drives remote `increment(2)` and stores the reflected
+       counter state.
    - Action:
-     - keep source-document bootstrap+operation assertions active;
-     - gate cross-session mirror assertions unless `MYOS_ENABLE_STORY_6=true`.
+     - keep Story 6 ungated; do not regress grant correlation or epoch-update
+       handling back to stale direct-event assumptions.
 
-8. **Story 7 blocker: initiated snapshot update not applied in watcher**
-   - Status: blocked (live assertion gated)
+8. **Story 7 initiated snapshot watcher**
+   - Status: implemented
    - Story: `story-7 subscription-initiated snapshot reaction stores initial profile`
-   - Observed:
-     - source profile operation works,
-     - watcher bootstrap succeeds,
-     - watcher `/snapshot/*` fields remain unchanged (`displayName` empty, score unchanged).
+   - Runtime-confirmed behavior:
+     - permission grant correlates by `inResponseTo.requestId`,
+     - subscription initiation stores the current profile snapshot,
+     - epoch updates flow through `MyOS/Subscription Update`,
+     - watcher persists `/snapshot/*` and `/lastEpoch`.
    - Action:
-     - keep source update assertions active;
-     - gate watcher snapshot assertions unless `MYOS_ENABLE_STORY_7=true`.
+     - keep Story 7 ungated; preserve the initiated-snapshot and
+       subscription-update handlers.
 
-9. **Story 8 blocker: filtered subscription updates not delivered to subscriber fields**
-   - Status: blocked (live assertion gated)
+9. **Story 8 filtered subscription updates**
+   - Status: implemented
    - Story: `story-8 filtered subscriptions track request and event patterns`
-   - Observed:
-     - source emits patterned events and `/emitted` increments,
-     - subscriber bootstrap succeeds,
-     - `/subscriptionsReady`, `/eventPatternMatchCount`, `/requestPatternMatchCount` remain unchanged.
+   - Runtime-confirmed behavior:
+     - permission grant correlates by `inResponseTo.requestId`,
+     - readiness is driven by direct `MyOS/Subscription to Session Initiated`,
+     - filtered updates arrive through `MyOS/Subscription Update`,
+     - topic extraction must read the nested update payload safely.
    - Action:
-     - keep source emission assertions active;
-     - gate subscriber filtered-subscription assertions unless `MYOS_ENABLE_STORY_8=true`.
+     - keep Story 8 ungated; do not regress filtered-subscription consumers
+       back to direct-event matching.
 
 10. **Story 10 linked-doc watcher incremental grants**
     - Status: implemented
@@ -237,16 +242,19 @@
       - validate worker agency grant/revoke response correlation and remove
         optional gate when runtime/type behavior is stable.
 
-21. **Story 9 blocker: divisible-by-3 watcher flow requires runtime subscription epoch delivery**
-    - Status: blocked (live assertion gated)
+21. **Story 9 divisible-by-3 watcher flow**
+    - Status: implemented
     - Story: `story-9 counter watcher tracks divisible-by-3 epochs` in
       `src/live/stories/session-interaction.live.spec.ts`
-    - Observed:
-      - source counter operations execute normally,
-      - watcher bootstrap succeeds,
-      - epoch-driven subscription updates are environment-dependent and not
-        consistently delivered in default live setup.
+    - Runtime-confirmed behavior:
+      - access-builder grant correlation uses `inResponseTo.requestId` for
+        MyOS responses,
+      - subscription readiness is driven by direct
+        `MyOS/Subscription to Session Initiated`,
+      - divisible-by-3 watcher consumes epoch changes from
+        `MyOS/Subscription Update`,
+      - watcher updates `/lastKnownCounter`, `/divisibleBy3Count`, and
+        `/lastDivisibleBy3Counter`.
     - Action:
-      - keep source counter assertions active;
-      - gate watcher divisible-by-3 assertions unless
-        `MYOS_ENABLE_STORY_9=true`.
+      - keep Story 9 ungated; preserve the subscription-update envelope shape
+        in docs and tests.

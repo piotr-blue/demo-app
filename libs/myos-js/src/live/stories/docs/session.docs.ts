@@ -30,7 +30,7 @@ export function buildCounterMirrorAgentDocument(
   name: string,
   targetSessionId: string,
 ) {
-  return DocBuilder.doc()
+  const doc = DocBuilder.doc()
     .name(name)
     .type('MyOS/Agent')
     .sessionInteraction()
@@ -38,30 +38,26 @@ export function buildCounterMirrorAgentDocument(
     .field('/mirroredCounter', 0)
     .field('/subscriptionState', 'idle')
     .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })
-    .myOsAdmin('myOsAdminChannel')
-    .onInit('requestCounterAccess', (steps) =>
-      steps
-        .myOs('myOsAdminChannel')
-        .requestSingleDocPermission(
-          'ownerChannel',
-          'REQ_COUNTER_ACCESS',
-          DocBuilder.expr("document('/targetSessionId')"),
-          {
-            read: true,
-            singleOps: ['increment'],
-          },
-        ),
-    )
-    .onTriggeredWithMatcher(
+    .myOsAdmin('myOsAdminChannel');
+
+  doc.onInit('requestCounterAccess', (steps) =>
+    steps
+      .myOs('myOsAdminChannel')
+      .requestSingleDocPermission(
+        'ownerChannel',
+        'REQ_COUNTER_ACCESS',
+        DocBuilder.expr("document('/targetSessionId')"),
+        {
+          read: true,
+          singleOps: ['increment'],
+        },
+      ),
+  );
+
+  doc.onMyOsResponse(
       'subscribeAfterGrant',
       'MyOS/Single Document Permission Granted',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: 'REQ_COUNTER_ACCESS',
-          },
-        },
-      },
+      'REQ_COUNTER_ACCESS',
       (steps) =>
         steps
           .myOs('myOsAdminChannel')
@@ -69,8 +65,9 @@ export function buildCounterMirrorAgentDocument(
             DocBuilder.expr("document('/targetSessionId')"),
             'SUB_COUNTER_MIRROR',
           ),
-    )
-    .onTriggeredWithMatcher(
+    );
+
+  doc.onTriggeredWithMatcher(
       'handleSubscriptionInitiatedDirect',
       'MyOS/Subscription to Session Initiated',
       {
@@ -90,25 +87,21 @@ export function buildCounterMirrorAgentDocument(
             'increment',
             2,
           ),
-    )
-    .onTriggeredWithMatcher(
+    );
+
+  doc.onSubscriptionUpdate(
       'mirrorCounterEpochUpdatesDirect',
+      'SUB_COUNTER_MIRROR',
       'MyOS/Session Epoch Advanced',
-      {
-        subscriptionId: 'SUB_COUNTER_MIRROR',
-      },
       (steps) =>
         steps
           .jsRaw(
             'PrepareMirrorChanges',
             `
-const directCounter = event?.document?.counter;
-const updateCounter = event?.update?.document?.counter;
-const counterCandidate = directCounter ?? updateCounter;
+const counterCandidate =
+  event?.document?.counter ?? event?.update?.document?.counter;
 const mirroredCounter =
-  counterCandidate && typeof counterCandidate === 'object' && counterCandidate.value !== undefined
-    ? counterCandidate.value
-    : counterCandidate;
+  counterCandidate === undefined ? null : canon.unwrap(counterCandidate);
 if (typeof mirroredCounter !== 'number') {
   return { changeset: [] };
 }
@@ -123,15 +116,16 @@ return {
             'ApplyMirrorChanges',
             'steps.PrepareMirrorChanges.changeset',
           ),
-    )
-    .buildDocument();
+    );
+
+  return doc.buildDocument();
 }
 
 export function buildCounterDivisibleBy3WatcherDocument(
   name: string,
   targetSessionId: string,
 ) {
-  return DocBuilder.doc()
+  const doc = DocBuilder.doc()
     .name(name)
     .type('MyOS/Agent')
     .sessionInteraction()
@@ -140,7 +134,9 @@ export function buildCounterDivisibleBy3WatcherDocument(
     .field('/divisibleBy3Count', 0)
     .field('/lastDivisibleBy3Counter', 0)
     .field('/subscriptionState', 'idle')
-    .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })
+    .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' });
+
+  doc
     .access('counterAccess')
     .onBehalfOf('ownerChannel')
     .targetSessionId(DocBuilder.expr("document('/targetSessionId')"))
@@ -150,26 +146,20 @@ export function buildCounterDivisibleBy3WatcherDocument(
     .subscribeAfterGranted()
     .subscriptionEvents('MyOS/Session Epoch Advanced')
     .statusPath('/subscriptionState')
-    .done()
-    .onTriggeredWithMatcher(
+    .done();
+
+  doc.onSubscriptionUpdate(
       'captureDivisibleBy3CounterEpoch',
+      'SUB_ACCESS_COUNTERACCESS',
       'MyOS/Session Epoch Advanced',
-      {
-        subscriptionId: 'SUB_ACCESS_COUNTERACCESS',
-      },
       (steps) =>
         steps
           .jsRaw(
             'PrepareCounterChanges',
             `
-const directCounter = event?.document?.counter;
-const updateCounter = event?.update?.document?.counter;
-const candidate = directCounter ?? updateCounter;
-const normalized =
-  candidate && typeof candidate === 'object' && candidate.value !== undefined
-    ? candidate.value
-    : candidate;
-const counter = Number(normalized);
+const candidate = event?.document?.counter ?? event?.update?.document?.counter;
+const counter =
+  candidate === undefined ? Number.NaN : Number(canon.unwrap(candidate));
 if (!Number.isFinite(counter)) {
   return { changeset: [] };
 }
@@ -188,8 +178,9 @@ return { changeset };
             'ApplyCounterChanges',
             'steps.PrepareCounterChanges.changeset',
           ),
-    )
-    .buildDocument();
+    );
+
+  return doc.buildDocument();
 }
 
 export function buildSourceProfileDocument(name: string) {
@@ -217,7 +208,7 @@ export function buildSnapshotWatcherDocument(
   name: string,
   targetSessionId: string,
 ) {
-  return DocBuilder.doc()
+  const doc = DocBuilder.doc()
     .name(name)
     .type('MyOS/Agent')
     .sessionInteraction()
@@ -226,30 +217,26 @@ export function buildSnapshotWatcherDocument(
     .field('/snapshot/score', 0)
     .field('/lastEpoch', -1)
     .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })
-    .myOsAdmin('myOsAdminChannel')
-    .onInit('requestSnapshotAccess', (steps) =>
-      steps
-        .myOs('myOsAdminChannel')
-        .requestSingleDocPermission(
-          'ownerChannel',
-          'REQ_PROFILE_ACCESS',
-          DocBuilder.expr("document('/targetSessionId')"),
-          {
-            read: true,
-            singleOps: ['updateScore'],
-          },
-        ),
-    )
-    .onTriggeredWithMatcher(
+    .myOsAdmin('myOsAdminChannel');
+
+  doc.onInit('requestSnapshotAccess', (steps) =>
+    steps
+      .myOs('myOsAdminChannel')
+      .requestSingleDocPermission(
+        'ownerChannel',
+        'REQ_PROFILE_ACCESS',
+        DocBuilder.expr("document('/targetSessionId')"),
+        {
+          read: true,
+          singleOps: ['updateScore'],
+        },
+      ),
+  );
+
+  doc.onMyOsResponse(
       'subscribeProfileAfterGrant',
       'MyOS/Single Document Permission Granted',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: 'REQ_PROFILE_ACCESS',
-          },
-        },
-      },
+      'REQ_PROFILE_ACCESS',
       (steps) =>
         steps
           .myOs('myOsAdminChannel')
@@ -257,8 +244,9 @@ export function buildSnapshotWatcherDocument(
             DocBuilder.expr("document('/targetSessionId')"),
             'SUB_PROFILE_SNAPSHOT',
           ),
-    )
-    .onTriggeredWithMatcher(
+    );
+
+  doc.onTriggeredWithMatcher(
       'storeInitiatedSnapshotDirect',
       'MyOS/Subscription to Session Initiated',
       {
@@ -277,13 +265,12 @@ export function buildSnapshotWatcherDocument(
             'event.document.score',
           )
           .replaceExpression('SetSnapshotEpoch', '/lastEpoch', 'event.epoch'),
-    )
-    .onTriggeredWithMatcher(
+    );
+
+  doc.onSubscriptionUpdate(
       'storeEpochAdvancedSnapshotDirect',
+      'SUB_PROFILE_SNAPSHOT',
       'MyOS/Session Epoch Advanced',
-      {
-        subscriptionId: 'SUB_PROFILE_SNAPSHOT',
-      },
       (steps) =>
         steps
           .replaceExpression(
@@ -301,8 +288,9 @@ export function buildSnapshotWatcherDocument(
             '/lastEpoch',
             'event.epoch',
           ),
-    )
-    .buildDocument();
+    );
+
+  return doc.buildDocument();
 }
 
 export function buildPatternSourceDocument(name: string) {
@@ -338,7 +326,7 @@ export function buildPatternSubscriberDocument(
   name: string,
   targetSessionId: string,
 ) {
-  return DocBuilder.doc()
+  const doc = DocBuilder.doc()
     .name(name)
     .type('MyOS/Agent')
     .sessionInteraction()
@@ -349,30 +337,26 @@ export function buildPatternSubscriberDocument(
     .field('/eventPatternTopic', null)
     .field('/requestPatternTopic', null)
     .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })
-    .myOsAdmin('myOsAdminChannel')
-    .onInit('requestPatternAccess', (steps) =>
-      steps
-        .myOs('myOsAdminChannel')
-        .requestSingleDocPermission(
-          'ownerChannel',
-          'REQ_PATTERN_ACCESS',
-          DocBuilder.expr("document('/targetSessionId')"),
-          {
-            read: true,
-            singleOps: ['emitPatternedEvents'],
-          },
-        ),
-    )
-    .onTriggeredWithMatcher(
+    .myOsAdmin('myOsAdminChannel');
+
+  doc.onInit('requestPatternAccess', (steps) =>
+    steps
+      .myOs('myOsAdminChannel')
+      .requestSingleDocPermission(
+        'ownerChannel',
+        'REQ_PATTERN_ACCESS',
+        DocBuilder.expr("document('/targetSessionId')"),
+        {
+          read: true,
+          singleOps: ['emitPatternedEvents'],
+        },
+      ),
+  );
+
+  doc.onMyOsResponse(
       'subscribePatternAfterGrant',
       'MyOS/Single Document Permission Granted',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: 'REQ_PATTERN_ACCESS',
-          },
-        },
-      },
+      'REQ_PATTERN_ACCESS',
       (steps) =>
         steps
           .myOs('myOsAdminChannel')
@@ -396,8 +380,9 @@ export function buildPatternSubscriberDocument(
               },
             ],
           ),
-    )
-    .onTriggeredWithMatcher(
+    );
+
+  doc.onTriggeredWithMatcher(
       'onEventPatternInitiatedDirect',
       'MyOS/Subscription to Session Initiated',
       {
@@ -409,8 +394,9 @@ export function buildPatternSubscriberDocument(
           '/subscriptionsReady',
           "document('/subscriptionsReady') + 1",
         ),
-    )
-    .onTriggeredWithMatcher(
+    );
+
+  doc.onTriggeredWithMatcher(
       'onRequestPatternInitiatedDirect',
       'MyOS/Subscription to Session Initiated',
       {
@@ -422,14 +408,12 @@ export function buildPatternSubscriberDocument(
           '/subscriptionsReady',
           "document('/subscriptionsReady') + 1",
         ),
-    )
-    .onTriggeredWithMatcher(
+    );
+
+  doc.onSubscriptionUpdate(
       'onEventPatternMatchedDirect',
+      'SUB_EVENT_PATTERN',
       'Conversation/Event',
-      {
-        subscriptionId: 'SUB_EVENT_PATTERN',
-        topic: 'i-want-this-event',
-      },
       (steps) =>
         steps
           .replaceExpression(
@@ -437,18 +421,27 @@ export function buildPatternSubscriberDocument(
             '/eventPatternMatchCount',
             "document('/eventPatternMatchCount') + 1",
           )
+          .jsRaw(
+            'ExtractEventPatternTopic',
+            `
+const topic =
+  event?.update?.topic === undefined ? null : canon.unwrap(event.update.topic);
+return {
+  topic: typeof topic === 'string' ? topic : null,
+};
+`,
+          )
           .replaceExpression(
             'SetEventPatternTopic',
             '/eventPatternTopic',
-            'event.topic',
+            'steps.ExtractEventPatternTopic.topic',
           ),
-    )
-    .onTriggeredWithMatcher(
+    );
+
+  doc.onSubscriptionUpdate(
       'onRequestPatternMatchedDirect',
+      'SUB_REQUEST_PATTERN',
       'Conversation/Request',
-      {
-        subscriptionId: 'SUB_REQUEST_PATTERN',
-      },
       (steps) =>
         steps
           .replaceExpression(
@@ -456,11 +449,22 @@ export function buildPatternSubscriberDocument(
             '/requestPatternMatchCount',
             "document('/requestPatternMatchCount') + 1",
           )
+          .jsRaw(
+            'ExtractRequestPatternTopic',
+            `
+const topic =
+  event?.update?.topic === undefined ? null : canon.unwrap(event.update.topic);
+return {
+  topic: typeof topic === 'string' ? topic : null,
+};
+`,
+          )
           .replaceExpression(
             'SetRequestPatternTopic',
             '/requestPatternTopic',
-            'event.topic',
+            'steps.ExtractRequestPatternTopic.topic',
           ),
-    )
-    .buildDocument();
+    );
+
+  return doc.buildDocument();
 }

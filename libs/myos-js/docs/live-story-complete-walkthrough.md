@@ -275,23 +275,20 @@ Cross-session orchestration:
 
 1. bootstrap source and validate source operation path (`increment`),
 2. run source increment once (this portion remains always active),
-3. if enabled via `MYOS_ENABLE_STORY_6=true`, bootstrap mirror agent and assert:
+3. bootstrap mirror agent and assert:
    - source counter advanced by remote call,
    - mirror `/mirroredCounter` and `/subscriptionState` update.
 
 ### MyOS run result
 
-⚠️ **Partially worked / blocked**.
-
-- Source-document path works.
-- Mirror orchestration assertions are runtime-gated by default.
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Permission grant side-document appears,
-- mirror agent remains idle in observed runs,
-- remote increment from mirror did not materialize.
-- Tracked in issues as Story 6 blocker.
+- Permission grant correlates by `inResponseTo.requestId`,
+- subscription initiation arrives as a direct event,
+- epoch changes are delivered through `MyOS/Subscription Update`,
+- mirror agent runs remote `increment(2)` and stores `/mirroredCounter=3`.
 
 ---
 
@@ -318,20 +315,17 @@ Agent should capture initial and advanced snapshots from subscription update eve
 ### How the test works
 
 1. bootstrap source profile and verify source operation path (`updateScore` to 9),
-2. if enabled via `MYOS_ENABLE_STORY_7=true`, bootstrap watcher and assert snapshot fields update.
+2. bootstrap watcher and assert snapshot fields update.
 
 ### MyOS run result
 
-⚠️ **Partially worked / blocked**.
-
-- Source profile update works.
-- Watcher snapshot assertions are runtime-gated by default.
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Watcher bootstraps successfully,
-- snapshot fields do not move as expected in observed runs.
-- Tracked in issues as Story 7 blocker.
+- Permission grant correlates by `inResponseTo.requestId`,
+- initiated subscription snapshot stores the already-updated source profile,
+- later epoch updates keep watcher `/snapshot/*` and `/lastEpoch` in sync.
 
 ---
 
@@ -355,22 +349,21 @@ Proves filtered subscription support using the new DSL helper with multiple subs
 ### How the test works
 
 1. bootstrap source and verify source operation path (`emitPatternedEvents`, `/emitted` increment),
-2. if enabled via `MYOS_ENABLE_STORY_8=true`, bootstrap subscriber and assert:
+2. bootstrap subscriber and assert:
    - both subscriptions initiate,
    - per-filter counters and topics update.
 
 ### MyOS run result
 
-⚠️ **Partially worked / blocked**.
-
-- Source emission path works.
-- Subscriber filtered-update assertions are runtime-gated by default.
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Subscriber session boots,
-- expected counter/topic updates are not observed in this environment.
-- Tracked in issues as Story 8 blocker.
+- Permission grant correlates by `inResponseTo.requestId`,
+- subscription readiness is driven by direct
+  `MyOS/Subscription to Session Initiated`,
+- filtered request/event matches arrive as `MyOS/Subscription Update`,
+- subscriber counters and stored topics advance on the nested update payload.
 
 ---
 
@@ -957,17 +950,14 @@ pending runtime/type stability confirmation.
 
 ## How to run and interpret
 
-### Default run (safe, blocker-aware)
+### Default run
 
-The stories are runnable as written with gates active for known runtime blockers.
+The stories are runnable as written when the core live environment is present.
 
 ### Force running gated stories
 
-To explicitly attempt blocked subflows while investigating runtime fixes, set:
+To explicitly attempt still-gated subflows while investigating runtime fixes, set:
 
-- `MYOS_ENABLE_STORY_6=true`
-- `MYOS_ENABLE_STORY_7=true`
-- `MYOS_ENABLE_STORY_8=true`
 - `MYOS_ENABLE_STORY_14=true`
 - `MYOS_ENABLE_STORY_15=true`
 - `MYOS_ENABLE_STORY_19=true`

@@ -345,7 +345,6 @@ Known runtime-gated stories remain tracked in:
 
 Current gated areas include:
 
-- deeper session-interaction orchestration (Stories 6-8),
 - paynote/payment emitted-event observability (Stories 14-15),
 - backward payment alias availability (Story 16),
 - advanced control behavior verification (Stories 19-21, 23-25),
