@@ -70,6 +70,22 @@ const RESERVED_ROOT_KEYS = new Set([
   'policies',
 ]);
 
+function isDocStructureSummary(
+  value: JsonObject | DocStructureSummary,
+): value is DocStructureSummary {
+  return (
+    Array.isArray((value as DocStructureSummary).fields) &&
+    Array.isArray((value as DocStructureSummary).contracts) &&
+    Array.isArray((value as DocStructureSummary).sections) &&
+    Array.isArray((value as DocStructureSummary).policies) &&
+    Array.isArray((value as DocStructureSummary).unclassifiedContracts)
+  );
+}
+
+function cloneSummary(summary: DocStructureSummary): DocStructureSummary {
+  return structuredClone(summary);
+}
+
 function asJsonObject(value: JsonValue | undefined): JsonObject | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
@@ -250,19 +266,30 @@ export class DocStructure implements DocStructureSummary {
   readonly sections: readonly DocSectionEntry[];
   readonly policies: readonly DocPolicyEntry[];
   readonly unclassifiedContracts: readonly DocContractEntry[];
+  readonly unknownContracts: readonly DocContractEntry[];
 
   private constructor(summary: DocStructureSummary) {
-    this.name = summary.name;
-    this.description = summary.description;
-    this.type = summary.type;
-    this.fields = summary.fields;
-    this.contracts = summary.contracts;
-    this.sections = summary.sections;
-    this.policies = summary.policies;
-    this.unclassifiedContracts = summary.unclassifiedContracts;
+    const cloned = cloneSummary(summary);
+    this.name = cloned.name;
+    this.description = cloned.description;
+    this.type = cloned.type;
+    this.fields = cloned.fields;
+    this.contracts = cloned.contracts;
+    this.sections = cloned.sections;
+    this.policies = cloned.policies;
+    this.unclassifiedContracts = cloned.unclassifiedContracts;
+    this.unknownContracts = cloned.unclassifiedContracts;
   }
 
-  static from(document: BlueNode | JsonObject): DocStructure {
+  static from(
+    document: BlueNode | JsonObject | DocStructureSummary | DocStructure,
+  ): DocStructure {
+    if (document instanceof DocStructure) {
+      return document;
+    }
+    if (!(document instanceof BlueNode) && isDocStructureSummary(document)) {
+      return new DocStructure(document);
+    }
     const json =
       document instanceof BlueNode
         ? toOfficialJson(document)
@@ -404,8 +431,16 @@ export class DocStructure implements DocStructureSummary {
     });
   }
 
+  getContract(key: string): DocContractEntry | undefined {
+    return this.contracts.find((contract) => contract.key === key);
+  }
+
+  getSection(key: string): DocSectionEntry | undefined {
+    return this.sections.find((section) => section.key === key);
+  }
+
   toSummaryJson(): DocStructureSummary {
-    return structuredClone({
+    return cloneSummary({
       name: this.name,
       description: this.description,
       type: this.type,

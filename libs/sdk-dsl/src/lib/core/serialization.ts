@@ -6,17 +6,21 @@ export const sdkBlue = new Blue({
   repositories: [repository],
 });
 
+export interface DocumentBuilderLike {
+  buildDocument(): BlueNode;
+}
+
 export function fromJsonDocument(document: JsonObject): BlueNode {
   return sdkBlue.jsonValueToNode(document);
 }
 
-export function toOfficialJson(node: BlueNode): JsonObject {
-  const inlineTypesNode = sdkBlue.restoreInlineTypes(node);
+export function toOfficialJson(input: BlueNode | DocumentBuilderLike): JsonObject {
+  const inlineTypesNode = sdkBlue.restoreInlineTypes(resolveNode(input));
   return sdkBlue.nodeToJson(inlineTypesNode, 'simple') as JsonObject;
 }
 
-export function toOfficialYaml(node: BlueNode): string {
-  const inlineTypesNode = sdkBlue.restoreInlineTypes(node);
+export function toOfficialYaml(input: BlueNode | DocumentBuilderLike): string {
+  const inlineTypesNode = sdkBlue.restoreInlineTypes(resolveNode(input));
   return sdkBlue.nodeToYaml(inlineTypesNode, 'simple');
 }
 
@@ -26,4 +30,18 @@ export function ensureExpression(value: string): string {
     return trimmed;
   }
   return `\${${trimmed}}`;
+}
+
+function resolveNode(input: BlueNode | DocumentBuilderLike): BlueNode {
+  return isBuilderLike(input) ? input.buildDocument() : input;
+}
+
+function isBuilderLike(
+  value: BlueNode | DocumentBuilderLike,
+): value is DocumentBuilderLike {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as DocumentBuilderLike).buildDocument === 'function'
+  );
 }

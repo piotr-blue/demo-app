@@ -27,11 +27,11 @@ Goal: 9+ in every category.
 - Implementation/test quality: 8/10
 
 ### After Stage 2
-- Java parity: TBD
-- DSL/API ergonomics: TBD
-- Runtime correctness: TBD
-- Functional completeness: TBD
-- Implementation/test quality: TBD
+- Java parity: 9/10
+- DSL/API ergonomics: 8/10
+- Runtime correctness: 9/10
+- Functional completeness: 8/10
+- Implementation/test quality: 9/10
 
 ### After Stage 3
 - Java parity: TBD
