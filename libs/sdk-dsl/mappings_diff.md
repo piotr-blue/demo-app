@@ -10,7 +10,7 @@ are intentionally not repeated here.
 
 - Java-oriented examples often show generic channel contracts
 - the TypeScript SDK emits timeline-based participant channels by default:
-  `Conversation/Timeline Channel` with deterministic timeline ids
+  `Conversation/Timeline Channel` without auto-materialized `timelineId`
 - reason: this is the runtime-confirmed executable path for the current public
   processor/runtime
 

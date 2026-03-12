@@ -939,15 +939,12 @@ export class DocBuilder {
     workflowKey: string,
     customizer: StepsCustomizer,
   ): this {
-    return this.onLinkedAccessRevoked(linkedAccessName, workflowKey, customizer);
-  }
-
-  onLinkedDocRejected(
-    linkedAccessName: string,
-    workflowKey: string,
-    customizer: StepsCustomizer,
-  ): this {
-    return this.onLinkedAccessRejected(linkedAccessName, workflowKey, customizer);
+    this.requireLinkedAccessConfig(linkedAccessName);
+    return this.onEvent(
+      workflowKey,
+      'MyOS/Single Document Permission Revoked',
+      customizer,
+    );
   }
 
   onSessionStarting(

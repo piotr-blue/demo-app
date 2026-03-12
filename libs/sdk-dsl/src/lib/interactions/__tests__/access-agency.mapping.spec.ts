@@ -42,10 +42,16 @@ describe('interaction builders mapping', () => {
         'captureLinkedDocGranted',
         (steps) => steps.replaceValue('SetLinkedDocGranted', '/granted', true),
       )
-      .onLinkedDocRejected(
+      .onLinkedAccessRejected(
         'linkedCounterAccess',
-        'captureLinkedDocRejected',
-        (steps) => steps.replaceValue('SetLinkedDocRejected', '/granted', true),
+        'captureLinkedAccessRejected',
+        (steps) =>
+          steps.replaceValue('SetLinkedAccessRejected', '/granted', true),
+      )
+      .onLinkedDocRevoked(
+        'linkedCounterAccess',
+        'captureLinkedDocRevoked',
+        (steps) => steps.replaceValue('SetLinkedDocRevoked', '/granted', true),
       )
       .onSessionStarted('workerAgency', 'captureSessionStarted', (steps) =>
         steps.replaceValue('SetSessionStarted', '/granted', true),
@@ -71,9 +77,12 @@ describe('interaction builders mapping', () => {
     expect(yaml).toContain(`captureLinkedDocGranted:
     type: Conversation/Sequential Workflow`);
     expect(yaml).toContain(`type: MyOS/Single Document Permission Granted`);
-    expect(yaml).toContain(`captureLinkedDocRejected:
+    expect(yaml).toContain(`captureLinkedAccessRejected:
     type: Conversation/Sequential Workflow`);
     expect(yaml).toContain(`type: MyOS/Linked Documents Permission Rejected`);
+    expect(yaml).toContain(`captureLinkedDocRevoked:
+    type: Conversation/Sequential Workflow`);
+    expect(yaml).toContain(`type: MyOS/Single Document Permission Revoked`);
     expect(yaml).toContain(`captureSessionStarted:
     type: Conversation/Sequential Workflow`);
     expect(yaml).toContain(`type: MyOS/Target Document Session Started`);

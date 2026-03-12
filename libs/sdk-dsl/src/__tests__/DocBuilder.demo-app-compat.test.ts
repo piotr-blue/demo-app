@@ -131,9 +131,6 @@ describe('DocBuilder demo-app compatibility helpers', () => {
       .onLinkedDocGranted('linkedOrders', 'captureLinkedGranted', (steps) =>
         steps.replaceValue('MarkLinked', '/linkedGranted', true),
       )
-      .onLinkedDocRejected('linkedOrders', 'captureLinkedRejected', (steps) =>
-        steps.replaceValue('MarkLinkedRejected', '/linkedRejected', true),
-      )
       .onLinkedDocRevoked('linkedOrders', 'captureLinkedRevoked', (steps) =>
         steps.replaceValue('MarkLinkedRevoked', '/linkedRevoked', true),
       )
@@ -145,14 +142,10 @@ describe('DocBuilder demo-app compatibility helpers', () => {
         'MyOS/Single Document Permission Granted',
         (steps) => steps.replaceValue('MarkLinked', '/linkedGranted', true),
       )
-      .onLinkedAccessRejected(
-        'linkedOrders',
-        'captureLinkedRejected',
-        (steps) =>
-          steps.replaceValue('MarkLinkedRejected', '/linkedRejected', true),
-      )
-      .onLinkedAccessRevoked('linkedOrders', 'captureLinkedRevoked', (steps) =>
-        steps.replaceValue('MarkLinkedRevoked', '/linkedRevoked', true),
+      .onEvent(
+        'captureLinkedRevoked',
+        'MyOS/Single Document Permission Revoked',
+        (steps) => steps.replaceValue('MarkLinkedRevoked', '/linkedRevoked', true),
       )
       .buildDocument();
 
@@ -163,9 +156,6 @@ describe('DocBuilder demo-app compatibility helpers', () => {
     const json = createCompatibilityDocument()
       .onLinkedDocGranted('linkedOrders', 'captureLinkedGranted', (steps) =>
         steps.replaceValue('MarkLinked', '/linkedGranted', true),
-      )
-      .onLinkedDocRejected('linkedOrders', 'captureLinkedRejected', (steps) =>
-        steps.replaceValue('MarkLinkedRejected', '/linkedRejected', true),
       )
       .onLinkedDocRevoked('linkedOrders', 'captureLinkedRevoked', (steps) =>
         steps.replaceValue('MarkLinkedRevoked', '/linkedRevoked', true),
@@ -178,14 +168,9 @@ describe('DocBuilder demo-app compatibility helpers', () => {
           type: 'MyOS/Single Document Permission Granted',
         },
       },
-      captureLinkedRejected: {
-        event: {
-          type: 'MyOS/Linked Documents Permission Rejected',
-        },
-      },
       captureLinkedRevoked: {
         event: {
-          type: 'MyOS/Linked Documents Permission Revoked',
+          type: 'MyOS/Single Document Permission Revoked',
         },
       },
     });

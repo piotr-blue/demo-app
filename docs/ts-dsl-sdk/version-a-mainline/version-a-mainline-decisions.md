@@ -53,11 +53,13 @@ For each section state:
   final runtime contract.
 
 ### Linked-doc helper semantics
-- Decision: keep `onLinkedDocGranted(...)` as the concrete single linked-doc
-  notification, but route `onLinkedDocRejected(...)` and
-  `onLinkedDocRevoked(...)` through linked-documents lifecycle events.
-- Why: this separates per-linked-document grant notifications from the linked
-  permission request lifecycle without removing the existing convenience names.
+- Decision: keep `onLinkedDocGranted(...)` and `onLinkedDocRevoked(...)` as the
+  concrete single linked-doc notifications, and use
+  `onLinkedAccessRejected(...)` for linked-documents permission-request
+  lifecycle rejection.
+- Why: runtime emits per-document grant and revoke notifications, but linked
+  permission rejection is modeled as an aggregate linked-documents lifecycle
+  response. Keeping `onLinkedDocRejected(...)` would blur those two surfaces.
 
 ### PayNote runtime semantics
 - Decision: keep the existing participant-aware defaults and deferred runtime

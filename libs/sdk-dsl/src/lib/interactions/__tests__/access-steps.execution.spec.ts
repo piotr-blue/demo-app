@@ -928,9 +928,6 @@ describe('access step helpers execution', () => {
       .onLinkedDocGranted('linkedAccess', 'markLinkedDocGranted', (steps) =>
         steps.replaceValue('SetLinkedDocGranted', '/linkedDocGranted', true),
       )
-      .onLinkedDocRejected('linkedAccess', 'markLinkedDocRejected', (steps) =>
-        steps.replaceValue('SetLinkedDocRejected', '/linkedDocRejected', true),
-      )
       .onLinkedDocRevoked('linkedAccess', 'markLinkedDocRevoked', (steps) =>
         steps.replaceValue('SetLinkedDocRevoked', '/linkedDocRevoked', true),
       )
@@ -988,10 +985,6 @@ describe('access step helpers execution', () => {
               'MyOS/Single Document Permission Granted',
             )
             .emitType(
-              'EmitLinkedDocRejected',
-              'MyOS/Linked Documents Permission Rejected',
-            )
-            .emitType(
               'EmitAccessRevoked',
               'MyOS/Single Document Permission Revoked',
               (payload) => {
@@ -1033,7 +1026,7 @@ describe('access step helpers execution', () => {
             )
             .emitType(
               'EmitLinkedDocRevoked',
-              'MyOS/Linked Documents Permission Revoked',
+              'MyOS/Single Document Permission Revoked',
             )
             .emitType(
               'EmitAgencyGranted',
@@ -1090,7 +1083,6 @@ describe('access step helpers execution', () => {
     expect(processedJson.linkedAccessRejected).toBe(true);
     expect(processedJson.linkedAccessRevoked).toBe(true);
     expect(processedJson.linkedDocGranted).toBe(true);
-    expect(processedJson.linkedDocRejected).toBe(true);
     expect(processedJson.linkedDocRevoked).toBe(true);
     expect(processedJson.agencyGranted).toBe(true);
     expect(processedJson.agencyRevoked).toBe(true);
