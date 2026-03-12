@@ -1,7 +1,8 @@
 import { BlueNode } from '@blue-labs/language';
+import { describe, expect, it } from 'vitest';
 import { DocBuilder, SimpleDocBuilder } from '../index.js';
 
-describe('DocBuilder ergonomics', () => {
+describe('DocBuilder public surface', () => {
   it('keeps SimpleDocBuilder as a public entry point for generic documents', () => {
     const built = SimpleDocBuilder.doc()
       .name('Simple parity')

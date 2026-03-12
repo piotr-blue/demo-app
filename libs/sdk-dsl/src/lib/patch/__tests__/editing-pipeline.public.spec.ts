@@ -1,14 +1,12 @@
-import {
-  applyBlueChangePlan,
-  BlueChangeCompiler,
-  DocBuilder,
-  DocPatch,
-  DocStructure,
-  toOfficialJson,
-} from '../index.js';
-import { assertCanonicalNodeEquals } from './editing-support.js';
+import { describe, expect, it } from 'vitest';
+import { DocBuilder } from '../../doc-builder/doc-builder.js';
+import { toOfficialJson } from '../../core/serialization.js';
+import { assertCanonicalNodeEquals } from '../../../test-support/editing-support.js';
+import { applyBlueChangePlan, BlueChangeCompiler } from '../blue-change-compiler.js';
+import { DocPatch } from '../doc-patch.js';
+import { DocStructure } from '../../structure/doc-structure.js';
 
-describe('editing pipeline hardening', () => {
+describe('editing pipeline public surface', () => {
   it('roundtrips root and contract changes through DocPatch and BlueChangeCompiler', () => {
     const before = DocBuilder.doc()
       .name('Counter')
@@ -114,8 +112,8 @@ describe('editing pipeline hardening', () => {
       .buildDocument();
 
     assertCanonicalNodeEquals(DocPatch.from(before).diff(after).apply(), after);
-    expect(applyBlueChangePlan(before, BlueChangeCompiler.compile(before, after))).toEqual(
-      toOfficialJson(after),
-    );
+    expect(
+      applyBlueChangePlan(before, BlueChangeCompiler.compile(before, after)),
+    ).toEqual(toOfficialJson(after));
   });
 });

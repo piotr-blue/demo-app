@@ -1,10 +1,16 @@
 import { blueIds as conversationBlueIds } from '@blue-repository/types/packages/conversation/blue-ids';
-import { DocBuilder, toOfficialJson, toOfficialYaml } from '../index.js';
-import { assertCanonicalNodeEquals } from './editing-support.js';
+import {
+  DocBuilder,
+  MyOsPermissions,
+  StepsBuilder,
+  toOfficialJson,
+  toOfficialYaml,
+} from '../index.js';
+import { assertCanonicalNodeEquals } from '../test-support/editing-support.js';
 
-describe('DocBuilder demo-app compatibility helpers', () => {
+describe('public convenience aliases', () => {
   it('maps marker contract wrappers to the same shapes as direct contract insertion', () => {
-    const viaCompat = DocBuilder.doc()
+    const viaAliases = DocBuilder.doc()
       .sessionInteraction()
       .participantsOrchestration()
       .workerAgency()
@@ -22,13 +28,13 @@ describe('DocBuilder demo-app compatibility helpers', () => {
       })
       .buildDocument();
 
-    assertCanonicalNodeEquals(viaCompat, viaContracts);
+    assertCanonicalNodeEquals(viaAliases, viaContracts);
   });
 
-  it('maps document anchor and link convenience wrappers with cumulative link insertion', () => {
+  it('maps document anchor and link wrappers with cumulative link insertion', () => {
     const json = toOfficialJson(
       DocBuilder.doc()
-        .name('Demo-app link helpers')
+        .name('Public link helpers')
         .documentAnchors(['primary'])
         .sessionLink('sessionRef', 'primary', 'SESSION_1')
         .documentLink('documentRef', 'primary', 'DOC_1')
@@ -40,7 +46,7 @@ describe('DocBuilder demo-app compatibility helpers', () => {
     );
 
     expect(json).toMatchObject({
-      name: 'Demo-app link helpers',
+      name: 'Public link helpers',
       contracts: {
         anchors: {
           type: 'MyOS/Document Anchors',
@@ -88,13 +94,13 @@ describe('DocBuilder demo-app compatibility helpers', () => {
   });
 
   it('maps onSessionCreated to the runtime-confirmed subscription initiated event', () => {
-    const viaCompat = createCompatibilityDocument()
+    const viaAliases = createPublicAliasDocument()
       .onSessionCreated('orders', 'captureSessionCreated', (steps) =>
         steps.replaceValue('MarkSession', '/sessionCreated', true),
       )
       .buildDocument();
 
-    const viaMainline = createCompatibilityDocument()
+    const viaExplicit = createPublicAliasDocument()
       .onEvent(
         'captureSessionCreated',
         'MyOS/Subscription to Session Initiated',
@@ -102,12 +108,12 @@ describe('DocBuilder demo-app compatibility helpers', () => {
       )
       .buildDocument();
 
-    assertCanonicalNodeEquals(viaCompat, viaMainline);
+    assertCanonicalNodeEquals(viaAliases, viaExplicit);
   });
 
   it('keeps AI response convenience listeners on the public surface', () => {
     const yaml = toOfficialYaml(
-      createCompatibilityDocument()
+      createPublicAliasDocument()
         .onAIResponseForTask('assistant', 'handleTask', 'summarize', (steps) =>
           steps.replaceValue('MarkTask', '/taskHandled', true),
         )
@@ -127,7 +133,7 @@ describe('DocBuilder demo-app compatibility helpers', () => {
   });
 
   it('maps linked-document helpers to explicit notification and lifecycle semantics', () => {
-    const viaCompat = createCompatibilityDocument()
+    const viaAliases = createPublicAliasDocument()
       .onLinkedDocGranted('linkedOrders', 'captureLinkedGranted', (steps) =>
         steps.replaceValue('MarkLinked', '/linkedGranted', true),
       )
@@ -136,7 +142,7 @@ describe('DocBuilder demo-app compatibility helpers', () => {
       )
       .buildDocument();
 
-    const viaMainline = createCompatibilityDocument()
+    const viaExplicit = createPublicAliasDocument()
       .onEvent(
         'captureLinkedGranted',
         'MyOS/Single Document Permission Granted',
@@ -149,11 +155,11 @@ describe('DocBuilder demo-app compatibility helpers', () => {
       )
       .buildDocument();
 
-    assertCanonicalNodeEquals(viaCompat, viaMainline);
+    assertCanonicalNodeEquals(viaAliases, viaExplicit);
   });
 
-  it('materializes linked-document and linked-documents lifecycle helper event types explicitly', () => {
-    const json = createCompatibilityDocument()
+  it('materializes linked-document notification helpers with explicit runtime event types', () => {
+    const json = createPublicAliasDocument()
       .onLinkedDocGranted('linkedOrders', 'captureLinkedGranted', (steps) =>
         steps.replaceValue('MarkLinked', '/linkedGranted', true),
       )
@@ -175,11 +181,93 @@ describe('DocBuilder demo-app compatibility helpers', () => {
       },
     });
   });
+
+  it('keeps MyOsPermissions and request helpers aligned with public runtime semantics', () => {
+    expect(
+      MyOsPermissions.create()
+        .read(true)
+        .share(false)
+        .allOps(true)
+        .singleOps(' increment ', '', undefined, 'decrement')
+        .build(),
+    ).toEqual({
+      read: true,
+      share: false,
+      allOps: true,
+      singleOps: ['increment', 'decrement'],
+    });
+
+    const [step] = new StepsBuilder()
+      .myOs()
+      .requestSingleDocPermission(
+        'ownerChannel',
+        'REQ_1',
+        'SESSION_1',
+        MyOsPermissions.create()
+          .read(true)
+          .share(true)
+          .singleOps('sync')
+          .build(),
+      )
+      .build();
+
+    expect(toOfficialJson(step!)).toMatchObject({
+      type: 'Conversation/Trigger Event',
+      event: {
+        type: 'MyOS/Single Document Permission Grant Requested',
+        onBehalfOf: 'ownerChannel',
+        requestId: 'REQ_1',
+        targetSessionId: 'SESSION_1',
+        permissions: {
+          read: true,
+          share: true,
+          singleOps: ['sync'],
+        },
+      },
+    });
+  });
+
+  it('keeps matcher-array subscription helpers on the public surface', () => {
+    const built = new StepsBuilder()
+      .myOs()
+      .subscribeToSessionWithMatchers(
+        'SESSION_1',
+        'SUB_1',
+        [
+          'Conversation/Response',
+          {
+            type: 'Common/Named Event',
+            name: 'assistant-approved',
+          },
+        ],
+      )
+      .build()
+      .map((step) => toOfficialJson(step));
+
+    expect(built[0]).toMatchObject({
+      event: {
+        type: 'MyOS/Subscribe to Session Requested',
+        targetSessionId: 'SESSION_1',
+        subscription: {
+          id: 'SUB_1',
+          events: [
+            {
+              type: 'Conversation/Response',
+            },
+            {
+              type: 'Common/Named Event',
+              name: 'assistant-approved',
+            },
+          ],
+        },
+      },
+    });
+  });
 });
 
-function createCompatibilityDocument() {
+function createPublicAliasDocument() {
   return DocBuilder.doc()
-    .name('Compat aliases')
+    .name('Public aliases')
     .channel('ownerChannel')
     .access('orders')
     .targetSessionId('SESSION_1')

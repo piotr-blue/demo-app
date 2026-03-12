@@ -4,9 +4,9 @@ import {
   DocPatch,
   DocStructure,
 } from '../index.js';
-import { assertCanonicalNodeEquals } from './editing-support.js';
+import { assertCanonicalNodeEquals } from '../test-support/editing-support.js';
 
-describe('canonical seed blueprints', () => {
+describe('canonical blueprints', () => {
   it('keep exported sample documents structurally stable and editable', () => {
     const samples = allJavaSandboxSampleDocs();
 

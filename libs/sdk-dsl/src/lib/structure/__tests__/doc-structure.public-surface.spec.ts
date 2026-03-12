@@ -1,8 +1,10 @@
 import { BlueNode } from '@blue-labs/language';
-import { DocBuilder, DocStructure } from '../index.js';
-import { putDocumentSection } from './editing-support.js';
+import { describe, expect, it } from 'vitest';
+import { DocBuilder } from '../../doc-builder/doc-builder.js';
+import { putDocumentSection } from '../../../test-support/editing-support.js';
+import { DocStructure } from '../doc-structure.js';
 
-describe('DocStructure public helpers', () => {
+describe('DocStructure public surface', () => {
   it('extracts root fields, channels, operations, and implementations', () => {
     const document = DocBuilder.doc()
       .name('Counter')

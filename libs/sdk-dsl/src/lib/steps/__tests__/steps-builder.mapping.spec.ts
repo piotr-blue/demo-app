@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dump } from 'js-yaml';
 import type { JsonObject } from '../../core/types.js';
-import { fromChannel } from '../bootstrap-bindings.js';
+import { fromChannel, fromEmail } from '../bootstrap-bindings.js';
 import { MyOsPermissions } from '../myos-permissions.js';
 import { StepsBuilder } from '../steps-builder.js';
 
@@ -174,6 +174,10 @@ describe('steps-builder mapping', () => {
             type: 'MyOS/MyOS Timeline Channel',
             ...fromChannel('ownerChannel'),
           },
+          reviewerChannel: {
+            type: 'MyOS/MyOS Timeline Channel',
+            ...fromEmail('reviewerChannel'),
+          },
         },
         'ownerChannel',
       )
@@ -187,6 +191,7 @@ describe('steps-builder mapping', () => {
     expect(yaml).toContain(`bootstrapAssignee: myOsAdminChannel`);
     expect(yaml).toContain(`onBehalfOf: ownerChannel`);
     expect(yaml).toContain(`accountId: \${document('/contracts/ownerChannel/accountId')}`);
+    expect(yaml).toContain(`email: \${document('/contracts/reviewerChannel/email')}`);
   });
 
   it('rejects legacy bootstrap call-shapes without onBehalfOf', () => {

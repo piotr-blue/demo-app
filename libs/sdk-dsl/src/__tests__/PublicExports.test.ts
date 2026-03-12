@@ -9,7 +9,7 @@ import {
   toOfficialYaml,
 } from '../index.js';
 
-describe('demo-app compatibility exports', () => {
+describe('public exports', () => {
   it('exports BasicBlueTypes and JSON helper types', () => {
     const typedObject: JsonObject = {
       status: 'ok',
