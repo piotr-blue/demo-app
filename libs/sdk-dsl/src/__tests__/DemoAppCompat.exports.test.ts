@@ -1,6 +1,8 @@
 import {
   BasicBlueTypes,
   DocBuilder,
+  fromChannel,
+  fromEmail,
   type JsonObject,
   type JsonValue,
   toOfficialJson,
@@ -49,5 +51,14 @@ describe('demo-app compatibility exports', () => {
       ['name: Compat export', 'type: Conversation/Event', 'status: ready', '']
         .join('\n'),
     );
+  });
+
+  it('exports bootstrap binding helpers for parent-derived account and email values', () => {
+    expect(fromChannel('ownerChannel')).toEqual({
+      accountId: "${document('/contracts/ownerChannel/accountId')}",
+    });
+    expect(fromEmail('ownerChannel')).toEqual({
+      email: "${document('/contracts/ownerChannel/email')}",
+    });
   });
 });

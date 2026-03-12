@@ -482,6 +482,17 @@ steps.bootstrapDocument('BootstrapDeal', childDoc, {
   },
 }, 'ownerChannel')
 
+steps.myOs().bootstrapDocument('BootstrapDeal', childDoc, {
+  buyerChannel: {
+    type: 'MyOS/MyOS Timeline Channel',
+    ...fromChannel('buyerChannel'),
+  },
+  reviewerChannel: {
+    type: 'MyOS/MyOS Timeline Channel',
+    ...fromEmail('reviewerChannel'),
+  },
+}, 'ownerChannel')
+
 steps.bootstrapDocumentExpr('BootstrapFromExpr', "document('/templateDoc')", {
   buyerChannel: {
     type: 'Conversation/Timeline Channel',

@@ -3,6 +3,7 @@ import { DocBuilder } from '../doc-builder/doc-builder.js';
 import { SimpleDocBuilder } from '../doc-builder/simple-doc-builder.js';
 import { PayNotes } from '../paynote/paynotes.js';
 import type { JsonObject } from '../core/types.js';
+import { fromChannel } from '../steps/bootstrap-bindings.js';
 
 export function simpleAgentWithPermissions(): BlueNode {
   return SimpleDocBuilder.doc()
@@ -1013,11 +1014,11 @@ export function bootstrapWithMessages(): BlueNode {
         {
           sellerChannel: {
             type: 'MyOS/MyOS Timeline Channel',
-            accountId: "${document('/contracts/sellerChannel/accountId')}",
+            ...fromChannel('sellerChannel'),
           },
           buyerChannel: {
             type: 'MyOS/MyOS Timeline Channel',
-            accountId: "${document('/contracts/buyerChannel/accountId')}",
+            ...fromChannel('buyerChannel'),
           },
         },
         'sellerChannel',

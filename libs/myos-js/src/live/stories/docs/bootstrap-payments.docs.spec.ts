@@ -23,7 +23,7 @@ describe('bootstrap payment story docs', () => {
       },
     });
     expect(bootstrapStep?.event?.channelBindings?.ownerChannel).toEqual({
-      accountId: '${document("/contracts/ownerChannel/accountId")}',
+      accountId: "${document('/contracts/ownerChannel/accountId')}",
     });
 
     const sessionStartedWorkflow = contracts.onTargetSessionStarted;

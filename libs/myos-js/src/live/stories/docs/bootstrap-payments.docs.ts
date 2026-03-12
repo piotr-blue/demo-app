@@ -1,4 +1,9 @@
-import { DocBuilder, PayNotes, type JsonObject } from '@blue-labs/sdk-dsl';
+import {
+  DocBuilder,
+  PayNotes,
+  fromChannel,
+  type JsonObject,
+} from '@blue-labs/sdk-dsl';
 
 export function buildVoucherChildDocument(name: string) {
   return DocBuilder.doc()
@@ -38,9 +43,7 @@ export function buildParentVoucherOrchestratorDocument(name: string) {
             'BootstrapChildVoucher',
             childTemplate,
             {
-              ownerChannel: {
-                accountId: '${document("/contracts/ownerChannel/accountId")}',
-              },
+              ownerChannel: fromChannel('ownerChannel'),
             },
             'ownerChannel',
             (payload) => {

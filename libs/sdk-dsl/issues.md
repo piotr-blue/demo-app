@@ -28,6 +28,9 @@ surface is considered production-ready within the current public runtime.
   `onBehalfOf`
 - low-level bootstrap helpers require explicit channel binding objects; plain
   string shorthand is not supported
+- `fromChannel(...)` and `fromEmail(...)` are the supported sugar for
+  parent-derived bootstrap bindings when the child binding should reuse the
+  parent channel's `accountId` or `email`
 - `steps.myOs().bootstrapDocument(...)` still injects `bootstrapAssignee`, but
   the requester channel must be passed explicitly because the real MyOS Admin
   direct-bootstrap flow rejects requests that omit it

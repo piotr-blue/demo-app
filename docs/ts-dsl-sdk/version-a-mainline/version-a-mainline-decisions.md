@@ -233,14 +233,16 @@ For each section state:
   now require an explicit `onBehalfOf` argument; the legacy bootstrap form
   without requester-channel input is no longer supported. Low-level bootstrap
   helpers also require explicit channel binding objects instead of string
-  shorthand.
+  shorthand; `fromChannel(...)` and `fromEmail(...)` are the supported narrow
+  sugar for parent-derived account/email bindings.
 - Why: the real MyOS Admin direct-bootstrap path validates `onBehalfOf` on
   `Conversation/Document Bootstrap Requested`. Supporting it as first-class SDK
   input closes the runtime gap and avoids authoring request shapes that would be
   rejected at runtime. Removing string shorthand avoids ambiguous guessing
-  between account/email/timeline references. This stays separate from the
-  runtime-correct subscribe helper semantics, which still do not accept
-  `onBehalfOf`.
+  between account/email/timeline references, while still preserving concise
+  authoring for parent-derived account/email expressions. This stays separate
+  from the runtime-correct subscribe helper semantics, which still do not
+  accept `onBehalfOf`.
 
 ## Post-mainline correction pass
 
