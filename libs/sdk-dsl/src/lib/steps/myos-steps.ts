@@ -385,7 +385,7 @@ export class MyOsSteps {
   bootstrapDocument(
     stepName: string,
     document: JsonObject,
-    channelBindings: Record<string, JsonObject | string>,
+    channelBindings: Record<string, JsonObject>,
     onBehalfOf: string,
     options?: (payload: EventPayloadBuilder) => void,
   ): StepsBuilder {

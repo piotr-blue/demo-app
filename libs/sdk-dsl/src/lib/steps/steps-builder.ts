@@ -674,7 +674,7 @@ export class StepsBuilder {
   bootstrapDocument(
     stepName: string,
     document: JsonObject,
-    channelBindings: Record<string, JsonObject | string>,
+    channelBindings: Record<string, JsonObject>,
     onBehalfOf: string,
     options?: BootstrapPayloadCustomizer,
   ): this {
@@ -693,7 +693,7 @@ export class StepsBuilder {
   bootstrapDocumentExpr(
     stepName: string,
     documentExpression: string,
-    channelBindings: Record<string, string>,
+    channelBindings: Record<string, JsonObject>,
     onBehalfOf: string,
     options?: BootstrapPayloadCustomizer,
   ): this {

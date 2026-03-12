@@ -95,7 +95,10 @@ describe('steps-builder execution', () => {
               summary: 'child bootstrap payload',
             },
             {
-              ownerChannel: 'target-session',
+              ownerChannel: {
+                type: 'Conversation/Timeline Channel',
+                timelineId: 'child-owner-timeline',
+              },
             },
             'ownerChannel',
             (payload) => payload.put('bootstrapAssignee', 'myOsAdminChannel'),
@@ -130,7 +133,10 @@ describe('steps-builder execution', () => {
     expect(bootstrapEvent).toBeDefined();
     expect(bootstrapEvent).toMatchObject({
       channelBindings: {
-        ownerChannel: 'target-session',
+        ownerChannel: {
+          type: 'Conversation/Timeline Channel',
+          timelineId: 'child-owner-timeline',
+        },
       },
       bootstrapAssignee: 'myOsAdminChannel',
       onBehalfOf: 'ownerChannel',
@@ -163,7 +169,10 @@ describe('steps-builder execution', () => {
               name: 'Child Deal',
             },
             {
-              sellerChannel: 'child-seller',
+              sellerChannel: {
+                type: 'MyOS/MyOS Timeline Channel',
+                accountId: 'acc-child-seller',
+              },
             },
             'sellerChannel',
           ),
@@ -199,7 +208,10 @@ describe('steps-builder execution', () => {
       bootstrapAssignee: 'myOsAdminChannel',
       onBehalfOf: 'sellerChannel',
       channelBindings: {
-        sellerChannel: 'child-seller',
+        sellerChannel: {
+          type: 'MyOS/MyOS Timeline Channel',
+          accountId: 'acc-child-seller',
+        },
       },
       document: {
         name: 'Child Deal',

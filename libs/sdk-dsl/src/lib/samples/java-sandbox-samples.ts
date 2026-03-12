@@ -922,9 +922,18 @@ export function bootstrapVoucherOnCapture(): BlueNode {
           'BootstrapVoucherDoc',
           balancedBowlVoucherPayNoteTemplateJson(),
           {
-            payerChannel: 'payerChannel',
-            payeeChannel: 'payeeChannel',
-            merchantChannel: 'payeeChannel',
+            payerChannel: {
+              type: 'Conversation/Timeline Channel',
+              timelineId: 'voucher-payer',
+            },
+            payeeChannel: {
+              type: 'Conversation/Timeline Channel',
+              timelineId: 'voucher-payee',
+            },
+            merchantChannel: {
+              type: 'Conversation/Timeline Channel',
+              timelineId: 'voucher-payee',
+            },
           },
           'payeeChannel',
         ),
@@ -960,8 +969,14 @@ export function bootstrapViaOrchestrator(): BlueNode {
         'BootstrapChildDoc',
         childDoc(),
         {
-          participantA: 'aliceChannel',
-          participantB: 'bobChannel',
+          participantA: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'alice-participant',
+          },
+          participantB: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'bob-participant',
+          },
         },
         'orchestratorChannel',
         (payload) => {
@@ -988,16 +1003,22 @@ export function bootstrapViaOrchestrator(): BlueNode {
 export function bootstrapWithMessages(): BlueNode {
   return SimpleDocBuilder.doc()
     .name('With Messages')
-    .channel('sellerChannel')
-    .channel('buyerChannel')
+    .channel('sellerChannel', { type: 'MyOS/MyOS Timeline Channel' })
+    .channel('buyerChannel', { type: 'MyOS/MyOS Timeline Channel' })
     .myOsAdmin('myOsAdminChannel')
     .onInit('bootstrapDeal', (steps) =>
       steps.myOs().bootstrapDocument(
         'BootstrapDeal',
         dealDoc(),
         {
-          sellerChannel: 'sellerChannel',
-          buyerChannel: 'buyerChannel',
+          sellerChannel: {
+            type: 'MyOS/MyOS Timeline Channel',
+            accountId: "${document('/contracts/sellerChannel/accountId')}",
+          },
+          buyerChannel: {
+            type: 'MyOS/MyOS Timeline Channel',
+            accountId: "${document('/contracts/buyerChannel/accountId')}",
+          },
         },
         'sellerChannel',
         (payload) => {

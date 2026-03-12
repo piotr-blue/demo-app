@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dump } from 'js-yaml';
+import type { JsonObject } from '../../core/types.js';
 import { MyOsPermissions } from '../myos-permissions.js';
 import { StepsBuilder } from '../steps-builder.js';
 
@@ -109,7 +110,10 @@ describe('steps-builder mapping', () => {
           type: 'Conversation/Conversation',
         },
         {
-          ownerChannel: 'target-session',
+          ownerChannel: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'child-owner-timeline',
+          },
         },
         'ownerChannel',
         (payload) => payload.put('bootstrapAssignee', 'myOsAdminChannel'),
@@ -118,7 +122,10 @@ describe('steps-builder mapping', () => {
         'BootstrapFromExpression',
         "document('/childDocument')",
         {
-          ownerChannel: 'target-session',
+          ownerChannel: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'child-owner-timeline',
+          },
         },
         'ownerChannel',
       )
@@ -133,6 +140,7 @@ describe('steps-builder mapping', () => {
     expect(yaml).toContain(`type: Conversation/Document Bootstrap Requested`);
     expect(yaml).toContain(`bootstrapAssignee: myOsAdminChannel`);
     expect(yaml).toContain(`onBehalfOf: ownerChannel`);
+    expect(yaml).toContain(`timelineId: child-owner-timeline`);
     expect(yaml).toContain(`name: BootstrapFromExpression
     type: Conversation/Trigger Event`);
     expect(yaml).toContain(`document: \${document('/childDocument')}`);
@@ -146,7 +154,10 @@ describe('steps-builder mapping', () => {
           name: 'Child With Messages',
         },
         {
-          ownerChannel: 'target-session',
+          ownerChannel: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'child-owner-timeline',
+          },
         },
         'ownerChannel',
         (payload) => payload.put('bootstrapAssignee', 'legacy-orchestrator'),
@@ -158,7 +169,10 @@ describe('steps-builder mapping', () => {
           name: 'MyOS Child',
         },
         {
-          ownerChannel: 'target-session',
+          ownerChannel: {
+            type: 'MyOS/MyOS Timeline Channel',
+            accountId: 'acc-child-owner',
+          },
         },
         'ownerChannel',
       )
@@ -180,14 +194,19 @@ describe('steps-builder mapping', () => {
           bootstrapDocument: (
             stepName: string,
             document: Record<string, unknown>,
-            channelBindings: Record<string, string>,
+            channelBindings: Record<string, JsonObject>,
             options: (payload: unknown) => void,
           ) => unknown;
         }
       ).bootstrapDocument(
         'BootstrapLegacy',
         { name: 'Legacy Child' },
-        { ownerChannel: 'target-session' },
+        {
+          ownerChannel: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'child-owner-timeline',
+          },
+        },
         () => undefined,
       ),
     ).toThrow('onBehalfOf is required');

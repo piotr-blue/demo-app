@@ -476,11 +476,17 @@ steps.capture().releaseFull()
 BOOTSTRAP:
 ```ts
 steps.bootstrapDocument('BootstrapDeal', childDoc, {
-  buyerChannel: 'ownerChannel',
+  buyerChannel: {
+    type: 'Conversation/Timeline Channel',
+    timelineId: 'buyer-timeline',
+  },
 }, 'ownerChannel')
 
 steps.bootstrapDocumentExpr('BootstrapFromExpr', "document('/templateDoc')", {
-  buyerChannel: 'ownerChannel',
+  buyerChannel: {
+    type: 'Conversation/Timeline Channel',
+    timelineId: 'buyer-timeline',
+  },
 }, 'ownerChannel')
 ```
 
