@@ -1012,14 +1012,8 @@ export function bootstrapWithMessages(): BlueNode {
         'BootstrapDeal',
         dealDoc(),
         {
-          sellerChannel: {
-            type: 'MyOS/MyOS Timeline Channel',
-            ...fromChannel('sellerChannel'),
-          },
-          buyerChannel: {
-            type: 'MyOS/MyOS Timeline Channel',
-            ...fromChannel('buyerChannel'),
-          },
+          sellerChannel: fromChannel('sellerChannel'),
+          buyerChannel: fromChannel('buyerChannel'),
         },
         'sellerChannel',
         (payload) => {

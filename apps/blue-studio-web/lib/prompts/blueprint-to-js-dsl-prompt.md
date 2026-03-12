@@ -382,7 +382,6 @@ Access / linked access / agency handlers:
 .onSessionCreated('orders', 'onCreated', (steps) => ...)
 
 .onLinkedAccessGranted('shopData', 'onLinkedGranted', (steps) => ...)
-.onLinkedAccessRejected('shopData', 'onLinkedRejected', (steps) => ...)
 .onLinkedAccessRevoked('shopData', 'onLinkedRevoked', (steps) => ...)
 .onLinkedDocGranted('shopData', 'onLinkedDocGranted', (steps) => ...)
 .onLinkedAccessRejected('shopData', 'onLinkedAccessRejected', (steps) => ...)
@@ -476,28 +475,16 @@ steps.capture().releaseFull()
 BOOTSTRAP:
 ```ts
 steps.bootstrapDocument('BootstrapDeal', childDoc, {
-  buyerChannel: {
-    type: 'Conversation/Timeline Channel',
-    timelineId: 'buyer-timeline',
-  },
+  buyerChannel: fromChannel('buyerChannel'),
 }, 'ownerChannel')
 
 steps.myOs().bootstrapDocument('BootstrapDeal', childDoc, {
-  buyerChannel: {
-    type: 'MyOS/MyOS Timeline Channel',
-    ...fromChannel('buyerChannel'),
-  },
-  reviewerChannel: {
-    type: 'MyOS/MyOS Timeline Channel',
-    ...fromEmail('reviewerChannel'),
-  },
+  buyerChannel: fromChannel('buyerChannel'),
+  reviewerChannel: fromEmail('reviewerChannel'),
 }, 'ownerChannel')
 
 steps.bootstrapDocumentExpr('BootstrapFromExpr', "document('/templateDoc')", {
-  buyerChannel: {
-    type: 'Conversation/Timeline Channel',
-    timelineId: 'buyer-timeline',
-  },
+  buyerChannel: fromChannel('buyerChannel'),
 }, 'ownerChannel')
 ```
 
