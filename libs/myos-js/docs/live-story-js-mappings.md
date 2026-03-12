@@ -345,9 +345,7 @@ Known runtime-gated stories remain tracked in:
 
 Current gated areas include:
 
-- paynote/payment emitted-event observability (Stories 14-15),
 - backward payment alias availability (Story 16),
-- built-in change-workflow live behavior (Story 19),
 - revoke scenarios that still assume direct controller-document revoke instead
   of revoke on the permission-grant document (Stories 20-21, 26).
 

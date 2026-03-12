@@ -6,6 +6,7 @@ This document is the full narrative companion to the live story suite introduced
 - `libs/myos-js/src/live/stories/session-interaction.live.spec.ts`
 - `libs/myos-js/src/live/stories/links-and-participants.live.spec.ts`
 - `libs/myos-js/src/live/stories/bootstrap-and-payments.live.spec.ts`
+- `libs/myos-js/src/live/stories/advanced-control.live.spec.ts`
 
 It explains, story by story:
 
@@ -563,22 +564,26 @@ PayNote capture controls:
 
 ### How the test works
 
-If enabled via `MYOS_ENABLE_STORY_14=true`:
-
 1. bootstrap paynote,
 2. assert section structure,
-3. verify lock-request event visibility,
-4. run `confirmShipment`, assert status updates + unlock event visibility,
-5. run `requestCapture`, assert capture request visibility.
+3. wait for the initial emitted `PayNote/Card Transaction Capture Lock Requested`,
+4. run `confirmShipment`, assert:
+   - `/shipment/status == 'confirmed'`,
+   - a new emitted `PayNote/Card Transaction Capture Unlock Requested`
+     appears after the pre-operation epoch,
+5. run `requestCapture` and assert a new emitted
+   `PayNote/Capture Funds Requested` appears after the pre-operation epoch.
 
 ### MyOS run result
 
-❌ **Blocked** (gated by default).
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Event visibility for lock/unlock/capture did not produce reliable assertions through currently used feed/epoch surfaces.
-- Tracked in issues as Story 14 blocker.
+- The paynote flow now proves lock/unlock/capture visibility through
+  `waitForLatestEmittedEventBySchema(...)`, not the older feed-entry path.
+- Initial lock, unlock after shipment confirmation, and capture request after
+  `requestCapture` were all observed live on the emitted-event surface.
 
 ---
 
@@ -599,8 +604,6 @@ Validates rail-specific `triggerPayment` event payload composition for three pay
 
 ### How the test works
 
-If enabled via `MYOS_ENABLE_STORY_15=true`:
-
 1. bootstrap doc,
 2. run all three operations and assert `/payment/requested`,
 3. inspect emitted events and assert rail payload fields:
@@ -610,12 +613,16 @@ If enabled via `MYOS_ENABLE_STORY_15=true`:
 
 ### MyOS run result
 
-❌ **Blocked** (gated by default).
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Operation requests are visible, but emitted payment event payloads are not consistently surfaced by feed/epoch APIs used in test assertions.
-- Tracked in issues as Story 15 blocker.
+- Emitted `PayNote/Reserve Funds Requested` events are now observed reliably
+  through schema-based emitted-event polling.
+- The live suite confirms all three rails on current runtime:
+  - ACH by `routingNumber`,
+  - credit line by `creditLineId`,
+  - ledger by `ledgerAccountTo`.
 
 ---
 
@@ -720,13 +727,37 @@ Covers first-class change-lifecycle contracts beyond direct-change:
 
 1. bootstrap document,
 2. assert lifecycle contracts are present (`propose/accept/reject` + impl),
-3. optional behavioral probe sends a propose request and watches feed emission.
+3. run `proposeChange` once and assert:
+   - `/proposedChange` is created,
+   - `/text` stays unchanged,
+4. run `acceptChange` and assert:
+   - `/text` moves to the proposed value,
+   - `/proposedChange` is removed,
+5. run `proposeChange` again on the same document and assert a new
+   `/proposedChange` is stored,
+6. run `rejectChange` and assert:
+   - `/proposedChange` is removed,
+   - `/text` stays at the previously accepted value.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Live execution of the repository-backed
-`Conversation/Propose Change Workflow` path is still blocked and needs
-separate runtime debugging.
+✅ **Worked on MyOS**.
+
+### What happened on MyOS
+
+- The repository-backed `Conversation/Propose Change Workflow`,
+  `Conversation/Accept Change Workflow`, and
+  `Conversation/Reject Change Workflow` now execute successfully on the live
+  runtime path.
+- The successful path is proved by document-state mutations on one document,
+  not by emitted `Conversation/*` events:
+  - first `proposeChange` stores `/proposedChange`,
+  - `acceptChange` applies `/text` and removes `/proposedChange`,
+  - second `proposeChange` stores a fresh `/proposedChange`,
+  - `rejectChange` removes `/proposedChange` while leaving `/text` at the
+    accepted value.
+- The earlier runtime blocker was the repository workflow handling of unset
+  `postfix`; that path is now fixed.
 
 ---
 
@@ -934,15 +965,11 @@ a direct request from the controller document.
 
 ### Fully validated on live MyOS (current environment)
 
-- Stories: **0, 1, 3, 4, 5, 9, 11, 12, 17, 18**
-
-### Partially validated (core path works, deeper orchestration gated)
-
-- Stories: **6, 7, 8**
+- Stories: **0-15, 17-19, 23-25**
 
 ### Blocked/gated by runtime constraints
 
-- Stories: **14, 15, 16, 19, 20, 21, 26**
+- Stories: **16, 20-21, 26**
 
 ### Structure-proven mapping coverage
 
@@ -960,9 +987,6 @@ The stories are runnable as written when the core live environment is present.
 
 To explicitly attempt still-gated subflows while investigating runtime fixes, set:
 
-- `MYOS_ENABLE_STORY_14=true`
-- `MYOS_ENABLE_STORY_15=true`
-- `MYOS_ENABLE_STORY_19=true`
 - `MYOS_ENABLE_STORY_20=true`
 - `MYOS_ENABLE_STORY_21=true`
 - `MYOS_ENABLE_STORY_26=true`

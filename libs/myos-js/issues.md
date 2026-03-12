@@ -146,34 +146,55 @@
       - keep this shape locked in docs and regression tests; do not fall back to
         `event.targetSessionId` for this flow
 
-12. **Story 14 blocker: paynote emitted lock/unlock/capture events not visible through current live surfaces**
-    - Status: blocked (live story gated)
+12. **Story 14 paynote shipment escrow**
+    - Status: implemented
     - Story: `story-14 paynote shipment escrow lock/unlock/request flow`
-    - Observed:
-      - event visibility checks against feed/epoch retrieval are inconclusive for expected paynote emissions.
+    - Runtime-confirmed behavior:
+      - initial `PayNote/Card Transaction Capture Lock Requested` is visible on
+        the emitted-event surface,
+      - `confirmShipment` advances `/shipment/status` to `confirmed`,
+      - a new emitted `PayNote/Card Transaction Capture Unlock Requested`
+        appears after the shipment-confirmation epoch,
+      - `requestCapture` produces a new emitted
+        `PayNote/Capture Funds Requested`.
     - Action:
-      - keep story gated unless `MYOS_ENABLE_STORY_14=true`.
+      - keep Story 14 ungated and pinned to schema-based emitted-event polling.
 
-13. **Story 15 blocker: payment trigger events not surfaced for ACH/credit-line/ledger assertions**
-    - Status: blocked (live story gated)
+13. **Story 15 payment request emission**
+    - Status: implemented
     - Story: `story-15 payment request emission supports ACH, credit line, and ledger rails`
-    - Observed:
-      - operation requests are present,
-      - expected emitted payment event payloads are not surfaced in feed/epoch APIs used by tests.
+    - Runtime-confirmed behavior:
+      - emitted `PayNote/Reserve Funds Requested` events are visible for all
+        three payment rails,
+      - ACH path confirms `routingNumber`,
+      - credit-line path confirms `creditLineId`,
+      - ledger path confirms `ledgerAccountTo`,
+      - `/payment/requested` remains true after operation execution.
     - Action:
-      - keep story gated unless `MYOS_ENABLE_STORY_15=true`.
+      - keep Story 15 ungated and pinned to schema-based emitted-event polling.
 
-14. **Story 19 blocker: built-in change workflows still fail on live runtime path**
-    - Status: blocked
+14. **Story 19 change lifecycle**
+    - Status: implemented
     - Story: `story-19 propose/accept/reject change flow mapping coverage` in
       `src/live/stories/advanced-control.live.spec.ts`
-    - Current state:
-      - structural mapping assertions are active by default,
-      - live execution still fails when the document uses the repository-backed
-        `Conversation/Propose Change Workflow` path.
+    - Runtime-confirmed behavior:
+      - structural mapping assertions remain active by default,
+      - the repository-backed change workflows now complete on the live runtime
+        path,
+      - first `proposeChange` stores `/proposedChange` without changing
+        `/text`,
+      - `acceptChange` applies `/text` and removes `/proposedChange`,
+      - second `proposeChange` stores a fresh `/proposedChange`,
+      - `rejectChange` removes `/proposedChange` while keeping the previously
+        accepted `/text`,
+      - success assertions should use document state, not emitted
+        `Conversation/*` events.
+    - Notes:
+      - the prior blocker was repository workflow handling of unset `postfix`;
+        the current runtime now includes the fix.
     - Action:
-      - debug the runtime behavior of the built-in change workflows without
-        replacing them with custom document-local workflows.
+      - keep Story 19 green; do not regress it back to emitted-event waiting or
+        custom document-local workflow replacements.
 
 15. **Story 20 blocker: revoke flow is modeled from the wrong document**
     - Status: blocked

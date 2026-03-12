@@ -11,7 +11,6 @@ import {
   extractTimelineId,
   retrieveDocument,
   waitForAllowedOperation,
-  waitForEmittedEvent,
   waitForFieldValue,
   waitForPredicate,
 } from '../helpers/index.js';
@@ -28,7 +27,6 @@ import {
 } from './docs/links.docs.js';
 
 const gate = getCoreOrAccountLiveGate();
-const STORY_19_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_19 !== 'true';
 const STORY_20_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_20 !== 'true';
 const STORY_21_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_21 !== 'true';
 const STORY_23_LIVE_BLOCKED = !gate.env.accountId;
@@ -69,10 +67,7 @@ describeLive('myos-js live stories: advanced control', gate, () => {
         extractField(retrieved, '/contracts/rejectChangeImpl'),
       ).toBeTruthy();
 
-      if (STORY_19_LIVE_BLOCKED) {
-        return;
-      }
-
+      const proposeAcceptedBefore = await retrieveDocument(client, sessionId);
       await waitForAllowedOperation(client, sessionId, 'proposeChange');
       await client.documents.runOperation(sessionId, 'proposeChange', {
         type: 'Conversation/Change Request',
@@ -86,11 +81,98 @@ describeLive('myos-js live stories: advanced control', gate, () => {
           },
         ],
       });
-      await waitForEmittedEvent(
+      await waitForPredicate(
         client,
         sessionId,
-        (event) => String(event.type ?? '').startsWith('Conversation/'),
-        { timeoutMs: 60_000, intervalMs: 2_000, feedLimit: 100 },
+        (latest) => {
+          const proposedItems = extractField(
+            latest,
+            '/proposedChange/changeset/items',
+          );
+          return (
+            extractField(latest, '/text') === 'Initial' &&
+            extractField(latest, '/proposedChange/summary') ===
+              'Propose text change' &&
+            Array.isArray(proposedItems) &&
+            proposedItems.length === 1 &&
+            Number(latest.epoch ?? 0) >
+              Number(proposeAcceptedBefore.epoch ?? 0)
+          );
+        },
+        {
+          timeoutMs: 60_000,
+          intervalMs: 2_000,
+        },
+      );
+
+      const acceptBefore = await retrieveDocument(client, sessionId);
+      await waitForAllowedOperation(client, sessionId, 'acceptChange');
+      await client.documents.runOperation(sessionId, 'acceptChange');
+      await waitForPredicate(
+        client,
+        sessionId,
+        (latest) =>
+          extractField(latest, '/text') === 'Proposed text' &&
+          extractField(latest, '/proposedChange') === undefined &&
+          Number(latest.epoch ?? 0) > Number(acceptBefore.epoch ?? 0),
+        {
+          timeoutMs: 60_000,
+          intervalMs: 2_000,
+        },
+      );
+
+      const proposeSecondBefore = await retrieveDocument(client, sessionId);
+      await waitForAllowedOperation(client, sessionId, 'proposeChange');
+      await client.documents.runOperation(sessionId, 'proposeChange', {
+        type: 'Conversation/Change Request',
+        summary: 'Propose second text change',
+        changeset: [
+          {
+            type: 'Core/Json Patch Entry',
+            op: 'replace',
+            path: '/text',
+            val: 'Second proposed text',
+          },
+        ],
+      });
+      await waitForPredicate(
+        client,
+        sessionId,
+        (latest) => {
+          const proposedItems = extractField(
+            latest,
+            '/proposedChange/changeset/items',
+          );
+          return (
+            extractField(latest, '/text') === 'Proposed text' &&
+            extractField(latest, '/proposedChange/summary') ===
+              'Propose second text change' &&
+            Array.isArray(proposedItems) &&
+            proposedItems.length === 1 &&
+            Number(latest.epoch ?? 0) >
+              Number(proposeSecondBefore.epoch ?? 0)
+          );
+        },
+        {
+          timeoutMs: 60_000,
+          intervalMs: 2_000,
+        },
+      );
+
+      const rejectBefore = await retrieveDocument(client, sessionId);
+      await waitForAllowedOperation(client, sessionId, 'rejectChange');
+      await client.documents.runOperation(sessionId, 'rejectChange');
+      await waitForPredicate(
+        client,
+        sessionId,
+        (latest) =>
+          extractField(latest, '/text') === 'Proposed text' &&
+          extractField(latest, '/proposedChange') === undefined &&
+          Number(latest.epoch ?? 0) > Number(rejectBefore.epoch ?? 0),
+        {
+          timeoutMs: 60_000,
+          intervalMs: 2_000,
+        },
       );
     },
     180_000,
