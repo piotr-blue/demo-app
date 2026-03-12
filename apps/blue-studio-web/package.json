@@ -27,7 +27,7 @@
     "@blue-labs/language": "^3.5.0",
     "@blue-labs/myos-js": "file:../../libs/myos-js",
     "@blue-labs/sdk-dsl": "file:../../libs/sdk-dsl",
-    "@blue-repository/types": "^0.21.0",
+    "@blue-repository/types": "^0.23.0",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@streamdown/cjk": "^1.0.2",
     "@streamdown/code": "^1.1.0",
