@@ -1,13 +1,9 @@
 import type { BlueNode } from '@blue-labs/language';
 import { DocBuilder } from '../doc-builder/doc-builder.js';
-import { toTypeAlias, type TypeLike } from '../core/type-alias.js';
+import type { TypeLike } from '../core/type-alias.js';
 import type { JsonObject, JsonValue } from '../core/types.js';
-import {
-  OperationBuilder,
-  type OperationDefinition,
-} from '../doc-builder/operation-builder.js';
 import { assertRepositoryTypeAliasAvailable } from '../core/runtime-type-support.js';
-import { StepsBuilder } from '../steps/steps-builder.js';
+import type { StepsBuilder } from '../steps/steps-builder.js';
 
 function sanitizeTypeLabel(typeLike: TypeLike): string {
   if (typeof typeLike === 'string') {
@@ -25,14 +21,6 @@ function toMinor(amountMajor: string): number {
     throw new Error(`invalid major amount: ${amountMajor}`);
   }
   return Math.round(parsed * 100);
-}
-
-function requireText(value: string, field: string): string {
-  const normalized = value.trim();
-  if (!normalized) {
-    throw new Error(`${field} is required`);
-  }
-  return normalized;
 }
 
 type ActionMode = 'capture' | 'reserve' | 'release';
@@ -284,89 +272,6 @@ export class PayNoteBuilder {
     return this;
   }
 
-  operation(key: string): OperationBuilder<this>;
-  operation(
-    key: string,
-    channelKey: string,
-    description: string,
-    implementation?: (steps: StepsBuilder) => void,
-  ): this;
-  operation(
-    key: string,
-    channelKey: string,
-    requestType: TypeLike,
-    description: string,
-    implementation?: (steps: StepsBuilder) => void,
-  ): this;
-  operation(
-    key: string,
-    channelKey?: string,
-    requestOrDescription?: TypeLike | string,
-    descriptionOrImplementation?: string | ((steps: StepsBuilder) => void),
-    implementationMaybe?: (steps: StepsBuilder) => void,
-  ): OperationBuilder<this> | this {
-    if (channelKey === undefined) {
-      return new OperationBuilder<this>(this, requireText(key, 'operation key'));
-    }
-
-    if (requestOrDescription === undefined) {
-      const implementation =
-        typeof descriptionOrImplementation === 'function'
-          ? descriptionOrImplementation
-          : implementationMaybe;
-      return this.applyOperationDefinition({
-        key,
-        channelKey,
-        clearRequest: false,
-        steps: implementation ? this.buildSteps(implementation) : undefined,
-      });
-    }
-
-    if (typeof requestOrDescription === 'string') {
-      if (typeof descriptionOrImplementation === 'string') {
-        return this.applyOperationDefinition({
-          key,
-          channelKey,
-          description: descriptionOrImplementation,
-          request: { type: requestOrDescription },
-          clearRequest: false,
-          steps: implementationMaybe ? this.buildSteps(implementationMaybe) : undefined,
-        });
-      }
-
-      const description = requestOrDescription;
-      const implementation =
-        typeof descriptionOrImplementation === 'function'
-          ? descriptionOrImplementation
-          : implementationMaybe;
-      return this.applyOperationDefinition({
-        key,
-        channelKey,
-        description,
-        clearRequest: false,
-        steps: implementation ? this.buildSteps(implementation) : undefined,
-      });
-    }
-
-    const requestType = requestOrDescription as TypeLike;
-    const description =
-      typeof descriptionOrImplementation === 'string'
-        ? descriptionOrImplementation
-        : undefined;
-    const implementation =
-      typeof descriptionOrImplementation === 'function'
-        ? descriptionOrImplementation
-        : implementationMaybe;
-    return this.applyOperationDefinition({
-      key,
-      channelKey,
-      description,
-      request: { type: toTypeAlias(requestType) },
-      clearRequest: false,
-      steps: implementation ? this.buildSteps(implementation) : undefined,
-    });
-  }
-
   field(path: string, value: JsonValue): this {
     this.builder.field(path, value);
     return this;
@@ -400,19 +305,6 @@ export class PayNoteBuilder {
 
   buildDocument(): BlueNode {
     return this.builder.buildDocument();
-  }
-
-  applyOperationDefinition(definition: OperationDefinition): this {
-    this.builder.applyOperationDefinition(definition);
-    return this;
-  }
-
-  onInit(
-    workflowKey: string,
-    customizer: (steps: StepsBuilder) => void,
-  ): this {
-    this.builder.onInit(workflowKey, customizer);
-    return this;
   }
 
   onInitWorkflow(
@@ -469,15 +361,6 @@ export class PayNoteBuilder {
     customizer: (steps: StepsBuilder) => void,
   ): this {
     this.builder.onChannelEvent(workflowKey, channelKey, eventType, customizer);
-    return this;
-  }
-
-  onNamedEvent(
-    workflowKey: string,
-    eventName: string,
-    customizer: (steps: StepsBuilder) => void,
-  ): this {
-    this.builder.onNamedEvent(workflowKey, eventName, customizer);
     return this;
   }
 
@@ -543,71 +426,11 @@ export class PayNoteBuilder {
     return this;
   }
 
-  documentAnchors(
-    anchors:
-      | string[]
-      | Record<string, JsonObject>
-      | ((anchors: JsonObject) => void),
-    contractKey = 'anchors',
-  ): this {
-    this.builder.documentAnchors(anchors, contractKey);
-    return this;
-  }
-
-  documentLinks(
-    links: Record<string, JsonObject>,
-    contractKey = 'links',
-  ): this {
-    this.builder.documentLinks(links, contractKey);
-    return this;
-  }
-
-  sessionLink(
-    linkName: string,
-    anchor: string,
-    sessionId: string,
-    contractKey = 'links',
-  ): this {
-    this.builder.sessionLink(linkName, anchor, sessionId, contractKey);
-    return this;
-  }
-
-  documentLink(
-    linkName: string,
-    anchor: string,
-    documentId: string,
-    contractKey = 'links',
-  ): this {
-    this.builder.documentLink(linkName, anchor, documentId, contractKey);
-    return this;
-  }
-
-  documentTypeLink(
-    linkName: string,
-    anchor: string,
-    documentTypeBlueId: string,
-    contractKey = 'links',
-  ): this {
-    this.builder.documentTypeLink(
-      linkName,
-      anchor,
-      documentTypeBlueId,
-      contractKey,
-    );
-    return this;
-  }
-
   onDocChangeWorkflow(
     workflowKey: string,
     path: string,
     stepsBuilder: (steps: StepsBuilder) => void,
   ): void {
     this.builder.onDocChange(workflowKey, path, stepsBuilder);
-  }
-
-  private buildSteps(customizer: (steps: StepsBuilder) => void): JsonObject[] {
-    const steps = new StepsBuilder();
-    customizer(steps);
-    return steps.build();
   }
 }

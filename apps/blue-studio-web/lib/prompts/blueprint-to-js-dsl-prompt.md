@@ -883,17 +883,29 @@ IMPORTANT:
     - `requestOnEvent(...)`
 - In this JS branch, stick to the supported helper surface above.
 - Do not call `.name(...)` on a PayNote builder.
-- `PayNotes.payNote(...)` exposes a focused document-level subset in addition
-  to the PayNote action helpers.
-- Supported directly on the PayNote builder:
-  `.field(...)`, `.section(...)`, `.endSection()`, `.operation(...)`,
-  `.onInit(...)`, `.onEvent(...)`, `.onChannelEvent(...)`,
-  `.onNamedEvent(...)`, `.onDocChange(...)`, `.onMyOsResponse(...)`,
-  `.documentAnchors(...)`, `.documentLinks(...)`, `.sessionLink(...)`,
-  `.documentLink(...)`, `.documentTypeLink(...)`.
-- Do NOT assume the PayNote builder supports the full `DocBuilder` surface.
-  In particular, do not invent `.ai(...)`, `.access(...)`, `.accessLinked(...)`,
-  or `.agency(...)` directly on `PayNotes.payNote(...)`.
+- `PayNotes.payNote(...)` does NOT expose the full `DocBuilder` surface.
+  In particular, do not assume it supports arbitrary `.operation(...)`,
+  `.ai(...)`, `.access(...)`, `.accessLinked(...)`, or `.agency(...)`.
+- Directly on a `PayNote` builder, use only the supported PayNote surface plus
+  the exposed document-level hooks such as `.field(...)`, `.section(...)`,
+  `.onEvent(...)`, `.onChannelEvent(...)`, and `.onDocChange(...)`.
+- If the blueprint needs arbitrary operations or richer non-payment document
+  structure in addition to a PayNote lifecycle, build the PayNote template
+  first, then augment it via:
+  ```ts
+  const payNote = PayNotes.payNote('Name')
+    .currency('USD')
+    .amountMinor(10000)
+    .buildJson();
+
+  return DocBuilder.from(payNote)
+    .operation('confirmSomething')
+      .channel('ownerChannel')
+      .noRequest()
+      .steps((steps) => ...)
+      .done()
+    .buildDocument();
+  ```
 - If the blueprint says “capture when participant X confirms Y”, prefer the
   PayNote-native pattern:
   `.capture().unlockOnOperation(operationKey, channelKey, description?)`
