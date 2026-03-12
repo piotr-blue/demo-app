@@ -29,7 +29,7 @@ export function buildPermissionLifecycleAgentDocument(
   targetSessionId: string,
   linkedAnchorName: string,
 ) {
-  return DocBuilder.doc()
+  const doc = DocBuilder.doc()
     .name(name)
     .type('MyOS/Agent')
     .sessionInteraction()
@@ -40,148 +40,134 @@ export function buildPermissionLifecycleAgentDocument(
     .field('/linkedRevokedCount', 0)
     .field('/subscriptionInitiatedCount', 0)
     .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })
-    .myOsAdmin('myOsAdminChannel')
-    .operation(
-      'requestSingleGrant',
-      'ownerChannel',
-      'Request single-doc permission and subscribe after grant',
-      (steps) =>
-        steps.myOs('myOsAdminChannel').requestSingleDocPermission(
-          'ownerChannel',
-          PERMISSION_REQUEST_IDS.singleGrant,
-          DocBuilder.expr("document('/targetSessionId')"),
-          {
+    .myOsAdmin('myOsAdminChannel');
+
+  doc.operation(
+    'requestSingleGrant',
+    'ownerChannel',
+    'Request single-doc permission and subscribe after grant',
+    (steps) =>
+      steps.myOs('myOsAdminChannel').requestSingleDocPermission(
+        'ownerChannel',
+        PERMISSION_REQUEST_IDS.singleGrant,
+        DocBuilder.expr("document('/targetSessionId')"),
+        {
+          read: true,
+          singleOps: ['tick'],
+        },
+      ),
+  );
+
+  doc.operation(
+    'revokeSingleGrant',
+    'ownerChannel',
+    'Revoke single-doc permission',
+    (steps) =>
+      steps.myOs('myOsAdminChannel').revokeSingleDocPermission(
+        'ownerChannel',
+        PERMISSION_REQUEST_IDS.singleRevoke,
+        DocBuilder.expr("document('/targetSessionId')"),
+      ),
+  );
+
+  doc.operation(
+    'requestLinkedGrant',
+    'ownerChannel',
+    'Request linked-doc permission by anchor',
+    (steps) =>
+      steps.myOs('myOsAdminChannel').requestLinkedDocsPermission(
+        'ownerChannel',
+        PERMISSION_REQUEST_IDS.linkedGrant,
+        DocBuilder.expr("document('/targetSessionId')"),
+        {
+          [linkedAnchorName]: {
             read: true,
-            singleOps: ['increment'],
-          },
-        ),
-    )
-    .operation(
-      'revokeSingleGrant',
-      'ownerChannel',
-      'Revoke single-doc permission',
-      (steps) =>
-        steps
-          .myOs('myOsAdminChannel')
-          .revokeSingleDocPermission(
-            'ownerChannel',
-            PERMISSION_REQUEST_IDS.singleRevoke,
-            DocBuilder.expr("document('/targetSessionId')"),
-          ),
-    )
-    .operation(
-      'requestLinkedGrant',
-      'ownerChannel',
-      'Request linked-doc permission by anchor',
-      (steps) =>
-        steps
-          .myOs('myOsAdminChannel')
-          .requestLinkedDocsPermission(
-            'ownerChannel',
-            PERMISSION_REQUEST_IDS.linkedGrant,
-            DocBuilder.expr("document('/targetSessionId')"),
-            {
-              [linkedAnchorName]: {
-                read: true,
-              },
-            },
-          ),
-    )
-    .operation(
-      'revokeLinkedGrant',
-      'ownerChannel',
-      'Revoke linked-doc permission',
-      (steps) =>
-        steps
-          .myOs('myOsAdminChannel')
-          .revokeLinkedDocsPermission(
-            'ownerChannel',
-            PERMISSION_REQUEST_IDS.linkedRevoke,
-            DocBuilder.expr("document('/targetSessionId')"),
-          ),
-    )
-    .onTriggeredWithMatcher(
-      'onSingleGranted',
-      'MyOS/Single Document Permission Granted',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: PERMISSION_REQUEST_IDS.singleGrant,
           },
         },
-      },
-      (steps) =>
-        steps.replaceExpression(
+      ),
+  );
+
+  doc.operation(
+    'revokeLinkedGrant',
+    'ownerChannel',
+    'Revoke linked-doc permission',
+    (steps) =>
+      steps.myOs('myOsAdminChannel').revokeLinkedDocsPermission(
+        'ownerChannel',
+        PERMISSION_REQUEST_IDS.linkedRevoke,
+        DocBuilder.expr("document('/targetSessionId')"),
+      ),
+  );
+
+  doc.onMyOsResponse(
+    'onSingleGranted',
+    'MyOS/Single Document Permission Granted',
+    PERMISSION_REQUEST_IDS.singleGrant,
+    (steps) =>
+      steps
+        .replaceExpression(
           'IncrementSingleGrantedCount',
           '/singleGrantedCount',
           "document('/singleGrantedCount') + 1",
-        ).myOs('myOsAdminChannel').subscribeToSession(
+        )
+        .myOs('myOsAdminChannel')
+        .subscribeToSession(
           DocBuilder.expr("document('/targetSessionId')"),
           SUBSCRIPTION_IDS.singleGrant,
         ),
-    )
-    .onTriggeredWithMatcher(
-      'onSingleRevoked',
-      'MyOS/Single Document Permission Revoked',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: PERMISSION_REQUEST_IDS.singleRevoke,
-          },
-        },
-      },
-      (steps) =>
-        steps.replaceExpression(
-          'IncrementSingleRevokedCount',
-          '/singleRevokedCount',
-          "document('/singleRevokedCount') + 1",
-        ),
-    )
-    .onTriggeredWithMatcher(
-      'onLinkedGranted',
-      'MyOS/Linked Documents Permission Granted',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: PERMISSION_REQUEST_IDS.linkedGrant,
-          },
-        },
-      },
-      (steps) =>
-        steps.replaceExpression(
-          'IncrementLinkedGrantedCount',
-          '/linkedGrantedCount',
-          "document('/linkedGrantedCount') + 1",
-        ),
-    )
-    .onTriggeredWithMatcher(
-      'onLinkedRevoked',
-      'MyOS/Linked Documents Permission Revoked',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: PERMISSION_REQUEST_IDS.linkedRevoke,
-          },
-        },
-      },
-      (steps) =>
-        steps.replaceExpression(
-          'IncrementLinkedRevokedCount',
-          '/linkedRevokedCount',
-          "document('/linkedRevokedCount') + 1",
-        ),
-    )
-    .onEvent(
-      'onSubscriptionInitiated',
-      'MyOS/Subscription to Session Initiated',
-      (steps) =>
-        steps.replaceExpression(
-          'IncrementSubscriptionInitiatedCount',
-          '/subscriptionInitiatedCount',
-          "document('/subscriptionInitiatedCount') + 1",
-        ),
-    )
-    .buildDocument();
+  );
+
+  doc.onMyOsResponse(
+    'onSingleRevoked',
+    'MyOS/Single Document Permission Revoked',
+    PERMISSION_REQUEST_IDS.singleRevoke,
+    (steps) =>
+      steps.replaceExpression(
+        'IncrementSingleRevokedCount',
+        '/singleRevokedCount',
+        "document('/singleRevokedCount') + 1",
+      ),
+  );
+
+  doc.onMyOsResponse(
+    'onLinkedGranted',
+    'MyOS/Linked Documents Permission Granted',
+    PERMISSION_REQUEST_IDS.linkedGrant,
+    (steps) =>
+      steps.replaceExpression(
+        'IncrementLinkedGrantedCount',
+        '/linkedGrantedCount',
+        "document('/linkedGrantedCount') + 1",
+      ),
+  );
+
+  doc.onMyOsResponse(
+    'onLinkedRevoked',
+    'MyOS/Linked Documents Permission Revoked',
+    PERMISSION_REQUEST_IDS.linkedRevoke,
+    (steps) =>
+      steps.replaceExpression(
+        'IncrementLinkedRevokedCount',
+        '/linkedRevokedCount',
+        "document('/linkedRevokedCount') + 1",
+      ),
+  );
+
+  doc.onMyOsResponse(
+    'onSubscriptionInitiated',
+    'MyOS/Subscription to Session Initiated',
+    {
+      subscriptionId: SUBSCRIPTION_IDS.singleGrant,
+    },
+    (steps) =>
+      steps.replaceExpression(
+        'IncrementSubscriptionInitiatedCount',
+        '/subscriptionInitiatedCount',
+        "document('/subscriptionInitiatedCount') + 1",
+      ),
+  );
+
+  return doc.buildDocument();
 }
 
 export function buildLinkCoverageDocument(
@@ -242,7 +228,7 @@ export function buildWorkerAgencyLifecycleDocument(
   name: string,
   targetSessionId: string,
 ) {
-  return DocBuilder.doc()
+  const doc = DocBuilder.doc()
     .name(name)
     .type('MyOS/Agent')
     .workerAgency()
@@ -250,68 +236,59 @@ export function buildWorkerAgencyLifecycleDocument(
     .field('/agencyGrantedCount', 0)
     .field('/agencyRevokedCount', 0)
     .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })
-    .myOsAdmin('myOsAdminChannel')
-    .operation(
-      'grantAgency',
-      'ownerChannel',
-      'Grant worker agency permission',
-      (steps) =>
-        steps.myOs('myOsAdminChannel').grantWorkerAgencyPermission(
-          'ownerChannel',
-          PERMISSION_REQUEST_IDS.workerGrant,
-          {
-            read: true,
-            singleOps: ['tick'],
-          },
-          DocBuilder.expr("document('/targetSessionId')"),
-        ),
-    )
-    .operation(
-      'revokeAgency',
-      'ownerChannel',
-      'Revoke worker agency permission',
-      (steps) =>
-        steps
-          .myOs('myOsAdminChannel')
-          .revokeWorkerAgencyPermission(
-            'ownerChannel',
-            PERMISSION_REQUEST_IDS.workerRevoke,
-            DocBuilder.expr("document('/targetSessionId')"),
-          ),
-    )
-    .onTriggeredWithMatcher(
-      'onAgencyGranted',
-      'MyOS/Worker Agency Permission Granted',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: PERMISSION_REQUEST_IDS.workerGrant,
-          },
+    .myOsAdmin('myOsAdminChannel');
+
+  doc.operation(
+    'grantAgency',
+    'ownerChannel',
+    'Grant worker agency permission',
+    (steps) =>
+      steps.myOs('myOsAdminChannel').grantWorkerAgencyPermission(
+        'ownerChannel',
+        PERMISSION_REQUEST_IDS.workerGrant,
+        {
+          read: true,
+          singleOps: ['tick'],
         },
-      },
-      (steps) =>
-        steps.replaceExpression(
-          'IncrementAgencyGrantedCount',
-          '/agencyGrantedCount',
-          "document('/agencyGrantedCount') + 1",
-        ),
-    )
-    .onTriggeredWithMatcher(
-      'onAgencyRevoked',
-      'MyOS/Worker Agency Permission Revoked',
-      {
-        inResponseTo: {
-          incomingEvent: {
-            requestId: PERMISSION_REQUEST_IDS.workerRevoke,
-          },
-        },
-      },
-      (steps) =>
-        steps.replaceExpression(
-          'IncrementAgencyRevokedCount',
-          '/agencyRevokedCount',
-          "document('/agencyRevokedCount') + 1",
-        ),
-    )
-    .buildDocument();
+        DocBuilder.expr("document('/targetSessionId')"),
+      ),
+  );
+
+  doc.operation(
+    'revokeAgency',
+    'ownerChannel',
+    'Revoke worker agency permission',
+    (steps) =>
+      steps.myOs('myOsAdminChannel').revokeWorkerAgencyPermission(
+        'ownerChannel',
+        PERMISSION_REQUEST_IDS.workerRevoke,
+        DocBuilder.expr("document('/targetSessionId')"),
+      ),
+  );
+
+  doc.onMyOsResponse(
+    'onAgencyGranted',
+    'MyOS/Worker Agency Permission Granted',
+    PERMISSION_REQUEST_IDS.workerGrant,
+    (steps) =>
+      steps.replaceExpression(
+        'IncrementAgencyGrantedCount',
+        '/agencyGrantedCount',
+        "document('/agencyGrantedCount') + 1",
+      ),
+  );
+
+  doc.onMyOsResponse(
+    'onAgencyRevoked',
+    'MyOS/Worker Agency Permission Revoked',
+    PERMISSION_REQUEST_IDS.workerRevoke,
+    (steps) =>
+      steps.replaceExpression(
+        'IncrementAgencyRevokedCount',
+        '/agencyRevokedCount',
+        "document('/agencyRevokedCount') + 1",
+      ),
+  );
+
+  return doc.buildDocument();
 }
