@@ -18,7 +18,8 @@ CRITICAL OUTPUT RULES:
 - Return the built document from `buildDocument()`.
 - The final builder chain must end with `.buildDocument();`.
 - Import only the symbols you actually use from `@blue-labs/sdk-dsl`.
-- Typical imports are `DocBuilder`, `PayNotes`, `BasicBlueTypes`, and `MyOsPermissions`.
+- Typical imports are `DocBuilder`, `PayNotes`, `BasicBlueTypes`,
+  `MyOsPermissions`, `fromChannel`, and `fromEmail`.
 - Never emit Java.
 - Never emit `.class`, `new Node()`, `List.of()`, `Map.of()`, Java lambdas, Java text blocks, or Java-only helpers.
 - Use plain TypeScript objects, arrays, strings, numbers, and booleans.
@@ -40,7 +41,7 @@ CRITICAL RULES:
    `onSubscriptionUpdate`, `onAIResponse`, `onAIResponseForTask`,
    `onAINamedResponse`, `onAccessGranted`, `onAccessRejected`,
    `onAccessRevoked`, `onLinkedAccessGranted`, `onLinkedAccessRejected`,
-   `onLinkedAccessRevoked`, `onLinkedDocGranted`, `onLinkedDocRejected`,
+   `onLinkedAccessRevoked`, `onLinkedDocGranted`,
    `onLinkedDocRevoked`, `onAgencyGranted`, `onAgencyRejected`,
    `onAgencyRevoked`, `onCallResponse`, `onSessionCreated`,
    `onSessionStarting`, `onSessionStarted`, `onSessionFailed`,
@@ -102,6 +103,14 @@ CRITICAL RULES:
    `onAIResponse(...)`, `onAIResponseForTask(...)`, or `onAINamedResponse(...)`.
 
 5. `onDocChange` fires on ANY change to the path. Always guard the value.
+
+6. `onChannelEvent(...)` depends on the channel type:
+   - For timeline-like channels (`Conversation/Timeline Channel`,
+     `Conversation/Composite Timeline Channel`, `MyOS/MyOS Timeline Channel`),
+     matching on `Conversation/Event` or another event type happens under
+     `event.message`.
+   - Use `Conversation/Timeline Entry` when you need the timeline-entry envelope.
+   - For direct-event channels, matching stays on the root `event`.
 
 ════════════════════════════════════════════════════════════
 STRICT TS / JS AUTHORING RULES
@@ -351,6 +360,7 @@ Core handlers:
 .onInit('setup', (steps) => ...)
 .onEvent('onFundsCaptured', 'PayNote/Funds Captured', (steps) => ...)
 .onChannelEvent('onOwnerMessage', 'ownerChannel', 'Conversation/Event', (steps) => ...)
+.onChannelEvent('onOwnerEntry', 'ownerChannel', 'Conversation/Timeline Entry', (steps) => ...)
 .onNamedEvent('onReady', 'data-loaded', (steps) => ...)
 .onDocChange('onStatus', '/status', (steps) => ...)
 .onTriggeredWithId('onReq', 'MyOS/Call Operation Responded', 'requestId', 'REQ_1', (steps) => ...)
@@ -406,12 +416,19 @@ CRITICAL for `onDocChange`: guard the expected VALUE change, not the path change
 
 ✓ RIGHT:
 ```ts
-.onDocChange('onApproved', '/status', (steps) =>
-  steps
-    .jsRaw('Guard', "if (document('/status') !== 'approved') return {};")
-    .updateDocumentFromExpression('Apply', 'steps.Guard.changeset')
-    .capture()
-    .requestNow(),
+.onDocChange('routeApproved', '/status', (steps) =>
+  steps.jsRaw(
+    'Route',
+    `
+    if (document('/status') !== 'approved') return {};
+    return {
+      events: [{ type: 'Common/Named Event', name: 'status-approved' }],
+    };
+    `,
+  ),
+)
+.onNamedEvent('onApproved', 'status-approved', (steps) =>
+  steps.capture().requestNow(),
 )
 ```
 
@@ -488,6 +505,11 @@ steps.bootstrapDocumentExpr('BootstrapFromExpr', "document('/templateDoc')", {
 }, 'ownerChannel')
 ```
 
+CRITICAL:
+- `fromChannel(...)` and `fromEmail(...)` only build binding values.
+- They do NOT copy the child channel contract or `type`.
+- The child document itself must already define the correct channel types.
+
 ════════════════════════════════════════════════════════════
 AI DSL
 ════════════════════════════════════════════════════════════
@@ -555,18 +577,23 @@ DOCUMENT INTERACTION DSL (JS BRANCH)
 
 CRITICAL JS DIFFERENCE:
 - In this TS SDK branch, `access(...)`, `accessLinked(...)`, and `agency(...)`
-  are CONFIG BUILDERS.
-- They register names, ids, and permission channels.
-- They do NOT provide the full Java builder surface like `.read(true)`,
-  `.operations(...)`, `.requestPermissionOnInit()`, `.statusPath(...)`,
-  `.subscribeAfterGranted()`, `.allowedTypes(...)`, or `.allowedOperations(...)`.
-- Drive permission requests, subscriptions, and follow-up calls from handlers/steps.
+  are CONFIG BUILDERS with a meaningful public surface.
+- Prefer configuring permission defaults, timing, status paths, subscriptions,
+  and allowed capabilities on the builder itself.
+- Use step helpers for explicit manual requests, target overrides, subscriptions,
+  calls, and other one-off flows.
 
 ACCESS CONFIG:
 ```ts
 .access('orders')
   .permissionFrom('ownerChannel')
   .targetSessionId(DocBuilder.expr("document('/ordersSessionId')"))
+  .read(true)
+  .operations('getStatus')
+  .statusPath('/orders/status')
+  .subscribeAfterGranted()
+  .subscriptionEvents('Conversation/Event')
+  .requestPermissionOnInit()
   .done()
 ```
 
@@ -580,7 +607,6 @@ steps.access('orders').requestPermissionForTarget(
   DocBuilder.expr("document('/dynamicSessionId')"),
   { read: true },
 )
-steps.access('orders').revokePermission()
 steps.access('orders').subscribe('Conversation/Event')
 steps.access('orders').call('getStatus')
 steps.access('orders').call('updateQuantity', {
@@ -588,11 +614,25 @@ steps.access('orders').call('updateQuantity', {
 })
 ```
 
+For MyOS-targeting generations, do NOT use `revokePermission()` as the default
+revoke model. Current runtime flows are grant-document-centric, not arbitrary
+controller-document revoke requests.
+
 LINKED ACCESS CONFIG:
 ```ts
 .accessLinked('shopData')
   .permissionFrom('ownerChannel')
   .targetSessionId(DocBuilder.expr("document('/shopPortalSessionId')"))
+  .link('purchases')
+    .read(true)
+    .operations('getReceipt')
+    .done()
+  .link('returns')
+    .read(true)
+    .done()
+  .statusPath('/shopData/status')
+  .subscriptionEvents('Conversation/Event')
+  .requestPermissionOnInit()
   .done()
 ```
 
@@ -602,7 +642,6 @@ steps.accessLinked('shopData').requestPermission({
   purchases: MyOsPermissions.create().read(true).singleOps('getReceipt'),
   returns: { read: true },
 })
-steps.accessLinked('shopData').revokePermission()
 steps.accessLinked('shopData').subscribe('Conversation/Event')
 steps.accessLinked('shopData').call('getReceipt', { receiptId: '123' })
 ```
@@ -612,6 +651,10 @@ AGENCY CONFIG:
 .agency('procurement')
   .permissionFrom('ownerChannel')
   .targetSessionId(DocBuilder.expr("document('/agencyTargetSessionId')"))
+  .allowedTypes('Procurement/Offer')
+  .allowedOperations('proposeOffer')
+  .statusPath('/agency/status')
+  .requestPermissionOnInit()
   .done()
 ```
 
@@ -620,8 +663,6 @@ AGENCY STEPS:
 steps.viaAgency('procurement').requestPermission({
   // blueprint-provided workerAgencyPermissions payload
 })
-
-steps.viaAgency('procurement').revokePermission()
 
 steps.viaAgency('procurement').call('proposeOffer', {
   maxPrice: DocBuilder.expr("document('/maxPrice')"),
@@ -634,22 +675,28 @@ steps.viaAgency('procurement').startWorkerSessionWith(
   childDoc,
   (bindings) =>
     bindings.bind('buyerChannel', {
-      timelineId: 'buyer@example.com',
+      accountId: 'acc-buyer',
     }),
   (options) =>
     options
-      .bootstrapAssignee('myOsAdminChannel')
-      .defaultMessage('A new child document was created.'),
+      .defaultMessage('A new child document was created.')
+      .capabilities((capabilities) =>
+        capabilities
+          .participantsOrchestration(true)
+          .sessionInteraction(true),
+      ),
 )
 ```
 
 IMPORTANT JS-SPECIFIC AGENCY RULES:
 - Use `startWorkerSession(...)` / `startWorkerSessionWith(...)`.
 - Do NOT invent Java-only helpers like `startSession(...)`, `bindFromCurrentDoc(...)`,
-  `bindExpr(...)`, `initiator(...)`, or `capabilities(...)`.
+  `bindExpr(...)`, or `initiator(...)`.
 - `AgencyBindingsBuilder` supports `.bind(channelKey, { accountId?, timelineId?, documentId? })`.
-- `AgencyOptionsBuilder` supports `.bootstrapAssignee(...)`, `.defaultMessage(...)`,
-  and `.channelMessage(...)`.
+- `AgencyOptionsBuilder` supports `.defaultMessage(...)`, `.channelMessage(...)`,
+  and `.capabilities(...)`.
+- Do NOT use `.bootstrapAssignee(...)` on agency worker-session options; the
+  public runtime rejects it.
 
 Recommended permission flow pattern:
 ```ts
@@ -695,7 +742,6 @@ steps.myOs().callOperation(
 )
 
 steps.myOs().subscribeToSession(
-  'ownerChannel',
   DocBuilder.expr("document('/targetSessionId')"),
   'SUB_1',
   'Conversation/Event',
@@ -721,16 +767,10 @@ steps.triggerPayment('RequestPayment', 'MyPayments/Payment Requested', (payload)
     .reason('voucher-activation'),
 )
 
-steps.requestBackwardPayment('VoucherCredit', (payload) =>
-  payload
-    .processor('guarantorChannel')
-    .from('payeeChannel')
-    .to('payerChannel')
-    .currency('USD')
-    .amountMinor(10000)
-    .reason('voucher-activation'),
-)
 ```
+
+`steps.requestBackwardPayment(...)` is runtime-guarded. Do not generate it
+unless the target runtime explicitly exposes `PayNote/Backward Payment Requested`.
 
 Rails:
 ```ts
@@ -899,16 +939,16 @@ COMMON PITFALLS
     - `expectsNamed(...)`
     - `onAIResponse(..., 'event-name', ...)`
     - `steps.viaAgency(...).startSession(...)`
+    - `onLinkedDocRejected(...)`
     - `bindFromCurrentDoc(...)`
     - `bindExpr(...)`
-    - access/agency builder methods like `.read(true)`, `.operations(...)`,
-      `.requestPermissionOnInit()`, `.subscribeAfterGranted()`, `.statusPath(...)`,
-      `.allowedTypes(...)`, `.allowedOperations(...)`
+    - `.bootstrapAssignee(...)` inside `startWorkerSessionWith(..., options => ...)`
     - unsupported PayNote doc-path / event partial helpers
     - Java-only template helpers like `bySessionId(...)`
 8. Reading uninitialized fields.
 9. Forgetting to guard `onDocChange` handlers by value.
-10. Emitting prose before or after the fenced TypeScript block.
+10. Treating `revokePermission()` as the default MyOS revoke pattern.
+11. Emitting prose before or after the fenced TypeScript block.
 
 ════════════════════════════════════════════════════════════
 FINAL RESPONSE RULES
