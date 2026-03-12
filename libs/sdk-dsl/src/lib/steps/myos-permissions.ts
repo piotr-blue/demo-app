@@ -5,23 +5,7 @@ function cloneObject(value: JsonObject): JsonObject {
 }
 
 export function normalizeMyOsPermissionObject(value: JsonObject): JsonObject {
-  const cloned = cloneObject(value);
-  const normalized: JsonObject = {};
-  const hasWrite = Object.prototype.hasOwnProperty.call(cloned, 'write');
-  const hasShare = Object.prototype.hasOwnProperty.call(cloned, 'share');
-
-  for (const [key, entry] of Object.entries(cloned)) {
-    if (key === 'write') {
-      continue;
-    }
-    normalized[key] = entry;
-  }
-
-  if (!hasShare && hasWrite) {
-    normalized.share = cloned.write;
-  }
-
-  return normalized;
+  return cloneObject(value);
 }
 
 export class MyOsPermissions {
@@ -40,7 +24,7 @@ export class MyOsPermissions {
     return this;
   }
 
-  write(value: boolean): this {
+  share(value: boolean): this {
     this.shareValue = value;
     return this;
   }

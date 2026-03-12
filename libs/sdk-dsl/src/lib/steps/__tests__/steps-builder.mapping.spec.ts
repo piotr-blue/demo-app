@@ -219,11 +219,11 @@ describe('steps-builder mapping', () => {
     expect(yaml).not.toContain(`onBehalfOf`);
   });
 
-  it('maps MyOsPermissions.write(...) to runtime-correct share semantics', () => {
+  it('maps MyOsPermissions.share(...) to runtime permission semantics', () => {
     expect(
       MyOsPermissions.create()
         .read(true)
-        .write(false)
+        .share(false)
         .singleOps('one')
         .singleOps()
         .build(),

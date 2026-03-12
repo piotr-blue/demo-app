@@ -40,10 +40,11 @@ For each section state:
   and the repo now targets `@blue-repository/types` `0.21.x`.
 
 ### MyOsPermissions
-- Decision: `write(...)` now serializes to `share`, and explicit empty
-  `singleOps()` calls are preserved.
-- Why: this keeps the authoring surface close to demo-app while aligning the
-  emitted permission payload to the runtime-confirmed shape.
+- Decision: `MyOsPermissions` now uses the runtime-correct `share(...)` surface,
+  and explicit empty `singleOps()` calls are preserved.
+- Why: the MyOS permission model is `read` / `share` / `singleOps` / `allOps`;
+  keeping `write(...)` in the public helper surface would preserve an invalid
+  alias instead of the actual runtime shape.
 
 ### Start Worker Session Requested
 - Decision: emit `onBehalfOf`, `document`, `channelBindings`,

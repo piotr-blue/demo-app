@@ -154,7 +154,7 @@ describe('interaction builders mapping', () => {
             .access('counterAccess')
             .requestPermission({
               read: true,
-              write: true,
+              share: true,
             })
             .access('counterAccess')
             .subscribe(),
@@ -498,7 +498,7 @@ describe('interaction builders mapping', () => {
             .access('counterAccess')
             .requestPermissionForTarget(
               'override-access-target',
-              { read: true, write: true },
+              { read: true, share: true },
             )
             .access('counterAccess')
             .revokePermissionForTarget('override-access-target')

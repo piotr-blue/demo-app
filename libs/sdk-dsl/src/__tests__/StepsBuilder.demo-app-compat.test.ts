@@ -5,11 +5,11 @@ import {
 } from '../index.js';
 
 describe('StepsBuilder demo-app compatibility helpers', () => {
-  it('MyOsPermissions maps demo-app write(...) to runtime-correct share and preserves explicit empty singleOps', () => {
+  it('MyOsPermissions uses share(...) and preserves explicit empty singleOps', () => {
     expect(
       MyOsPermissions.create()
         .read(true)
-        .write(false)
+        .share(false)
         .allOps(true)
         .singleOps(' increment ', '', undefined, 'decrement')
         .build(),
@@ -36,7 +36,7 @@ describe('StepsBuilder demo-app compatibility helpers', () => {
         'SESSION_1',
         MyOsPermissions.create()
           .read(true)
-          .write(true)
+          .share(true)
           .singleOps('sync')
           .build(),
       )

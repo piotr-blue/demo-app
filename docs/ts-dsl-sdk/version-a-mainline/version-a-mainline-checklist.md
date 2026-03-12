@@ -3,7 +3,7 @@
 - [x] Stage 1 runtime alignment complete
 - [x] `grantSessionSubscriptionOnResult` unsupported/deferred
 - [x] `Common/Named Event` adopted
-- [x] `MyOsPermissions.write(...)` aligned to `share`
+- [x] `MyOsPermissions` aligned to runtime `share`
 - [x] worker-session envelope aligned
 - [x] linked-doc semantics corrected
 - [x] Stage 2 hardening imported from Version B

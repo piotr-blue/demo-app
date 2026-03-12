@@ -36,7 +36,7 @@ describe('access step helpers execution', () => {
             .access('counterAccess')
             .requestPermission({
               read: true,
-              write: true,
+              share: true,
             })
             .access('counterAccess')
             .subscribe(),
@@ -1236,7 +1236,7 @@ describe('access step helpers execution', () => {
             .access('counterAccess')
             .requestPermissionForTarget(
               'override-access-target',
-              { read: true, write: true },
+              { read: true, share: true },
             )
             .access('counterAccess')
             .revokePermissionForTarget('override-access-target')
