@@ -45,7 +45,8 @@ surface is considered production-ready within the current public runtime.
   `requestPartialOnOperation(...)` do not emit synthetic request schemas
 - runtime proof for these helpers is on the resolved-content
   `Conversation/Operation Request` timeline-entry path used by the real MyOS
-  flow and mirrored by sdk-dsl test support
+  flow and mirrored by sdk-dsl test support, with local request-type
+  materialization only inside that harness
 - this does not claim a broader raw-node processor contract-validation path
 
 ## Deferred / runtime-guarded items

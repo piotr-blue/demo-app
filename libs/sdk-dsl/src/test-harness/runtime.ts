@@ -9,6 +9,7 @@ import { repository } from '@blue-repository/types';
 import { blueIds as conversationBlueIds } from '@blue-repository/types/packages/conversation/blue-ids';
 import { OperationSchema } from '@blue-repository/types/packages/conversation/schemas/Operation';
 import { MarkerSchema } from '@blue-repository/types/packages/core/schemas';
+import type { JsonObject } from '../lib/core/types.js';
 
 export function createTestBlue(): Blue {
   return new Blue({
@@ -105,6 +106,9 @@ export function storedDocumentBlueId(document: BlueNode): string {
 export function resolveOperationContracts(
   document: BlueNode,
   blue: Blue,
+  options?: {
+    readonly requestTypes?: Record<string, string | JsonObject>;
+  },
 ): BlueNode {
   const contracts = document.getContracts();
   if (!contracts) {
@@ -116,6 +120,7 @@ export function resolveOperationContracts(
 
   for (const [key, contract] of Object.entries(contracts)) {
     const cloned = contract.clone();
+    let nextContract = cloned;
 
     if (
       !(cloned.getProperties()?.request instanceof BlueNode) &&
@@ -125,13 +130,34 @@ export function resolveOperationContracts(
     ) {
       const resolved = blue.resolve(cloned.clone());
       if (resolved.getProperties()?.request instanceof BlueNode) {
-        nextContracts[key] = resolved;
+        nextContract = resolved;
         changed = true;
-        continue;
       }
     }
 
-    nextContracts[key] = cloned;
+    const requestTypeOverride = options?.requestTypes?.[key];
+    if (
+      requestTypeOverride !== undefined &&
+      blue.isTypeOf(nextContract, OperationSchema, {
+        checkSchemaExtensions: true,
+      })
+    ) {
+      const operationNode = nextContract.clone();
+      operationNode.setProperties({
+        ...(operationNode.getProperties() ?? {}),
+        request: blue.resolve(
+          blue.jsonValueToNode(
+            typeof requestTypeOverride === 'string'
+              ? { type: requestTypeOverride }
+              : requestTypeOverride,
+          ),
+        ),
+      });
+      nextContract = operationNode;
+      changed = true;
+    }
+
+    nextContracts[key] = nextContract;
   }
 
   if (!changed) {

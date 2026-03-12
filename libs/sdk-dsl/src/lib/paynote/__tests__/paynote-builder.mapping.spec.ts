@@ -28,13 +28,10 @@ type: PayNote/PayNote
 contracts:
   payerChannel:
     type: Conversation/Timeline Channel
-    timelineId: payer-timeline
   payeeChannel:
     type: Conversation/Timeline Channel
-    timelineId: payee-timeline
   guarantorChannel:
     type: Conversation/Timeline Channel
-    timelineId: guarantor-timeline
   initLifecycleChannel:
     type: Core/Lifecycle Event Channel
     event:

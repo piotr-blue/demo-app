@@ -254,7 +254,9 @@ For each section state:
   or `Text` request schemas on the operation contract.
 - Why: these helpers target requestless or wildcard operation semantics. The
   runtime proof is the resolved-content MyOS-style operation request path in
-  sdk-dsl test support, not a broader raw-node processor-schema claim.
+  sdk-dsl test support, with local request-type materialization used only to
+  satisfy the raw processor matcher. It is not a broader raw-node
+  processor-schema claim.
 
 ### Package status docs refresh
 - Decision: replace stale package-level status docs with final runtime-correct

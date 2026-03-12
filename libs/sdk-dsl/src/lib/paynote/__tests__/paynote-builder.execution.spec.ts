@@ -10,12 +10,28 @@ import {
 import { toOfficialJson } from '../../core/serialization.js';
 import { PayNotes } from '../paynotes.js';
 
+function withRuntimeChannels(builder: ReturnType<typeof PayNotes.payNote>) {
+  return builder
+    .channel('payerChannel', {
+      type: 'Conversation/Timeline Channel',
+      timelineId: 'payer-timeline',
+    })
+    .channel('payeeChannel', {
+      type: 'Conversation/Timeline Channel',
+      timelineId: 'payee-timeline',
+    })
+    .channel('guarantorChannel', {
+      type: 'Conversation/Timeline Channel',
+      timelineId: 'guarantor-timeline',
+    });
+}
+
 describe('paynote execution', () => {
   it('emits capture lock request on initialization', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     // prettier-ignore
-    const payNote = PayNotes.payNote('Init Capture')
+    const payNote = withRuntimeChannels(PayNotes.payNote('Init Capture'))
       .currency('USD')
       .amountMinor(5000)
       .capture()
@@ -36,11 +52,11 @@ describe('paynote execution', () => {
     );
   });
 
-  it('emits reserve requested event from requestless operation flow on the resolved-content path', async () => {
+  it('emits reserve requested event from requestless operation flow on the resolved-content path in test support', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     // prettier-ignore
-    const payNote = PayNotes.payNote('Reserve Flow')
+    const payNote = withRuntimeChannels(PayNotes.payNote('Reserve Flow'))
       .currency('USD')
       .amountMinor(2000)
       .reserve()
@@ -52,7 +68,11 @@ describe('paynote execution', () => {
       processor.initializeDocument(payNote),
       'reserve paynote initialization failed',
     );
-    const runtimeDocument = resolveOperationContracts(initialized.document, blue);
+    const runtimeDocument = resolveOperationContracts(initialized.document, blue, {
+      requestTypes: {
+        requestReserve: 'Boolean',
+      },
+    });
     const documentBlueId = storedDocumentBlueId(runtimeDocument);
     const request = operationRequestEvent(blue, {
       operation: 'requestReserve',
@@ -72,11 +92,11 @@ describe('paynote execution', () => {
     expect(eventTypes).toContain('PayNote/Reserve Funds Requested');
   });
 
-  it('emits capture unlock and partial capture events from requestless and wildcard operation flows on the resolved-content path', async () => {
+  it('emits capture unlock and partial capture events from requestless and wildcard operation flows on the resolved-content path in test support', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     // prettier-ignore
-    const payNote = PayNotes.payNote('Advanced Runtime')
+    const payNote = withRuntimeChannels(PayNotes.payNote('Advanced Runtime'))
       .currency('USD')
       .amountMinor(2200)
       .capture()
@@ -94,7 +114,12 @@ describe('paynote execution', () => {
       processor.initializeDocument(payNote),
       'advanced paynote initialization failed',
     );
-    const runtimeDocument = resolveOperationContracts(initialized.document, blue);
+    const runtimeDocument = resolveOperationContracts(initialized.document, blue, {
+      requestTypes: {
+        unlockCapture: 'Boolean',
+        capturePartial: 'Text',
+      },
+    });
     const documentBlueId = storedDocumentBlueId(runtimeDocument);
 
     const unlockResponse = await expectSuccess(
@@ -143,7 +168,7 @@ describe('paynote execution', () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     // prettier-ignore
-    const payNote = PayNotes.payNote('Release Init Runtime')
+    const payNote = withRuntimeChannels(PayNotes.payNote('Release Init Runtime'))
       .currency('USD')
       .amountMinor(1700)
       .release()
@@ -164,11 +189,11 @@ describe('paynote execution', () => {
     );
   });
 
-  it('emits capture request and release partial flows for requestless and wildcard operation helpers on the resolved-content path', async () => {
+  it('emits capture request and release partial flows for requestless and wildcard operation helpers on the resolved-content path in test support', async () => {
     const blue = createTestBlue();
     const processor = createTestDocumentProcessor(blue);
     // prettier-ignore
-    const payNote = PayNotes.payNote('Release Advanced Runtime')
+    const payNote = withRuntimeChannels(PayNotes.payNote('Release Advanced Runtime'))
       .currency('USD')
       .amountMinor(4100)
       .capture()
@@ -197,7 +222,13 @@ describe('paynote execution', () => {
       processor.initializeDocument(payNote),
       'advanced release paynote initialization failed',
     );
-    const runtimeDocument = resolveOperationContracts(initialized.document, blue);
+    const runtimeDocument = resolveOperationContracts(initialized.document, blue, {
+      requestTypes: {
+        requestCapture: 'Boolean',
+        requestRelease: 'Boolean',
+        requestPartialRelease: 'Text',
+      },
+    });
     const documentBlueId = storedDocumentBlueId(runtimeDocument);
     const captureResponse = await expectSuccess(
       processor.processDocument(
