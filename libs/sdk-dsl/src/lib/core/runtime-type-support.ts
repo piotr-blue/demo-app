@@ -36,7 +36,7 @@ function buildSupportedTypeAliasSet(): ReadonlySet<string> {
 const SUPPORTED_TYPE_ALIASES = buildSupportedTypeAliasSet();
 
 export const RuntimeEventTypes = {
-  NamedEvent: 'Conversation/Event',
+  NamedEvent: 'Common/Named Event',
 } as const;
 
 export function isRepositoryTypeAliasAvailable(typeAlias: string): boolean {

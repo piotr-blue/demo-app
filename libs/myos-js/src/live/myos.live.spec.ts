@@ -1,8 +1,9 @@
-import { DocBuilder } from '@blue-labs/sdk-dsl';
+import { BasicBlueTypes, DocBuilder } from '@blue-labs/sdk-dsl';
 import { expect } from 'vitest';
 import { describeLive, itLive } from '../test-harness/live-mode.js';
 import { getCoreLiveGate } from '../test-harness/live-env.js';
 import { MyOsClient } from '../lib/client.js';
+import { defaultBootstrapBinding } from './helpers/index.js';
 
 const gate = getCoreLiveGate();
 
@@ -37,7 +38,7 @@ describeLive('myos-js live integration', gate, () => {
         .operation(
           'increment',
           'ownerChannel',
-          Number,
+          BasicBlueTypes.Integer,
           'Increment counter',
           (steps) =>
             steps.replaceExpression(
@@ -49,7 +50,7 @@ describeLive('myos-js live integration', gate, () => {
         .buildDocument();
 
       const bootstrap = await client.documents.bootstrap(document, {
-        ownerChannel: { email: gate.env.bootstrapEmail! },
+        ownerChannel: defaultBootstrapBinding(gate.env),
       });
       const sessionId = readString(
         (bootstrap as Record<string, unknown>).sessionId,
@@ -101,8 +102,8 @@ describeLive('myos-js live integration', gate, () => {
         .buildDocument();
 
       const bootstrap = await client.documents.bootstrap(document, {
-        ownerChannel: { email: gate.env.bootstrapEmail! },
-        reviewerChannel: { email: gate.env.bootstrapEmail! },
+        ownerChannel: defaultBootstrapBinding(gate.env),
+        reviewerChannel: defaultBootstrapBinding(gate.env),
       });
 
       const bootstrappedDoc = (bootstrap as Record<string, unknown>)
@@ -191,7 +192,7 @@ describeLive('myos-js live integration', gate, () => {
         .buildDocument();
 
       const bootstrap = await client.documents.bootstrap(document, {
-        ownerChannel: { email: gate.env.bootstrapEmail! },
+        ownerChannel: defaultBootstrapBinding(gate.env),
       });
       const sessionId = readString(
         (bootstrap as Record<string, unknown>).sessionId,
@@ -229,7 +230,7 @@ describeLive('myos-js live integration', gate, () => {
       .buildDocument();
 
     const bootstrap = await client.documents.bootstrap(document, {
-      ownerChannel: { email: gate.env.bootstrapEmail! },
+      ownerChannel: defaultBootstrapBinding(gate.env),
     });
     const sessionId = readString(
       (bootstrap as Record<string, unknown>).sessionId,

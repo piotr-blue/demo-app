@@ -108,7 +108,7 @@ describe('ai integration execution', () => {
               (payload) => {
                 payload.put('subscriptionId', 'SUB_PROVIDER');
                 payload.put('update', {
-                  type: 'Conversation/Event',
+                  type: 'Common/Named Event',
                   name: 'summary-ready',
                   context: {
                     message: 'mismatched',
@@ -155,7 +155,7 @@ describe('ai integration execution', () => {
               (payload) => {
                 payload.put('subscriptionId', 'SUB_PROVIDER');
                 payload.put('update', {
-                  type: 'Conversation/Event',
+                  type: 'Common/Named Event',
                   name: 'summary-ready',
                   context: {
                     message: 'matching',

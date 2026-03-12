@@ -6,6 +6,7 @@ This document is the full narrative companion to the live story suite introduced
 - `libs/myos-js/src/live/stories/session-interaction.live.spec.ts`
 - `libs/myos-js/src/live/stories/links-and-participants.live.spec.ts`
 - `libs/myos-js/src/live/stories/bootstrap-and-payments.live.spec.ts`
+- `libs/myos-js/src/live/stories/advanced-control.live.spec.ts`
 
 It explains, story by story:
 
@@ -144,18 +145,21 @@ Validates DSL `directChange(...)` contract generation and runtime application of
    - `changeDocument`
    - `changeDocumentImpl`
    - `contractsPolicy`
-3. mutation assertion is runtime-gated in spec (known blocker).
+3. run `changeDocument` with a runtime-correct `Conversation/Change Request`
+   payload including `summary` and typed `Core/Json Patch Entry` changeset
+   items,
+4. wait for `/text = "Updated text"`.
 
 ### MyOS run result
 
-⚠️ **Blocked** (structure works, mutation does not).
+✅ **Implemented**
 
 ### What happened on MyOS
 
-- Operation requests are accepted and visible in feed entries.
-- `/text` does not change from `"Initial"` after running `changeDocument`.
-- Both payload variants were tested (with and without explicit request `type`).
-- Tracked in `libs/myos-js/issues.md` (Story 2 blocker).
+- Direct change mutates the document when the request payload is fully typed for
+  the current runtime path.
+- The working live payload includes top-level `summary` plus
+  `type: Core/Json Patch Entry` on each changeset entry.
 
 ---
 
@@ -174,7 +178,7 @@ Tests event emission/listening with both:
   - constructs:
     - `canEmit('ownerChannel')` (JS mapping produces `ownerUpdate`)
     - `onNamedEvent('shipment-confirmed', ...)`
-    - `onTriggeredWithMatcher('Conversation/Event', {name: ...}, ...)`
+    - `onTriggeredWithMatcher('Common/Named Event', {name: ...}, ...)`
     - field updates via `replaceValue` and `replaceExpression`
 
 ### How the test works
@@ -234,7 +238,7 @@ Verifies a second timeline channel can trigger workflow logic from real timeline
 
 1. bootstrap with two bindings,
 2. resolve `signalChannel` timeline ID,
-3. create timeline entry with message `{ type: 'Conversation/Event', name: 'shipment-confirmed' }`,
+3. create timeline entry with message `{ type: 'Common/Named Event', name: 'shipment-confirmed' }`,
 4. assert `/shipmentConfirmed == true`,
 5. assert `/shipmentSource == 'shipment-confirmed'`.
 
@@ -272,23 +276,20 @@ Cross-session orchestration:
 
 1. bootstrap source and validate source operation path (`increment`),
 2. run source increment once (this portion remains always active),
-3. if enabled via `MYOS_ENABLE_STORY_6=true`, bootstrap mirror agent and assert:
+3. bootstrap mirror agent and assert:
    - source counter advanced by remote call,
    - mirror `/mirroredCounter` and `/subscriptionState` update.
 
 ### MyOS run result
 
-⚠️ **Partially worked / blocked**.
-
-- Source-document path works.
-- Mirror orchestration assertions are runtime-gated by default.
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Permission grant side-document appears,
-- mirror agent remains idle in observed runs,
-- remote increment from mirror did not materialize.
-- Tracked in issues as Story 6 blocker.
+- Permission grant correlates by `inResponseTo.requestId`,
+- subscription initiation arrives as a direct event,
+- epoch changes are delivered through `MyOS/Subscription Update`,
+- mirror agent runs remote `increment(2)` and stores `/mirroredCounter=3`.
 
 ---
 
@@ -315,20 +316,17 @@ Agent should capture initial and advanced snapshots from subscription update eve
 ### How the test works
 
 1. bootstrap source profile and verify source operation path (`updateScore` to 9),
-2. if enabled via `MYOS_ENABLE_STORY_7=true`, bootstrap watcher and assert snapshot fields update.
+2. bootstrap watcher and assert snapshot fields update.
 
 ### MyOS run result
 
-⚠️ **Partially worked / blocked**.
-
-- Source profile update works.
-- Watcher snapshot assertions are runtime-gated by default.
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Watcher bootstraps successfully,
-- snapshot fields do not move as expected in observed runs.
-- Tracked in issues as Story 7 blocker.
+- Permission grant correlates by `inResponseTo.requestId`,
+- initiated subscription snapshot stores the already-updated source profile,
+- later epoch updates keep watcher `/snapshot/*` and `/lastEpoch` in sync.
 
 ---
 
@@ -352,22 +350,21 @@ Proves filtered subscription support using the new DSL helper with multiple subs
 ### How the test works
 
 1. bootstrap source and verify source operation path (`emitPatternedEvents`, `/emitted` increment),
-2. if enabled via `MYOS_ENABLE_STORY_8=true`, bootstrap subscriber and assert:
+2. bootstrap subscriber and assert:
    - both subscriptions initiate,
    - per-filter counters and topics update.
 
 ### MyOS run result
 
-⚠️ **Partially worked / blocked**.
-
-- Source emission path works.
-- Subscriber filtered-update assertions are runtime-gated by default.
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Subscriber session boots,
-- expected counter/topic updates are not observed in this environment.
-- Tracked in issues as Story 8 blocker.
+- Permission grant correlates by `inResponseTo.requestId`,
+- subscription readiness is driven by direct
+  `MyOS/Subscription to Session Initiated`,
+- filtered request/event matches arrive as `MyOS/Subscription Update`,
+- subscriber counters and stored topics advance on the nested update payload.
 
 ---
 
@@ -412,6 +409,7 @@ Watcher agent requests linked-doc permissions and should track grants, including
    - matcher-based handlers for:
      - `MyOS/Linked Documents Permission Granted`
      - fallback `MyOS/Single Document Permission Granted`
+   - correlates responses via `event.inResponseTo.requestId`
    - increments `/grantSeenCount`
    - stores `/lastGrantedTargetSessionId`
 
@@ -419,22 +417,24 @@ Watcher agent requests linked-doc permissions and should track grants, including
 
 1. bootstrap base + seed link,
 2. bootstrap watcher agent,
-3. assert initial grant presence from watcher feed,
+3. assert the initial linked-doc permission grant via the watcher's latest
+   emitted event snapshot,
 4. bootstrap later linked doc,
-5. if enabled via `MYOS_ENABLE_STORY_10=true`, assert grant signal increases and target session ID updates.
+5. wait for a new correlated emitted grant event after the pre-link epoch
+   boundary,
+6. assert `/grantSeenCount` increases and `/lastGrantedTargetSessionId`
+   changes to the later linked session.
 
 ### MyOS run result
 
-⚠️ **Partially worked / blocked**.
-
-- Initial grant events are visible.
-- Incremental “later linked doc” propagation is runtime-gated by default.
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Initial grant batch reaches watcher feed.
-- Later linked docs do not consistently produce incremental watcher updates.
-- Tracked in issues as Story 10 blocker.
+- The watcher receives the initial correlated linked-doc grant.
+- Later linked docs also produce a new correlated grant event.
+- The reliable assertion surface is the latest epoch `emitted` snapshot, not
+  feed entries.
 
 ---
 
@@ -511,13 +511,14 @@ Parent agent requests child bootstrap and tracks child session lifecycle.
 2. `buildParentVoucherOrchestratorDocument`
    - agent + `sessionInteraction`
    - operation `issueVoucher` using `steps.myOs().bootstrapDocument(...)`
+     with explicit `onBehalfOf: ownerChannel`
    - reacts to `MyOS/Target Document Session Started`
+     matched by `inResponseTo.requestId`
+   - stores `/childSessionId` from `event.initiatorSessionIds[0]`
    - tracks `/childSessionId` and `/childStatus`
    - includes section metadata
 
 ### How the test works
-
-If enabled via `MYOS_ENABLE_STORY_13=true`:
 
 1. bootstrap parent,
 2. run `issueVoucher`,
@@ -527,12 +528,16 @@ If enabled via `MYOS_ENABLE_STORY_13=true`:
 
 ### MyOS run result
 
-❌ **Blocked** (gated by default).
+✅ **Implemented**
 
 ### What happened on MyOS
 
-- Parent/child flow hits runtime validation (`400`) in this environment for child-bootstrap request.
-- Tracked in issues as Story 13 blocker.
+- Parent emits `Conversation/Document Bootstrap Requested` with explicit
+  `onBehalfOf` and correlated `requestId`.
+- Parent workflow listens for `MyOS/Target Document Session Started` with
+  matching `inResponseTo.requestId`.
+- Child session id is read from `initiatorSessionIds[0]`, then the child
+  voucher document is retrieved and redeemed in the live test.
 
 ---
 
@@ -559,22 +564,26 @@ PayNote capture controls:
 
 ### How the test works
 
-If enabled via `MYOS_ENABLE_STORY_14=true`:
-
 1. bootstrap paynote,
 2. assert section structure,
-3. verify lock-request event visibility,
-4. run `confirmShipment`, assert status updates + unlock event visibility,
-5. run `requestCapture`, assert capture request visibility.
+3. wait for the initial emitted `PayNote/Card Transaction Capture Lock Requested`,
+4. run `confirmShipment`, assert:
+   - `/shipment/status == 'confirmed'`,
+   - a new emitted `PayNote/Card Transaction Capture Unlock Requested`
+     appears after the pre-operation epoch,
+5. run `requestCapture` and assert a new emitted
+   `PayNote/Capture Funds Requested` appears after the pre-operation epoch.
 
 ### MyOS run result
 
-❌ **Blocked** (gated by default).
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Event visibility for lock/unlock/capture did not produce reliable assertions through currently used feed/epoch surfaces.
-- Tracked in issues as Story 14 blocker.
+- The paynote flow now proves lock/unlock/capture visibility through
+  `waitForLatestEmittedEventBySchema(...)`, not the older feed-entry path.
+- Initial lock, unlock after shipment confirmation, and capture request after
+  `requestCapture` were all observed live on the emitted-event surface.
 
 ---
 
@@ -595,8 +604,6 @@ Validates rail-specific `triggerPayment` event payload composition for three pay
 
 ### How the test works
 
-If enabled via `MYOS_ENABLE_STORY_15=true`:
-
 1. bootstrap doc,
 2. run all three operations and assert `/payment/requested`,
 3. inspect emitted events and assert rail payload fields:
@@ -606,12 +613,16 @@ If enabled via `MYOS_ENABLE_STORY_15=true`:
 
 ### MyOS run result
 
-❌ **Blocked** (gated by default).
+✅ **Worked on MyOS**.
 
 ### What happened on MyOS
 
-- Operation requests are visible, but emitted payment event payloads are not consistently surfaced by feed/epoch APIs used in test assertions.
-- Tracked in issues as Story 15 blocker.
+- Emitted `PayNote/Reserve Funds Requested` events are now observed reliably
+  through schema-based emitted-event polling.
+- The live suite confirms all three rails on current runtime:
+  - ACH by `routingNumber`,
+  - credit line by `creditLineId`,
+  - ledger by `ledgerAccountTo`.
 
 ---
 
@@ -716,12 +727,37 @@ Covers first-class change-lifecycle contracts beyond direct-change:
 
 1. bootstrap document,
 2. assert lifecycle contracts are present (`propose/accept/reject` + impl),
-3. optional env-gated behavioral probe sends a propose request and watches feed emission.
+3. run `proposeChange` once and assert:
+   - `/proposedChange` is created,
+   - `/text` stays unchanged,
+4. run `acceptChange` and assert:
+   - `/text` moves to the proposed value,
+   - `/proposedChange` is removed,
+5. run `proposeChange` again on the same document and assert a new
+   `/proposedChange` is stored,
+6. run `rejectChange` and assert:
+   - `/proposedChange` is removed,
+   - `/text` stays at the previously accepted value.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Behavioral lifecycle execution remains env-gated pending
-dedicated runtime confirmation.
+✅ **Worked on MyOS**.
+
+### What happened on MyOS
+
+- The repository-backed `Conversation/Propose Change Workflow`,
+  `Conversation/Accept Change Workflow`, and
+  `Conversation/Reject Change Workflow` now execute successfully on the live
+  runtime path.
+- The successful path is proved by document-state mutations on one document,
+  not by emitted `Conversation/*` events:
+  - first `proposeChange` stores `/proposedChange`,
+  - `acceptChange` applies `/text` and removes `/proposedChange`,
+  - second `proposeChange` stores a fresh `/proposedChange`,
+  - `rejectChange` removes `/proposedChange` while leaving `/text` at the
+    accepted value.
+- The earlier runtime blocker was the repository workflow handling of unset
+  `postfix`; that path is now fixed.
 
 ---
 
@@ -751,12 +787,13 @@ Adds full permission lifecycle surface for an agent:
 1. bootstrap source and linked graph docs,
 2. bootstrap lifecycle agent,
 3. assert lifecycle operations/contracts are present,
-4. optional env-gated behavioral path runs request/revoke operations and waits for counter updates.
+4. optional behavioral path runs request/revoke operations and waits for counter updates.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. End-to-end revoke/grant behavior remains env-gated for
-runtime confirmation.
+⚠️ **Grant request path is partially proven**. The revoke half of this story is
+currently modeled incorrectly: revoke should execute on the permission-grant
+document, not as a direct request from the controller agent document.
 
 ---
 
@@ -770,19 +807,20 @@ roundtrips.
 ### DSL docs used
 
 - Reuses `buildPermissionLifecycleAgentDocument`:
-  - single-doc permission request uses `grantSessionSubscriptionOnResult`,
+  - single-doc permission request stays runtime-correct and uses an explicit subscribe step,
   - subscription initiation events increment `/subscriptionInitiatedCount`.
 
 ### How the test works
 
 1. run single grant + revoke flow,
 2. request single grant again,
-3. verify subscription initiation count grows beyond initial value (env-gated).
+3. verify subscription initiation count grows beyond initial value.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Runtime subscription revoke/re-init behavior remains
-env-gated for confirmation.
+⚠️ **Blocked by Story 20's revoke model**. The re-init assertion only becomes
+meaningful after the story is rewritten around revoke on the actual permission
+grant document.
 
 ---
 
@@ -828,7 +866,7 @@ Adds API-level coverage for timeline permission management on a document channel
 ### How the test works
 
 1. bootstrap doc and extract `ownerChannel` timeline id,
-2. optional env-gated API flow:
+2. API flow:
    - create permission,
    - list permissions,
    - retrieve permission,
@@ -836,8 +874,7 @@ Adds API-level coverage for timeline permission management on a document channel
 
 ### MyOS run result
 
-⚠️ **Structure + extraction proven**. Full permission CRUD run is env-gated and
-requires accountId-backed configuration.
+✅ **Worked on MyOS** with an accountId-backed environment.
 
 ---
 
@@ -857,15 +894,14 @@ Verifies document processing lifecycle controls:
 ### How the test works
 
 1. bootstrap doc and assert operation contracts,
-2. optional env-gated behavior path:
+2. behavior path:
    - run `tick`,
    - stop processing and wait for paused status,
    - resume processing and wait for active status.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Full stop/resume behavior path currently runs behind
-story gate.
+✅ **Worked on MyOS**.
 
 ---
 
@@ -883,15 +919,15 @@ capture assistance when event visibility diverges.
 ### How the test works
 
 1. bootstrap doc,
-2. optional env-gated behavior path:
+2. behavior path:
    - stop + resume to trigger lifecycle events,
    - list MyOS events and inspect lifecycle event types,
    - fallback to `captureDebugState(sessionId)` evidence snapshot.
 
 ### MyOS run result
 
-⚠️ **Story wired and observable helpers integrated**; behavioral event
-observability remains env-gated pending dedicated live verification.
+✅ **Worked on MyOS**. The story still keeps debug-state capture as a regression
+fallback if event visibility diverges again.
 
 ---
 
@@ -919,8 +955,9 @@ Optional coverage for worker-agency marker + permission lifecycle wiring.
 
 ### MyOS run result
 
-⚠️ **Structure proven**. Worker-agency behavior remains optional and env-gated
-pending runtime/type stability confirmation.
+⚠️ **Structure proven**. The revoke half currently assumes the wrong runtime
+model: worker-agency revoke should execute on the grant document rather than as
+a direct request from the controller document.
 
 ---
 
@@ -928,15 +965,11 @@ pending runtime/type stability confirmation.
 
 ### Fully validated on live MyOS (current environment)
 
-- Stories: **0, 1, 3, 4, 5, 9, 11, 12, 17, 18**
-
-### Partially validated (core path works, deeper orchestration gated)
-
-- Stories: **6, 7, 8, 10, 19, 20, 21, 23, 24, 25, 26**
+- Stories: **0-15, 17-19, 23-25**
 
 ### Blocked/gated by runtime constraints
 
-- Stories: **2, 13, 14, 15, 16**
+- Stories: **16, 20-21, 26**
 
 ### Structure-proven mapping coverage
 
@@ -946,27 +979,16 @@ pending runtime/type stability confirmation.
 
 ## How to run and interpret
 
-### Default run (safe, blocker-aware)
+### Default run
 
-The stories are runnable as written with gates active for known runtime blockers.
+The stories are runnable as written when the core live environment is present.
 
 ### Force running gated stories
 
-To explicitly attempt blocked subflows while investigating runtime fixes, set:
+To explicitly attempt still-gated subflows while investigating runtime fixes, set:
 
-- `MYOS_ENABLE_STORY_6=true`
-- `MYOS_ENABLE_STORY_7=true`
-- `MYOS_ENABLE_STORY_8=true`
-- `MYOS_ENABLE_STORY_10=true`
-- `MYOS_ENABLE_STORY_13=true`
-- `MYOS_ENABLE_STORY_14=true`
-- `MYOS_ENABLE_STORY_15=true`
-- `MYOS_ENABLE_STORY_19=true`
 - `MYOS_ENABLE_STORY_20=true`
 - `MYOS_ENABLE_STORY_21=true`
-- `MYOS_ENABLE_STORY_23=true`
-- `MYOS_ENABLE_STORY_24=true`
-- `MYOS_ENABLE_STORY_25=true`
 - `MYOS_ENABLE_STORY_26=true`
 
 Then rerun targeted story files.

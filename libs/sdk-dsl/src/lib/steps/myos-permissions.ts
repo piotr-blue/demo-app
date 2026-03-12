@@ -1,10 +1,19 @@
 import type { JsonObject } from '../core/types.js';
 
+function cloneObject(value: JsonObject): JsonObject {
+  return structuredClone(value);
+}
+
+export function normalizeMyOsPermissionObject(value: JsonObject): JsonObject {
+  return cloneObject(value);
+}
+
 export class MyOsPermissions {
   private readValue: boolean | undefined;
-  private writeValue: boolean | undefined;
+  private shareValue: boolean | undefined;
   private allOpsValue: boolean | undefined;
   private singleOpsValue: string[] = [];
+  private singleOpsSet = false;
 
   static create(): MyOsPermissions {
     return new MyOsPermissions();
@@ -15,8 +24,8 @@ export class MyOsPermissions {
     return this;
   }
 
-  write(value: boolean): this {
-    this.writeValue = value;
+  share(value: boolean): this {
+    this.shareValue = value;
     return this;
   }
 
@@ -25,8 +34,10 @@ export class MyOsPermissions {
     return this;
   }
 
-  singleOps(...operations: string[]): this {
+  singleOps(...operations: Array<string | null | undefined>): this {
+    this.singleOpsSet = true;
     this.singleOpsValue = operations
+      .filter((operation): operation is string => typeof operation === 'string')
       .map((operation) => operation.trim())
       .filter((operation) => operation.length > 0);
     return this;
@@ -37,13 +48,13 @@ export class MyOsPermissions {
     if (this.readValue !== undefined) {
       result.read = this.readValue;
     }
-    if (this.writeValue !== undefined) {
-      result.write = this.writeValue;
+    if (this.shareValue !== undefined) {
+      result.share = this.shareValue;
     }
     if (this.allOpsValue !== undefined) {
       result.allOps = this.allOpsValue;
     }
-    if (this.singleOpsValue.length > 0) {
+    if (this.singleOpsSet) {
       result.singleOps = [...this.singleOpsValue];
     }
     return result;

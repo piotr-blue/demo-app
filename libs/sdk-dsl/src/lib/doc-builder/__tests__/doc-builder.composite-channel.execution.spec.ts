@@ -61,6 +61,11 @@ describe('doc-builder composite channel execution', () => {
     description: Composite invocation recorder
     type: Conversation/Operation
     channel: compositeChannel`);
+    expect(yaml).toContain(`recordCompositeSource:
+    type: Conversation/Sequential Workflow
+    channel: compositeChannel
+    event:
+      type: Conversation/Timeline Entry`);
 
     const initialized = await expectSuccess(
       processor.initializeDocument(document),

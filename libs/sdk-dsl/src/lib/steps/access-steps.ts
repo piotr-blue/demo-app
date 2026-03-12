@@ -4,7 +4,10 @@ import type {
 } from '../interactions/types.js';
 import type { JsonObject, JsonValue } from '../core/types.js';
 import { toTypeAlias, type TypeLike } from '../core/type-alias.js';
-import { MyOsPermissions } from './myos-permissions.js';
+import {
+  MyOsPermissions,
+  normalizeMyOsPermissionObject,
+} from './myos-permissions.js';
 import type { StepsBuilder } from './steps-builder.js';
 
 function toPermissionNode(
@@ -17,9 +20,22 @@ function toPermissionNode(
     return {};
   }
   if (typeof value === 'object') {
-    return structuredClone(value as JsonObject);
+    return normalizeMyOsPermissionObject(value as JsonObject);
   }
   return value;
+}
+
+function normalizeLinkedPermissionLinks(
+  links: Record<string, JsonObject | JsonValue>,
+): JsonObject {
+  const normalized: JsonObject = {};
+  for (const [linkName, linkValue] of Object.entries(links)) {
+    normalized[linkName] =
+      typeof linkValue === 'object' && linkValue !== null
+        ? normalizeMyOsPermissionObject(linkValue as JsonObject)
+        : linkValue;
+  }
+  return normalized;
 }
 
 function resolveOnBehalfOf(
@@ -55,7 +71,6 @@ export class AccessSteps {
     stepName: string,
     targetSessionId: JsonValue,
     permissions: JsonValue | MyOsPermissions | JsonObject,
-    grantSessionSubscriptionOnResult: boolean,
   ): StepsBuilder {
     return this.parent.emitType(
       stepName,
@@ -65,29 +80,21 @@ export class AccessSteps {
         payload.put('requestId', this.config.requestId);
         payload.put('targetSessionId', targetSessionId);
         payload.put('permissions', toPermissionNode(permissions));
-        if (grantSessionSubscriptionOnResult) {
-          payload.put('grantSessionSubscriptionOnResult', true);
-        }
       },
     );
   }
 
   requestPermission(): StepsBuilder;
   requestPermission(stepName: string): StepsBuilder;
-  requestPermission(
-    permissions: JsonValue | MyOsPermissions | JsonObject,
-    grantSessionSubscriptionOnResult?: boolean,
-  ): StepsBuilder;
+  requestPermission(permissions: JsonValue | MyOsPermissions | JsonObject): StepsBuilder;
   requestPermission(
     arg1?: string | JsonValue | MyOsPermissions | JsonObject,
-    arg2?: boolean,
   ): StepsBuilder {
     if (typeof arg1 === 'string') {
       return this.emitRequestPermission(
         arg1,
         this.config.targetSessionId,
         this.defaultPermissions(),
-        this.config.subscribeToCreatedSessions,
       );
     }
     const permissions = arg1 ?? this.defaultPermissions();
@@ -98,14 +105,12 @@ export class AccessSteps {
         this.config.requestId,
         this.config.targetSessionId,
         permissions,
-        arg2 ?? this.config.subscribeToCreatedSessions,
       );
   }
 
   requestPermissionForTarget(
     targetSessionId: JsonValue,
     permissions: JsonValue | MyOsPermissions | JsonObject = { read: true },
-    grantSessionSubscriptionOnResult = false,
   ): StepsBuilder {
     return this.parent
       .myOs()
@@ -114,7 +119,6 @@ export class AccessSteps {
         this.config.requestId,
         targetSessionId,
         permissions,
-        grantSessionSubscriptionOnResult,
       );
   }
 
@@ -149,7 +153,6 @@ export class AccessSteps {
       stepName,
       'MyOS/Subscribe to Session Requested',
       (payload) => {
-        payload.put('onBehalfOf', resolveOnBehalfOf(this.config));
         payload.put('targetSessionId', this.config.targetSessionId);
         payload.put('subscription', {
           id: this.config.subscriptionId,
@@ -209,7 +212,6 @@ export class AccessSteps {
     return this.parent
       .myOs()
       .subscribeToSession(
-        resolveOnBehalfOf(this.config),
         targetSessionId,
         subscriptionId,
         ...resolvedEventTypes,
@@ -250,7 +252,7 @@ export class LinkedAccessSteps {
         payload.put('onBehalfOf', resolveLinkedOnBehalfOf(this.config));
         payload.put('requestId', this.config.requestId);
         payload.put('targetSessionId', targetSessionId);
-        payload.put('links', structuredClone(links));
+        payload.put('links', normalizeLinkedPermissionLinks(links));
       },
     );
   }
@@ -337,7 +339,6 @@ export class LinkedAccessSteps {
       stepName,
       'MyOS/Subscribe to Session Requested',
       (payload) => {
-        payload.put('onBehalfOf', resolveLinkedOnBehalfOf(this.config));
         payload.put('targetSessionId', this.config.targetSessionId);
         payload.put('subscription', {
           id: subscriptionId,
@@ -397,7 +398,6 @@ export class LinkedAccessSteps {
     return this.parent
       .myOs()
       .subscribeToSession(
-        resolveLinkedOnBehalfOf(this.config),
         targetSessionId,
         subscriptionId,
         ...resolvedEventTypes,

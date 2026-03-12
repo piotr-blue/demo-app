@@ -1,4 +1,6 @@
 import { expect } from 'vitest';
+import { Blue, type BlueNode, isJsonBlueValue } from '@blue-labs/language';
+import { repository as blueRepository } from '@blue-repository/types';
 import type { MyOsClient } from '../../lib/client.js';
 import { pollUntil, type PollOptions } from './live-polling.js';
 import {
@@ -10,8 +12,26 @@ import {
   unwrapDocumentValue,
 } from './live-debug.js';
 
+const LIVE_BLUE = new Blue({
+  repositories: [blueRepository],
+});
+
+type EventSchema = Parameters<Blue['isTypeOf']>[1];
+
 export interface DocumentPollOptions extends PollOptions {
   readonly sessionId: string;
+}
+
+export interface EventPollOptions extends PollOptions {
+  readonly afterEpoch?: number;
+}
+
+export interface EventSchemaPollOptions<TEvent extends Record<string, unknown>>
+  extends EventPollOptions {
+  readonly predicate?: (
+    event: TEvent,
+    epochSnapshot: Record<string, unknown>,
+  ) => boolean | Promise<boolean>;
 }
 
 export interface WaitForEmittedEventOptions extends PollOptions {
@@ -164,6 +184,13 @@ export async function latestEpoch(
   )) as Record<string, unknown>;
 }
 
+export async function latestEpochNumber(
+  client: MyOsClient,
+  sessionId: string,
+): Promise<number> {
+  return readEpochValue(await latestEpoch(client, sessionId), sessionId);
+}
+
 export async function listFeedEntries(
   client: MyOsClient,
   sessionId: string,
@@ -180,10 +207,122 @@ export async function latestEmittedEvents(
   client: MyOsClient,
   sessionId: string,
 ): Promise<unknown[]> {
-  const items = await listFeedEntries(client, sessionId);
-  return items
-    .map((item) => (item as Record<string, unknown>).message)
-    .filter((value) => value !== undefined);
+  const snapshot = await latestEpoch(client, sessionId);
+  return readArray(snapshot.emitted);
+}
+
+export async function waitForLatestEmittedEvent(
+  client: MyOsClient,
+  sessionId: string,
+  predicate: (
+    emittedEvents: unknown[],
+    epochSnapshot: Record<string, unknown>,
+  ) => boolean | Promise<boolean>,
+  options: EventPollOptions = {},
+): Promise<Record<string, unknown>> {
+  return pollUntil(
+    async () => {
+      const snapshot = await latestEpoch(client, sessionId);
+      const epoch = readEpochValue(snapshot, sessionId);
+      if (
+        typeof options.afterEpoch === 'number' &&
+        epoch <= options.afterEpoch
+      ) {
+        return undefined;
+      }
+
+      const emittedEvents = readArray(snapshot.emitted);
+      const matched = await predicate(emittedEvents, snapshot);
+      return matched ? snapshot : undefined;
+    },
+    {
+      timeoutMs: options.timeoutMs,
+      intervalMs: options.intervalMs,
+      label:
+        options.label ??
+        `waitForLatestEmittedEvent(sessionId=${sessionId}, afterEpoch=${options.afterEpoch ?? 'any'})`,
+    },
+  );
+}
+
+export function findEmittedEventBySchema<TEvent extends Record<string, unknown>>(
+  emittedEvents: unknown[],
+  schema: EventSchema,
+  options?: {
+    readonly checkSchemaExtensions?: boolean;
+  },
+): TEvent | undefined {
+  const checkSchemaExtensions = options?.checkSchemaExtensions ?? true;
+
+  for (const rawEvent of emittedEvents) {
+    const eventNode = toBlueNode(rawEvent);
+    if (!eventNode) {
+      continue;
+    }
+    if (
+      !LIVE_BLUE.isTypeOf(eventNode, schema, {
+        checkSchemaExtensions,
+      })
+    ) {
+      continue;
+    }
+
+    const simpleJson = LIVE_BLUE.nodeToJson(eventNode, 'simple');
+    const simpleRecord = readRecord(simpleJson);
+    if (!simpleRecord) {
+      continue;
+    }
+    return simpleRecord as TEvent;
+  }
+
+  return undefined;
+}
+
+export async function waitForLatestEmittedEventBySchema<
+  TEvent extends Record<string, unknown>,
+>(
+  client: MyOsClient,
+  sessionId: string,
+  schema: EventSchema,
+  options: EventSchemaPollOptions<TEvent> = {},
+): Promise<{
+  readonly event: TEvent;
+  readonly epochSnapshot: Record<string, unknown>;
+}> {
+  return pollUntil(
+    async () => {
+      const snapshot = await latestEpoch(client, sessionId);
+      const epoch = readEpochValue(snapshot, sessionId);
+      if (
+        typeof options.afterEpoch === 'number' &&
+        epoch <= options.afterEpoch
+      ) {
+        return undefined;
+      }
+
+      const event = findEmittedEventBySchema<TEvent>(
+        readArray(snapshot.emitted),
+        schema,
+      );
+      if (!event) {
+        return undefined;
+      }
+      if (options.predicate && !(await options.predicate(event, snapshot))) {
+        return undefined;
+      }
+      return {
+        event,
+        epochSnapshot: snapshot,
+      };
+    },
+    {
+      timeoutMs: options.timeoutMs,
+      intervalMs: options.intervalMs,
+      label:
+        options.label ??
+        `waitForLatestEmittedEventBySchema(sessionId=${sessionId}, afterEpoch=${options.afterEpoch ?? 'any'})`,
+    },
+  );
 }
 
 export async function waitForEmittedEvent(
@@ -349,6 +488,28 @@ function splitPointer(pointer: string): string[] {
     .split('/')
     .slice(1)
     .map((segment) => segment.replace(/~1/gu, '/').replace(/~0/gu, '~'));
+}
+
+function readEpochValue(
+  snapshot: Record<string, unknown>,
+  sessionId: string,
+): number {
+  const epoch = readNumber(snapshot.epoch);
+  if (epoch === undefined) {
+    throw new Error(`Epoch snapshot has no numeric epoch for ${sessionId}`);
+  }
+  return epoch;
+}
+
+function toBlueNode(value: unknown): BlueNode | undefined {
+  if (!isJsonBlueValue(value)) {
+    return undefined;
+  }
+  try {
+    return LIVE_BLUE.jsonValueToNode(value);
+  } catch {
+    return undefined;
+  }
 }
 
 function findFirstStringByKey(value: unknown, key: string): string | undefined {

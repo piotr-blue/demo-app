@@ -28,10 +28,8 @@ type StepsCustomizer = (steps: {
       requestId: string,
       targetSessionId: string,
       permissions: unknown,
-      grantSessionSubscriptionOnResult?: boolean,
     ) => unknown;
     subscribeToSession: (
-      onBehalfOf: string,
       targetSessionId: string,
       subscriptionId: string,
       ...eventTypes: string[]
@@ -56,7 +54,7 @@ type DocBuilderLike = {
   onMyOsResponse(
     workflowKey: string,
     responseType: string,
-    requestId: string,
+    requestIdOrMatcher: string | Record<string, unknown>,
     customizer: StepsCustomizer,
   ): unknown;
   onSubscriptionUpdate(
@@ -147,6 +145,11 @@ export class AccessBuilder<P> {
   }
 
   subscribeToCreatedSessions(enabled = true): this {
+    if (enabled) {
+      throw new Error(
+        'access(...).subscribeToCreatedSessions(true) is not supported on the current public runtime',
+      );
+    }
     this.subscribeToCreatedSessionsValue = enabled;
     return this;
   }
@@ -232,7 +235,6 @@ export class AccessBuilder<P> {
           config.requestId,
           config.targetSessionId,
           permissions,
-          config.subscribeToCreatedSessions,
         );
     };
 
@@ -267,7 +269,6 @@ export class AccessBuilder<P> {
           steps
             .myOs()
             .subscribeToSession(
-              config.onBehalfOf,
               config.targetSessionId,
               config.subscriptionId,
               ...config.subscriptionEvents,
@@ -306,10 +307,12 @@ export class AccessBuilder<P> {
       return;
     }
 
-    parent.onSubscriptionUpdate(
+    parent.onMyOsResponse(
       `${workflowPrefix}SubscriptionReady`,
-      config.subscriptionId,
       'MyOS/Subscription to Session Initiated',
+      {
+        subscriptionId: config.subscriptionId,
+      },
       (steps) => {
         if (config.statusPath) {
           steps.replaceValue(
@@ -321,9 +324,12 @@ export class AccessBuilder<P> {
       },
     );
 
-    parent.onEvent(
+    parent.onMyOsResponse(
       `${workflowPrefix}SubscriptionFailed`,
       'MyOS/Subscription to Session Failed',
+      {
+        subscriptionId: config.subscriptionId,
+      },
       (steps) => {
         if (config.statusPath) {
           steps.replaceValue(

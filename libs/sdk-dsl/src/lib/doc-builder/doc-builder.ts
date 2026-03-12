@@ -166,6 +166,21 @@ export class DocBuilder {
     return this;
   }
 
+  contract(contractKey: string, contract: JsonObject): this {
+    this.state.setContract(
+      requireText(contractKey, 'contract key'),
+      cloneObject(contract),
+    );
+    return this;
+  }
+
+  contracts(contracts: Record<string, JsonObject>): this {
+    for (const [contractKey, contract] of Object.entries(contracts)) {
+      this.contract(contractKey, contract);
+    }
+    return this;
+  }
+
   operation(key: string): OperationBuilder<this>;
   operation(
     key: string,
@@ -313,10 +328,11 @@ export class DocBuilder {
     eventType: TypeLike,
     customizer: StepsCustomizer,
   ): this {
+    const normalizedChannelKey = requireText(channelKey, 'channel key');
     this.state.setContract(requireText(workflowKey, 'workflow key'), {
       type: 'Conversation/Sequential Workflow',
-      channel: requireText(channelKey, 'channel key'),
-      event: { type: toTypeAlias(eventType) },
+      channel: normalizedChannelKey,
+      event: this.resolveChannelEventMatcher(normalizedChannelKey, eventType),
       steps: this.buildSteps(customizer),
     });
     return this;
@@ -405,23 +421,52 @@ export class DocBuilder {
   onMyOsResponse(
     workflowKey: string,
     responseType: TypeLike,
-    requestIdOrCustomizer: string | StepsCustomizer,
+    customizer: StepsCustomizer,
+  ): this;
+  onMyOsResponse(
+    workflowKey: string,
+    responseType: TypeLike,
+    requestId: string,
+    customizer: StepsCustomizer,
+  ): this;
+  onMyOsResponse(
+    workflowKey: string,
+    responseType: TypeLike,
+    matcher: JsonObject,
+    customizer: StepsCustomizer,
+  ): this;
+  onMyOsResponse(
+    workflowKey: string,
+    responseType: TypeLike,
+    requestIdOrMatcherOrCustomizer: string | JsonObject | StepsCustomizer,
     customizerMaybe?: StepsCustomizer,
   ): this {
-    if (customizerMaybe === undefined) {
+    if (typeof requestIdOrMatcherOrCustomizer === 'function') {
       return this.onTriggeredWithMatcher(
         workflowKey,
         responseType,
         {},
-        requestIdOrCustomizer as StepsCustomizer,
+        requestIdOrMatcherOrCustomizer,
       );
     }
-    return this.onTriggeredWithId(
+    const customizer = customizerMaybe as StepsCustomizer;
+    if (typeof requestIdOrMatcherOrCustomizer !== 'string') {
+      return this.onTriggeredWithMatcher(
+        workflowKey,
+        responseType,
+        requestIdOrMatcherOrCustomizer,
+        customizer,
+      );
+    }
+    return this.onTriggeredWithMatcher(
       workflowKey,
       responseType,
-      'requestId',
-      requestIdOrCustomizer as string,
-      customizerMaybe,
+      {
+        inResponseTo: {
+          requestId: requestIdOrMatcherOrCustomizer,
+        },
+      },
+      customizer,
     );
   }
 
@@ -540,14 +585,14 @@ export class DocBuilder {
   ): this {
     const integration = this.requireAiIntegration(integrationName);
     if (customizerMaybe === undefined) {
-      const taskName = taskNameOrCustomizer as string;
+      const taskName = responseTypeOrTaskName as string;
       return this.onAIResponseWithMatcher(
         integration,
         workflowKey,
         'Conversation/Response',
         taskName,
         undefined,
-        responseTypeOrTaskName as StepsCustomizer,
+        taskNameOrCustomizer as StepsCustomizer,
       );
     }
     return this.onAIResponseWithMatcher(
@@ -585,7 +630,7 @@ export class DocBuilder {
       return this.onAIResponseWithMatcher(
         integration,
         workflowKey,
-        'Conversation/Event',
+        RuntimeEventTypes.NamedEvent,
         undefined,
         namedEventName,
         taskNameOrCustomizer as StepsCustomizer,
@@ -594,7 +639,7 @@ export class DocBuilder {
     return this.onAIResponseWithMatcher(
       integration,
       workflowKey,
-      'Conversation/Event',
+      RuntimeEventTypes.NamedEvent,
       taskNameOrCustomizer as string,
       namedEventName,
       customizerMaybe,
@@ -902,19 +947,6 @@ export class DocBuilder {
     );
   }
 
-  onLinkedDocRejected(
-    linkedAccessName: string,
-    workflowKey: string,
-    customizer: StepsCustomizer,
-  ): this {
-    this.requireLinkedAccessConfig(linkedAccessName);
-    return this.onEvent(
-      workflowKey,
-      'MyOS/Single Document Permission Rejected',
-      customizer,
-    );
-  }
-
   onSessionStarting(
     agencyName: string,
     workflowKey: string,
@@ -1078,7 +1110,6 @@ export class DocBuilder {
           steps
             .myOs()
             .subscribeToSession(
-              config.permissionFrom,
               config.sessionId,
               config.subscriptionId,
               'Conversation/Response',
@@ -1224,9 +1255,14 @@ export class DocBuilder {
       | ((anchors: JsonObject) => void),
     contractKey = 'anchors',
   ): this {
-    const contract: JsonObject = {
-      type: 'MyOS/Document Anchors',
-    };
+    const existing = this.state.ensureContractsRoot()[contractKey];
+    const contract: JsonObject =
+      isObject(existing) && typeof existing.type === 'string'
+        ? cloneObject(existing)
+        : {
+            type: 'MyOS/Document Anchors',
+          };
+    contract.type = 'MyOS/Document Anchors';
     if (Array.isArray(anchors)) {
       for (const anchorName of anchors) {
         const key = requireText(anchorName, 'anchor name');
@@ -1248,9 +1284,14 @@ export class DocBuilder {
     links: Record<string, JsonObject>,
     contractKey = 'links',
   ): this {
-    const contract: JsonObject = {
-      type: 'MyOS/Document Links',
-    };
+    const existing = this.state.ensureContractsRoot()[contractKey];
+    const contract: JsonObject =
+      isObject(existing) && typeof existing.type === 'string'
+        ? cloneObject(existing)
+        : {
+            type: 'MyOS/Document Links',
+          };
+    contract.type = 'MyOS/Document Links';
     for (const [linkName, linkDef] of Object.entries(links)) {
       contract[requireText(linkName, 'link name')] = cloneObject(linkDef);
     }
@@ -1510,6 +1551,42 @@ export class DocBuilder {
       type: 'Core/Lifecycle Event Channel',
       event: { type: 'Core/Document Processing Initiated' },
     });
+  }
+
+  private resolveChannelEventMatcher(
+    channelKey: string,
+    eventType: TypeLike,
+  ): JsonObject {
+    const matcher = { type: toTypeAlias(eventType) };
+    if (!this.isTimelineLikeChannel(channelKey)) {
+      return matcher;
+    }
+    if (this.isTimelineEntryMatcher(matcher.type)) {
+      return matcher;
+    }
+    return {
+      message: matcher,
+    };
+  }
+
+  private isTimelineLikeChannel(channelKey: string): boolean {
+    const contract = this.state.ensureContractsRoot()[channelKey];
+    if (!contract || typeof contract !== 'object' || Array.isArray(contract)) {
+      return false;
+    }
+    const type = (contract as JsonObject).type;
+    return (
+      type === 'Conversation/Timeline Channel' ||
+      type === 'Conversation/Composite Timeline Channel' ||
+      type === 'MyOS/MyOS Timeline Channel'
+    );
+  }
+
+  private isTimelineEntryMatcher(typeAlias: string): boolean {
+    return (
+      typeAlias === 'Conversation/Timeline Entry' ||
+      typeAlias === 'MyOS/MyOS Timeline Entry'
+    );
   }
 
   private setMyOsMarkerContract(

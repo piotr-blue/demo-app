@@ -115,6 +115,9 @@ Important:
 
 - `contractsPolicy` belongs under `/contracts`.
 - This baseline does not use a `/policies/contractsChangePolicy` path.
+- For the current MyOS runtime path, live callers should send
+  `Conversation/Change Request` with a top-level `summary` and explicit
+  `Core/Json Patch Entry`-typed changeset items.
 
 ## 5) Capability/helper mappings used in live stories
 
@@ -185,7 +188,6 @@ event:
 ```yaml
 event:
   type: MyOS/Subscribe to Session Requested
-  onBehalfOf: ownerChannel
   targetSessionId: <targetSessionId>
   subscription:
     id: <subscriptionId>
@@ -197,7 +199,6 @@ event:
 ```yaml
 event:
   type: MyOS/Subscribe to Session Requested
-  onBehalfOf: ownerChannel
   targetSessionId: <targetSessionId>
   subscription:
     id: <subscriptionId>
@@ -234,9 +235,27 @@ event:
   type: Conversation/Document Bootstrap Requested
   document: <childDoc>
   channelBindings: <bindings>
+  onBehalfOf: <requester channel>
+  bootstrapAssignee: <myOs admin channel>
+  requestId: <correlation id, recommended for direct bootstrap flows>
   capabilities: <optional>
   initialMessages: <optional>
-  initiatorChannel: <optional>
+```
+
+For the direct MyOS Admin requester flow used by Story 13, the parent workflow
+should then match:
+
+```yaml
+event:
+  type: MyOS/Target Document Session Started
+  inResponseTo:
+    requestId: <same correlation id>
+```
+
+and store the child session id from:
+
+```yaml
+${event.initiatorSessionIds[0]}
 ```
 
 ## 10) Payment mapping updates
@@ -326,12 +345,25 @@ Known runtime-gated stories remain tracked in:
 
 Current gated areas include:
 
-- direct change mutation visibility (Story 2),
-- deeper session-interaction orchestration (Stories 6-8),
-- linked-doc incremental grant updates (Story 10),
-- child bootstrap validation/runtime acceptance (Story 13),
-- paynote/payment emitted-event observability (Stories 14-15),
 - backward payment alias availability (Story 16),
-- advanced control behavior verification (Stories 19-21, 23-25),
-- optional worker-agency behavior verification (Story 26).
+- revoke scenarios that still assume direct controller-document revoke instead
+  of revoke on the permission-grant document (Stories 20-21, 26).
 
+## 14) Linked-doc permission watcher baseline
+
+For the linked-doc watcher flow used by Story 10:
+
+- the watcher requests permissions with a stable `requestId`
+  (`REQ_LINKED_GRANTS` in the live-story baseline),
+- response workflows should match either
+  `MyOS/Linked Documents Permission Granted` or fallback
+  `MyOS/Single Document Permission Granted`,
+- correlation should use `event.inResponseTo.requestId`,
+- the practical live assertion surface is the latest epoch `emitted` snapshot,
+  not feed entries.
+
+The watcher stores the granted linked session via:
+
+```yaml
+${event.targetSessionId}
+```

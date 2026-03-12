@@ -55,9 +55,7 @@ export function buildLinkedGrantWatcherDocument(
       'MyOS/Linked Documents Permission Granted',
       {
         inResponseTo: {
-          incomingEvent: {
-            requestId: 'REQ_LINKED_GRANTS',
-          },
+          requestId: 'REQ_LINKED_GRANTS',
         },
       },
       (steps) =>
@@ -78,9 +76,7 @@ export function buildLinkedGrantWatcherDocument(
       'MyOS/Single Document Permission Granted',
       {
         inResponseTo: {
-          incomingEvent: {
-            requestId: 'REQ_LINKED_GRANTS',
-          },
+          requestId: 'REQ_LINKED_GRANTS',
         },
       },
       (steps) =>

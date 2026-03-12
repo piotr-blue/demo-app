@@ -37,6 +37,11 @@ export class DocPatch {
     return new DocPatch(toJsonDocument(document));
   }
 
+  diff(target: ExistingDocument): this {
+    this.nextJson = toJsonDocument(target);
+    return this;
+  }
+
   mutate(customizer: (builder: DocBuilder) => void): this {
     const builder = DocBuilder.from(this.nextJson);
     customizer(builder);
@@ -70,6 +75,24 @@ export class DocPatch {
     return operations;
   }
 
+  apply(source?: ExistingDocument): BlueNode {
+    if (source === undefined) {
+      return this.nextDocumentNode();
+    }
+    if (source instanceof BlueNode) {
+      return this.applyTo(source);
+    }
+    const next = toJsonDocument(source);
+    for (const operation of this.build()) {
+      if (operation.op === 'remove') {
+        removePointer(next, operation.path);
+        continue;
+      }
+      setPointer(next, operation.path, structuredClone(operation.val));
+    }
+    return fromJsonDocument(next);
+  }
+
   applyTo(document: BlueNode, mutateOriginal = false): BlueNode {
     const operations = this.build();
     let base = mutateOriginal ? document : document.clone();
@@ -85,6 +108,10 @@ export class DocPatch {
 
   nextDocumentJson(): JsonObject {
     return structuredClone(this.nextJson);
+  }
+
+  toTargetJson(): JsonObject {
+    return this.nextDocumentJson();
   }
 
   nextDocumentNode(): BlueNode {

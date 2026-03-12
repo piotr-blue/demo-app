@@ -42,10 +42,16 @@ describe('interaction builders mapping', () => {
         'captureLinkedDocGranted',
         (steps) => steps.replaceValue('SetLinkedDocGranted', '/granted', true),
       )
-      .onLinkedDocRejected(
+      .onLinkedAccessRejected(
         'linkedCounterAccess',
-        'captureLinkedDocRejected',
-        (steps) => steps.replaceValue('SetLinkedDocRejected', '/granted', true),
+        'captureLinkedAccessRejected',
+        (steps) =>
+          steps.replaceValue('SetLinkedAccessRejected', '/granted', true),
+      )
+      .onLinkedDocRevoked(
+        'linkedCounterAccess',
+        'captureLinkedDocRevoked',
+        (steps) => steps.replaceValue('SetLinkedDocRevoked', '/granted', true),
       )
       .onSessionStarted('workerAgency', 'captureSessionStarted', (steps) =>
         steps.replaceValue('SetSessionStarted', '/granted', true),
@@ -70,8 +76,13 @@ describe('interaction builders mapping', () => {
     expect(yaml).toContain(`type: MyOS/Subscription to Session Initiated`);
     expect(yaml).toContain(`captureLinkedDocGranted:
     type: Conversation/Sequential Workflow`);
-    expect(yaml).toContain(`captureLinkedDocRejected:
+    expect(yaml).toContain(`type: MyOS/Single Document Permission Granted`);
+    expect(yaml).toContain(`captureLinkedAccessRejected:
     type: Conversation/Sequential Workflow`);
+    expect(yaml).toContain(`type: MyOS/Linked Documents Permission Rejected`);
+    expect(yaml).toContain(`captureLinkedDocRevoked:
+    type: Conversation/Sequential Workflow`);
+    expect(yaml).toContain(`type: MyOS/Single Document Permission Revoked`);
     expect(yaml).toContain(`captureSessionStarted:
     type: Conversation/Sequential Workflow`);
     expect(yaml).toContain(`type: MyOS/Target Document Session Started`);
@@ -141,23 +152,37 @@ describe('interaction builders mapping', () => {
         (steps) =>
           steps
             .access('counterAccess')
-            .requestPermission(
-              {
-                read: true,
-                write: true,
-              },
-              true,
-            )
+            .requestPermission({
+              read: true,
+              share: true,
+            })
             .access('counterAccess')
             .subscribe(),
       )
       .buildDocument();
 
     const yaml = toOfficialYaml(document);
-    expect(yaml).toContain(`grantSessionSubscriptionOnResult: true`);
-    expect(yaml).toContain(`write: true`);
+    expect(yaml).not.toContain(`grantSessionSubscriptionOnResult`);
+    expect(yaml).toContain(`share: true`);
     expect(yaml).toContain(`id: SUB_COUNTER`);
     expect(yaml).toContain(`type: Conversation/Response`);
+  });
+
+  it('fails fast for unsupported subscribeToCreatedSessions(true)', () => {
+    expect(() =>
+      DocBuilder.doc()
+        .name('Access created sessions unsupported')
+        .channel('ownerChannel', {
+          type: 'Conversation/Timeline Channel',
+          timelineId: 'owner-timeline',
+        })
+        .access('counterAccess')
+        .permissionFrom('ownerChannel')
+        .targetSessionId('target-session')
+        .subscribeToCreatedSessions(true),
+    ).toThrow(
+      'access(...).subscribeToCreatedSessions(true) is not supported on the current public runtime',
+    );
   });
 
   it('maps rejection and revocation listeners across access variants', () => {
@@ -473,8 +498,7 @@ describe('interaction builders mapping', () => {
             .access('counterAccess')
             .requestPermissionForTarget(
               'override-access-target',
-              { read: true, write: true },
-              true,
+              { read: true, share: true },
             )
             .access('counterAccess')
             .revokePermissionForTarget('override-access-target')
@@ -490,7 +514,8 @@ describe('interaction builders mapping', () => {
     const yaml = toOfficialYaml(document);
     expect(yaml).toContain(`targetSessionId: override-access-target`);
     expect(yaml).toContain(`targetSessionId: override-linked-target`);
-    expect(yaml).toContain(`grantSessionSubscriptionOnResult: true`);
+    expect(yaml).not.toContain(`grantSessionSubscriptionOnResult`);
+    expect(yaml).toContain(`share: true`);
     expect(yaml).toContain(
       `type: MyOS/Single Document Permission Grant Requested`,
     );
@@ -619,7 +644,7 @@ describe('interaction builders mapping', () => {
     const yaml = toOfficialYaml(document);
     expect(yaml).toContain(`operation: startWorkerBasic`);
     expect(yaml).toContain(`type: MyOS/Start Worker Session Requested`);
-    expect(yaml).toContain(`agentChannelKey: ownerChannel`);
+    expect(yaml).toContain(`onBehalfOf: ownerChannel`);
     expect(yaml).toContain(`name: Basic Worker`);
   });
 });

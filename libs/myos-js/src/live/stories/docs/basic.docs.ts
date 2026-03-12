@@ -77,7 +77,7 @@ export function buildNamedEventDocument(name: string) {
     )
     .onTriggeredWithMatcher(
       'onShipmentConfirmedWithPayload',
-      'Conversation/Event',
+      'Common/Named Event',
       {
         name: 'shipment-confirmed-with-payload',
       },
@@ -91,7 +91,7 @@ export function buildNamedEventDocument(name: string) {
           .replaceExpression(
             'SaveOrderIdFromPayload',
             '/shipment/orderId',
-            'event.payload.orderId',
+            'event.orderId',
           ),
     )
     .buildDocument();

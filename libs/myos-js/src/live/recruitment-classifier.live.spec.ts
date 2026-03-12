@@ -419,7 +419,6 @@ return {
   events: [
     {
       type: 'MyOS/Subscribe to Session Requested',
-      onBehalfOf: 'recruitmentChannel',
       targetSessionId: cvSessionId,
       subscription: {
         id: document('/cvSubscriptionId'),
@@ -444,7 +443,6 @@ return {
         steps
           .myOs()
           .subscribeToSession(
-            'recruitmentChannel',
             DocBuilder.expr("document('/llmProviderSessionId')"),
             'SUB_RECRUITMENT_PROVIDER',
           );

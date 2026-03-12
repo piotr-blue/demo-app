@@ -1,4 +1,8 @@
 import { expect } from 'vitest';
+import {
+  LinkedDocumentsPermissionGrantedSchema,
+  SingleDocumentPermissionGrantedSchema,
+} from '@blue-repository/types/packages/myos/schemas';
 import { describeLive, itLive } from '../../test-harness/live-mode.js';
 import { getCoreOrAccountLiveGate } from '../../test-harness/live-env.js';
 import {
@@ -7,11 +11,13 @@ import {
   createUniqueName,
   defaultBootstrapBinding,
   extractField,
+  findEmittedEventBySchema,
   extractTimelineId,
-  listFeedEntries,
+  latestEpochNumber,
   retrieveDocument,
   waitForAllowedOperation,
   waitForFieldValue,
+  waitForLatestEmittedEvent,
   waitForPredicate,
 } from '../helpers/index.js';
 import {
@@ -22,7 +28,6 @@ import {
 } from './docs/links.docs.js';
 
 const gate = getCoreOrAccountLiveGate();
-const STORY_10_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_10 !== 'true';
 
 describeLive('myos-js live stories: links + participants', gate, () => {
   itLive(
@@ -106,20 +111,47 @@ describeLive('myos-js live stories: links + participants', gate, () => {
         },
       );
 
-      await waitForPredicate(
+      await waitForLatestEmittedEvent(
         client,
         watcher.sessionId,
-        async () => {
-          const entries = await listFeedEntries(client, watcher.sessionId);
-          return countLinkedGrantEvents(entries) >= 1;
+        (emittedEvents) => hasLinkedGrantEvent(emittedEvents),
+        {
+          timeoutMs: 120_000,
+          intervalMs: 2_000,
+        },
+      );
+      const watcherAfterFirstGrant = await waitForPredicate(
+        client,
+        watcher.sessionId,
+        (latest) => {
+          const grantSeenCount = extractField(latest, '/grantSeenCount');
+          const lastGrantedTargetSessionId = extractField(
+            latest,
+            '/lastGrantedTargetSessionId',
+          );
+          return (
+            typeof grantSeenCount === 'number' &&
+            grantSeenCount >= 1 &&
+            typeof lastGrantedTargetSessionId === 'string'
+          );
         },
         {
           timeoutMs: 120_000,
           intervalMs: 2_000,
         },
       );
-      const firstEntries = await listFeedEntries(client, watcher.sessionId);
-      const firstGrantCount = countLinkedGrantEvents(firstEntries);
+      const firstGrantCount = extractField(
+        watcherAfterFirstGrant,
+        '/grantSeenCount',
+      ) as number;
+      const firstGrantedTargetSessionId = extractField(
+        watcherAfterFirstGrant,
+        '/lastGrantedTargetSessionId',
+      ) as string;
+      const beforeLaterLinkedEpoch = await latestEpochNumber(
+        client,
+        watcher.sessionId,
+      );
 
       await bootstrapDslDocument(
         client,
@@ -133,21 +165,12 @@ describeLive('myos-js live stories: links + participants', gate, () => {
         },
       );
 
-      if (STORY_10_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // linked-doc grant updates for newly linked sessions are not emitted
-        // back into this watcher after the initial grant batch.
-        return;
-      }
-
-      await waitForPredicate(
+      await waitForLatestEmittedEvent(
         client,
         watcher.sessionId,
-        async () => {
-          const entries = await listFeedEntries(client, watcher.sessionId);
-          return countLinkedGrantEvents(entries) > firstGrantCount;
-        },
+        (emittedEvents) => hasLinkedGrantEvent(emittedEvents),
         {
+          afterEpoch: beforeLaterLinkedEpoch,
           timeoutMs: 120_000,
           intervalMs: 2_000,
         },
@@ -155,9 +178,19 @@ describeLive('myos-js live stories: links + participants', gate, () => {
       await waitForPredicate(
         client,
         watcher.sessionId,
-        (latest) =>
-          typeof extractField(latest, '/lastGrantedTargetSessionId') ===
-          'string',
+        (latest) => {
+          const grantSeenCount = extractField(latest, '/grantSeenCount');
+          const lastGrantedTargetSessionId = extractField(
+            latest,
+            '/lastGrantedTargetSessionId',
+          );
+          return (
+            typeof grantSeenCount === 'number' &&
+            grantSeenCount > firstGrantCount &&
+            typeof lastGrantedTargetSessionId === 'string' &&
+            lastGrantedTargetSessionId !== firstGrantedTargetSessionId
+          );
+        },
         {
           timeoutMs: 120_000,
           intervalMs: 2_000,
@@ -273,30 +306,56 @@ describeLive('myos-js live stories: links + participants', gate, () => {
   );
 });
 
-function countLinkedGrantEvents(entries: unknown[]): number {
-  let total = 0;
-  for (const entry of entries) {
-    const message = (entry as Record<string, unknown>).message as
-      | Record<string, unknown>
-      | undefined;
-    const request = message?.request as Record<string, unknown> | undefined;
-    const items = request?.items;
-    if (!Array.isArray(items)) {
-      continue;
-    }
-    for (const item of items) {
-      const record = item as Record<string, unknown>;
-      if (
-        record.inResponseTo &&
-        record.targetSessionId &&
-        record.type &&
-        record.links
-      ) {
-        total += 1;
-      }
-    }
+function hasLinkedGrantEvent(emittedEvents: unknown[]): boolean {
+  return findLinkedGrantEvent(emittedEvents) !== undefined;
+}
+
+function findLinkedGrantEvent(
+  emittedEvents: unknown[],
+): CorrelatedLinkedGrantEvent | undefined {
+  const linkedDocumentsGrant =
+    findEmittedEventBySchema<CorrelatedLinkedGrantEvent>(
+      emittedEvents,
+      LinkedDocumentsPermissionGrantedSchema,
+    );
+  if (isCorrelatedLinkedGrantEvent(linkedDocumentsGrant)) {
+    return linkedDocumentsGrant;
   }
-  return total;
+
+  const singleDocumentGrant =
+    findEmittedEventBySchema<CorrelatedLinkedGrantEvent>(
+      emittedEvents,
+      SingleDocumentPermissionGrantedSchema,
+    );
+  if (isCorrelatedLinkedGrantEvent(singleDocumentGrant)) {
+    return singleDocumentGrant;
+  }
+
+  return undefined;
+}
+
+function isCorrelatedLinkedGrantEvent(
+  event: CorrelatedLinkedGrantEvent | undefined,
+): event is CorrelatedLinkedGrantEvent & {
+  readonly targetSessionId: string;
+} {
+  const requestId =
+    event?.inResponseTo?.requestId ??
+    event?.inResponseTo?.incomingEvent?.requestId;
+  return (
+    requestId === 'REQ_LINKED_GRANTS' &&
+    typeof event.targetSessionId === 'string'
+  );
+}
+
+interface CorrelatedLinkedGrantEvent extends Record<string, unknown> {
+  readonly inResponseTo?: {
+    readonly requestId?: string;
+    readonly incomingEvent?: {
+      readonly requestId?: string;
+    };
+  };
+  readonly targetSessionId?: string;
 }
 
 function reviewerGroupContains(

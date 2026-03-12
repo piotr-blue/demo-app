@@ -119,4 +119,45 @@ describe('MyOsHttpClient', () => {
       }),
     ).rejects.toBeInstanceOf(MyOsValidationError);
   });
+
+  it('includes response details in validation error messages', async () => {
+    const validationClient = new MyOsHttpClient({
+      apiKey: 'test-api-key',
+      maxRetries: 0,
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            type: 'MyOS/Bootstrap Failed',
+            reason: 'Initiator accountId must be included in channel bindings',
+            message: 'bootstrap rejected',
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+    });
+
+    await expect(
+      validationClient.request({
+        method: 'POST',
+        path: '/documents/bootstrap',
+        body: {},
+      }),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('type=MyOS/Bootstrap Failed'),
+    });
+
+    await expect(
+      validationClient.request({
+        method: 'POST',
+        path: '/documents/bootstrap',
+        body: {},
+      }),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining(
+        'reason=Initiator accountId must be included in channel bindings',
+      ),
+    });
+  });
 });

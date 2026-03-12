@@ -3,6 +3,7 @@ import { DocBuilder } from '../doc-builder/doc-builder.js';
 import { SimpleDocBuilder } from '../doc-builder/simple-doc-builder.js';
 import { PayNotes } from '../paynote/paynotes.js';
 import type { JsonObject } from '../core/types.js';
+import { fromChannel } from '../steps/bootstrap-bindings.js';
 
 export function simpleAgentWithPermissions(): BlueNode {
   return SimpleDocBuilder.doc()
@@ -29,7 +30,6 @@ export function simpleAgentWithPermissions(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'ownerChannel',
             DocBuilder.expr("document('/providerSessionId')"),
             'SUB_PROVIDER',
           )
@@ -112,7 +112,6 @@ export function cvClassifierAgent(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'recruitmentChannel',
             DocBuilder.expr("document('/llmProviderSessionId')"),
             'SUB_RECRUITMENT_PROVIDER',
           ),
@@ -273,7 +272,6 @@ export function simplePermissionAndSubscribe(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'ownerChannel',
             DocBuilder.expr("document('/weatherSessionId')"),
             'SUB_WEATHER',
           )
@@ -314,7 +312,6 @@ export function callRemoteOperationSample(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'ownerChannel',
             DocBuilder.expr("document('/llmSessionId')"),
             'SUB_LLM_PROVIDER',
           ),
@@ -404,7 +401,6 @@ export function linkedDocsWithUpdates(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'accountingChannel',
             DocBuilder.expr('event.targetSessionId'),
             DocBuilder.expr("document('/invoiceSubscriptionId')"),
           ),
@@ -459,7 +455,6 @@ export function cvClassifierFull(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'recruitmentChannel',
             DocBuilder.expr('event.targetSessionId'),
             DocBuilder.expr("document('/cvSubscriptionId')"),
           ),
@@ -472,7 +467,6 @@ export function cvClassifierFull(): BlueNode {
         steps
           .myOs()
           .subscribeToSession(
-            'recruitmentChannel',
             DocBuilder.expr("document('/llmProviderSessionId')"),
             'SUB_RECRUITMENT_PROVIDER',
           ),
@@ -929,10 +923,20 @@ export function bootstrapVoucherOnCapture(): BlueNode {
           'BootstrapVoucherDoc',
           balancedBowlVoucherPayNoteTemplateJson(),
           {
-            payerChannel: 'payerChannel',
-            payeeChannel: 'payeeChannel',
-            merchantChannel: 'payeeChannel',
+            payerChannel: {
+              type: 'Conversation/Timeline Channel',
+              timelineId: 'voucher-payer',
+            },
+            payeeChannel: {
+              type: 'Conversation/Timeline Channel',
+              timelineId: 'voucher-payee',
+            },
+            merchantChannel: {
+              type: 'Conversation/Timeline Channel',
+              timelineId: 'voucher-payee',
+            },
           },
+          'payeeChannel',
         ),
     )
     .onMyOsResponse(
@@ -966,9 +970,16 @@ export function bootstrapViaOrchestrator(): BlueNode {
         'BootstrapChildDoc',
         childDoc(),
         {
-          participantA: 'aliceChannel',
-          participantB: 'bobChannel',
+          participantA: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'alice-participant',
+          },
+          participantB: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'bob-participant',
+          },
         },
+        'orchestratorChannel',
         (payload) => {
           payload.put('bootstrapAssignee', 'orchestratorChannel');
           payload.put('initialMessages', {
@@ -993,17 +1004,18 @@ export function bootstrapViaOrchestrator(): BlueNode {
 export function bootstrapWithMessages(): BlueNode {
   return SimpleDocBuilder.doc()
     .name('With Messages')
-    .channel('sellerChannel')
-    .channel('buyerChannel')
+    .channel('sellerChannel', { type: 'MyOS/MyOS Timeline Channel' })
+    .channel('buyerChannel', { type: 'MyOS/MyOS Timeline Channel' })
     .myOsAdmin('myOsAdminChannel')
     .onInit('bootstrapDeal', (steps) =>
       steps.myOs().bootstrapDocument(
         'BootstrapDeal',
         dealDoc(),
         {
-          sellerChannel: 'sellerChannel',
-          buyerChannel: 'buyerChannel',
+          sellerChannel: fromChannel('sellerChannel'),
+          buyerChannel: fromChannel('buyerChannel'),
         },
+        'sellerChannel',
         (payload) => {
           payload.put('initialMessages', {
             defaultMessage: 'A new deal has been created.',

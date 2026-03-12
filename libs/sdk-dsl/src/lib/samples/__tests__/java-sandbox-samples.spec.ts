@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { toOfficialYaml } from '../../core/serialization.js';
+import { toOfficialJson, toOfficialYaml } from '../../core/serialization.js';
 import {
   allJavaSandboxSampleDocs,
   linkedAccessMonitor,
+  milestoneReservePartialCapture,
   orchestratorWithAccessAndAgency,
+  reserveOnApprovalThenCaptureOnConfirmation,
   reserveLockedUntilKycThenCaptureOnSettlement,
   shipmentEscrowSimple,
 } from '../java-sandbox-samples.js';
+
+function contractsOf(document: ReturnType<typeof toOfficialJson>): Record<
+  string,
+  { request?: unknown }
+> {
+  return document.contracts as Record<string, { request?: unknown }>;
+}
 
 describe('java sandbox sample representations', () => {
   it('builds all non-IPFS sample document representations', () => {
@@ -50,5 +59,19 @@ describe('java sandbox sample representations', () => {
     );
     expect(kycYaml).toContain('PayNote/Reserve Funds Requested');
     expect(kycYaml).toContain('PayNote/Capture Funds Requested');
+  });
+
+  it('keeps operation-triggered paynote sample branches requestless at contract level', () => {
+    const approvalJson = toOfficialJson(
+      reserveOnApprovalThenCaptureOnConfirmation(),
+    );
+    const milestoneJson = toOfficialJson(milestoneReservePartialCapture());
+    const approvalContracts = contractsOf(approvalJson);
+    const milestoneContracts = contractsOf(milestoneJson);
+
+    expect(approvalContracts.confirmDelivery?.request).toBeUndefined();
+    expect(approvalContracts.requestCapture?.request).toBeUndefined();
+    expect(milestoneContracts.approveMilestone1?.request).toBeUndefined();
+    expect(milestoneContracts.releaseUnfinishedWork?.request).toBeUndefined();
   });
 });

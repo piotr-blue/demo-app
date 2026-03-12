@@ -11,7 +11,7 @@ describe('core/runtime-type-support', () => {
     expect(
       isRepositoryTypeAliasAvailable('PayNote/Capture Funds Requested'),
     ).toBe(true);
-    expect(isRepositoryTypeAliasAvailable('Common/Named Event')).toBe(false);
+    expect(isRepositoryTypeAliasAvailable('Common/Named Event')).toBe(true);
     expect(
       isRepositoryTypeAliasAvailable('PayNote/Backward Payment Requested'),
     ).toBe(false);
@@ -29,6 +29,6 @@ describe('core/runtime-type-support', () => {
   });
 
   it('exposes runtime-compatible named event alias', () => {
-    expect(RuntimeEventTypes.NamedEvent).toBe('Conversation/Event');
+    expect(RuntimeEventTypes.NamedEvent).toBe('Common/Named Event');
   });
 });

@@ -14,5 +14,10 @@
     "test": "npm run test -w blue-studio-web",
     "test:e2e": "npm run test:e2e -w blue-studio-web",
     "test:live": "npm run test:live -w blue-studio-web"
+  },
+  "devDependencies": {
+    "@blue-labs/document-processor": "^3.5.0",
+    "@nx/vite": "^22.5.4",
+    "vite-plugin-dts": "^4.5.4"
   }
 }

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { AgencyBindingsBuilder } from '../agency-bindings-builder.js';
-import { AgencyOptionsBuilder } from '../agency-options-builder.js';
+import {
+  AgencyOptionsBuilder,
+  AgencyCapabilitiesBuilder,
+} from '../agency-options-builder.js';
 
 describe('agency helpers', () => {
   it('builds channel bindings map', () => {
@@ -25,21 +28,38 @@ describe('agency helpers', () => {
     });
   });
 
-  it('builds agency bootstrap options payload', () => {
+  it('builds agency worker-session options payload', () => {
     const options = new AgencyOptionsBuilder()
-      .bootstrapAssignee('myOsAdminChannel')
       .defaultMessage('Booting worker')
       .channelMessage('ownerChannel', 'Worker started')
+      .capabilities((capabilities: AgencyCapabilitiesBuilder) =>
+        capabilities
+          .participantsOrchestration(true)
+          .sessionInteraction(true)
+          .workerAgency(true),
+      )
       .build();
 
     expect(options).toEqual({
-      bootstrapAssignee: 'myOsAdminChannel',
       initialMessages: {
         defaultMessage: 'Booting worker',
         perChannel: {
           ownerChannel: 'Worker started',
         },
       },
+      capabilities: {
+        participantsOrchestration: true,
+        sessionInteraction: true,
+        workerAgency: true,
+      },
     });
+  });
+
+  it('rejects legacy bootstrap assignee worker-session options', () => {
+    expect(() =>
+      new AgencyOptionsBuilder().bootstrapAssignee('myOsAdminChannel'),
+    ).toThrow(
+      'agency start worker session options do not support bootstrapAssignee',
+    );
   });
 });

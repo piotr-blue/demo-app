@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dump } from 'js-yaml';
+import type { JsonObject } from '../../core/types.js';
+import { fromChannel, fromEmail } from '../bootstrap-bindings.js';
 import { MyOsPermissions } from '../myos-permissions.js';
 import { StepsBuilder } from '../steps-builder.js';
 
@@ -109,16 +111,24 @@ describe('steps-builder mapping', () => {
           type: 'Conversation/Conversation',
         },
         {
-          ownerChannel: 'target-session',
+          ownerChannel: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'child-owner-timeline',
+          },
         },
+        'ownerChannel',
         (payload) => payload.put('bootstrapAssignee', 'myOsAdminChannel'),
       )
       .bootstrapDocumentExpr(
         'BootstrapFromExpression',
         "document('/childDocument')",
         {
-          ownerChannel: 'target-session',
+          ownerChannel: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'child-owner-timeline',
+          },
         },
+        'ownerChannel',
       )
       .build();
 
@@ -130,16 +140,89 @@ describe('steps-builder mapping', () => {
     type: Conversation/Trigger Event`);
     expect(yaml).toContain(`type: Conversation/Document Bootstrap Requested`);
     expect(yaml).toContain(`bootstrapAssignee: myOsAdminChannel`);
+    expect(yaml).toContain(`onBehalfOf: ownerChannel`);
+    expect(yaml).toContain(`timelineId: child-owner-timeline`);
     expect(yaml).toContain(`name: BootstrapFromExpression
     type: Conversation/Trigger Event`);
     expect(yaml).toContain(`document: \${document('/childDocument')}`);
+  });
+
+  it('keeps bootstrap customizers available alongside required onBehalfOf', () => {
+    const steps = new StepsBuilder()
+      .bootstrapDocument(
+        'BootstrapChildWithMessages',
+        {
+          name: 'Child With Messages',
+        },
+        {
+          ownerChannel: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'child-owner-timeline',
+          },
+        },
+        'ownerChannel',
+        (payload) => payload.put('bootstrapAssignee', 'legacy-orchestrator'),
+      )
+      .myOs('myOsAdminChannel')
+      .bootstrapDocument(
+        'BootstrapMyOsChild',
+        {
+          name: 'MyOS Child',
+        },
+        {
+          ownerChannel: {
+            type: 'MyOS/MyOS Timeline Channel',
+            ...fromChannel('ownerChannel'),
+          },
+          reviewerChannel: {
+            type: 'MyOS/MyOS Timeline Channel',
+            ...fromEmail('reviewerChannel'),
+          },
+        },
+        'ownerChannel',
+      )
+      .build();
+
+    const yaml = dump({ steps }, { noRefs: true, lineWidth: -1 });
+    expect(yaml).toContain(`name: BootstrapChildWithMessages`);
+    expect(yaml).toContain(`bootstrapAssignee: legacy-orchestrator`);
+    expect(yaml).toContain(`onBehalfOf: ownerChannel`);
+    expect(yaml).toContain(`name: BootstrapMyOsChild`);
+    expect(yaml).toContain(`bootstrapAssignee: myOsAdminChannel`);
+    expect(yaml).toContain(`onBehalfOf: ownerChannel`);
+    expect(yaml).toContain(`accountId: \${document('/contracts/ownerChannel/accountId')}`);
+    expect(yaml).toContain(`email: \${document('/contracts/reviewerChannel/email')}`);
+  });
+
+  it('rejects legacy bootstrap call-shapes without onBehalfOf', () => {
+    expect(() =>
+      (
+        new StepsBuilder() as unknown as {
+          bootstrapDocument: (
+            stepName: string,
+            document: Record<string, unknown>,
+            channelBindings: Record<string, JsonObject>,
+            options: (payload: unknown) => void,
+          ) => unknown;
+        }
+      ).bootstrapDocument(
+        'BootstrapLegacy',
+        { name: 'Legacy Child' },
+        {
+          ownerChannel: {
+            type: 'Conversation/Timeline Channel',
+            timelineId: 'child-owner-timeline',
+          },
+        },
+        () => undefined,
+      ),
+    ).toThrow('onBehalfOf is required');
   });
 
   it('maps filtered subscription matcher helper for myos subscriptions', () => {
     const steps = new StepsBuilder()
       .myOs()
       .subscribeToSessionWithMatchers(
-        'ownerChannel',
         'target-session',
         'SUB_FILTERED',
         [
@@ -159,6 +242,22 @@ describe('steps-builder mapping', () => {
     expect(yaml).toContain(`id: SUB_FILTERED`);
     expect(yaml).toContain(`topic: i-want-this-event`);
     expect(yaml).toContain(`type: Conversation/Request`);
+    expect(yaml).not.toContain(`onBehalfOf`);
+  });
+
+  it('maps MyOsPermissions.share(...) to runtime permission semantics', () => {
+    expect(
+      MyOsPermissions.create()
+        .read(true)
+        .share(false)
+        .singleOps('one')
+        .singleOps()
+        .build(),
+    ).toEqual({
+      read: true,
+      share: false,
+      singleOps: [],
+    });
   });
 
   it('maps raw extension hook steps', () => {

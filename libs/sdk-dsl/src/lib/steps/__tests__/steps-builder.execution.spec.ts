@@ -65,11 +65,9 @@ describe('steps-builder execution', () => {
         topic: 'hello',
       },
       {
-        type: 'Conversation/Event',
+        type: 'Common/Named Event',
         name: 'status',
-        payload: {
-          state: 'ok',
-        },
+        state: 'ok',
       },
     ]);
   });
@@ -97,8 +95,12 @@ describe('steps-builder execution', () => {
               summary: 'child bootstrap payload',
             },
             {
-              ownerChannel: 'target-session',
+              ownerChannel: {
+                type: 'Conversation/Timeline Channel',
+                timelineId: 'child-owner-timeline',
+              },
             },
+            'ownerChannel',
             (payload) => payload.put('bootstrapAssignee', 'myOsAdminChannel'),
           ),
       )
@@ -131,12 +133,88 @@ describe('steps-builder execution', () => {
     expect(bootstrapEvent).toBeDefined();
     expect(bootstrapEvent).toMatchObject({
       channelBindings: {
-        ownerChannel: 'target-session',
+        ownerChannel: {
+          type: 'Conversation/Timeline Channel',
+          timelineId: 'child-owner-timeline',
+        },
       },
       bootstrapAssignee: 'myOsAdminChannel',
+      onBehalfOf: 'ownerChannel',
       document: {
         name: 'Child Runtime',
         summary: 'child bootstrap payload',
+      },
+    });
+  });
+
+  it('emits MyOS bootstrap requests with bootstrapAssignee and explicit onBehalfOf', async () => {
+    const blue = createTestBlue();
+    const processor = createTestDocumentProcessor(blue);
+
+    const document = DocBuilder.doc()
+      .name('Step MyOS Bootstrap Runtime')
+      .channel('sellerChannel', {
+        type: 'Conversation/Timeline Channel',
+        timelineId: 'seller-timeline',
+      })
+      .operation(
+        'bootstrapDeal',
+        'sellerChannel',
+        Number,
+        'Emit MyOS bootstrap request',
+        (steps) =>
+          steps.myOs('myOsAdminChannel').bootstrapDocument(
+            'BootstrapDeal',
+            {
+              name: 'Child Deal',
+            },
+            {
+              sellerChannel: {
+                type: 'MyOS/MyOS Timeline Channel',
+                accountId: 'acc-child-seller',
+              },
+            },
+            'sellerChannel',
+          ),
+      )
+      .buildDocument();
+
+    const initialized = await expectSuccess(
+      processor.initializeDocument(document),
+      'step MyOS bootstrap document initialization failed',
+    );
+    const documentBlueId = storedDocumentBlueId(initialized.document);
+
+    const event = operationRequestEvent(blue, {
+      operation: 'bootstrapDeal',
+      request: 1,
+      timelineId: 'seller-timeline',
+      documentBlueId,
+      allowNewerVersion: false,
+    });
+    const processed = await expectSuccess(
+      processor.processDocument(initialized.document.clone(), event),
+      'step MyOS bootstrap operation failed',
+    );
+
+    const bootstrapEvent = processed.triggeredEvents
+      .map((triggeredEvent) => toOfficialJson(triggeredEvent))
+      .find(
+        (triggeredEvent) =>
+          triggeredEvent.type === 'Conversation/Document Bootstrap Requested',
+      );
+    expect(bootstrapEvent).toBeDefined();
+    expect(bootstrapEvent).toMatchObject({
+      bootstrapAssignee: 'myOsAdminChannel',
+      onBehalfOf: 'sellerChannel',
+      channelBindings: {
+        sellerChannel: {
+          type: 'MyOS/MyOS Timeline Channel',
+          accountId: 'acc-child-seller',
+        },
+      },
+      document: {
+        name: 'Child Deal',
       },
     });
   });
@@ -168,7 +246,6 @@ describe('steps-builder execution', () => {
             })
             .myOs()
             .subscribeToSession(
-              'ownerChannel',
               'target-session',
               'SUB_MYOS',
               'Conversation/Response',
@@ -232,6 +309,19 @@ describe('steps-builder execution', () => {
     expect(removeParticipantRequest).toMatchObject({
       channelName: 'ownerChannel',
     });
+
+    const subscriptionRequest = triggeredEvents.find(
+      (triggeredEvent) =>
+        triggeredEvent.type === 'MyOS/Subscribe to Session Requested',
+    );
+    expect(subscriptionRequest).toMatchObject({
+      targetSessionId: 'target-session',
+      subscription: {
+        id: 'SUB_MYOS',
+        events: [{ type: 'Conversation/Response' }],
+      },
+    });
+    expect(subscriptionRequest).not.toHaveProperty('onBehalfOf');
   });
 
   it('emits filtered matcher subscriptions through MyOS helper namespace', async () => {
@@ -253,7 +343,6 @@ describe('steps-builder execution', () => {
           steps
             .myOs()
             .subscribeToSessionWithMatchers(
-              'ownerChannel',
               'target-session',
               'SUB_FILTERED',
               [

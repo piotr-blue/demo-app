@@ -34,13 +34,10 @@ describe('access step helpers execution', () => {
         (steps) =>
           steps
             .access('counterAccess')
-            .requestPermission(
-              {
-                read: true,
-                write: true,
-              },
-              true,
-            )
+            .requestPermission({
+              read: true,
+              share: true,
+            })
             .access('counterAccess')
             .subscribe(),
       )
@@ -77,12 +74,14 @@ describe('access step helpers execution', () => {
           event.type === 'MyOS/Single Document Permission Grant Requested',
       );
     expect(permissionRequest).toMatchObject({
-      grantSessionSubscriptionOnResult: true,
       permissions: {
         read: true,
-        write: true,
+        share: true,
       },
     });
+    expect(permissionRequest).not.toHaveProperty(
+      'grantSessionSubscriptionOnResult',
+    );
 
     const subscriptionRequest = processed.triggeredEvents
       .map((event) => toOfficialJson(event))
@@ -93,6 +92,77 @@ describe('access step helpers execution', () => {
         events: [{ type: 'Conversation/Response' }],
       },
     });
+  });
+
+  it('marks access subscribed from a direct subscription initiated event', async () => {
+    const blue = createTestBlue();
+    const processor = createTestDocumentProcessor(blue);
+    const document = DocBuilder.doc()
+      .name('Access Subscription Ready Runtime')
+      .channel('ownerChannel', {
+        type: 'Conversation/Timeline Channel',
+        timelineId: 'owner-timeline',
+      })
+      .access('counterAccess')
+      .permissionFrom('ownerChannel')
+      .targetSessionId('target-session')
+      .requestId('REQ_ACCESS')
+      .subscriptionId('SUB_ACCESS')
+      .statusPath('/subscriptionState')
+      .subscribeAfterGranted()
+      .subscriptionEvents('MyOS/Session Epoch Advanced')
+      .done()
+      .operation(
+        'emitLifecycle',
+        'ownerChannel',
+        Number,
+        'emit access grant and subscription initiation',
+        (steps) =>
+          steps
+            .emitType(
+              'EmitAccessGranted',
+              'MyOS/Single Document Permission Granted',
+              (payload) => {
+                payload.put('inResponseTo', {
+                  requestId: 'REQ_ACCESS',
+                });
+              },
+            )
+            .emitType(
+              'EmitSubscriptionInitiated',
+              'MyOS/Subscription to Session Initiated',
+              (payload) => {
+                payload.put('subscriptionId', 'SUB_ACCESS');
+                payload.put('targetSessionId', 'target-session');
+                payload.put('epoch', 0);
+                payload.put('document', {
+                  name: 'Target Session',
+                });
+              },
+            ),
+      )
+      .buildDocument();
+
+    const initialized = await expectSuccess(
+      processor.initializeDocument(document),
+      'access subscription-ready initialization failed',
+    );
+    const documentBlueId = storedDocumentBlueId(initialized.document);
+    const request = operationRequestEvent(blue, {
+      operation: 'emitLifecycle',
+      request: 1,
+      timelineId: 'owner-timeline',
+      documentBlueId,
+      allowNewerVersion: false,
+    });
+    const processed = await expectSuccess(
+      processor.processDocument(initialized.document.clone(), request),
+      'access subscription-ready operation failed',
+    );
+
+    expect(toOfficialJson(processed.document).subscriptionState).toBe(
+      'subscribed',
+    );
   });
 
   it('emits linked and agency permission requests through helper namespaces', async () => {
@@ -203,8 +273,10 @@ describe('access step helpers execution', () => {
               }),
             (options) =>
               options
-                .bootstrapAssignee('myOsAdminChannel')
-                .defaultMessage('Worker start'),
+                .defaultMessage('Worker start')
+                .capabilities((capabilities) =>
+                  capabilities.participantsOrchestration(true),
+                ),
           ),
       )
       .buildDocument();
@@ -231,16 +303,17 @@ describe('access step helpers execution', () => {
       .find((event) => event.type === 'MyOS/Start Worker Session Requested');
     expect(startEvent).toBeDefined();
     expect(startEvent).toMatchObject({
+      onBehalfOf: 'ownerChannel',
       channelBindings: {
         ownerChannel: {
           accountId: 'acc-owner',
         },
       },
-      options: {
-        bootstrapAssignee: 'myOsAdminChannel',
-        initialMessages: {
-          defaultMessage: 'Worker start',
-        },
+      initialMessages: {
+        defaultMessage: 'Worker start',
+      },
+      capabilities: {
+        participantsOrchestration: true,
       },
     });
   });
@@ -855,9 +928,6 @@ describe('access step helpers execution', () => {
       .onLinkedDocGranted('linkedAccess', 'markLinkedDocGranted', (steps) =>
         steps.replaceValue('SetLinkedDocGranted', '/linkedDocGranted', true),
       )
-      .onLinkedDocRejected('linkedAccess', 'markLinkedDocRejected', (steps) =>
-        steps.replaceValue('SetLinkedDocRejected', '/linkedDocRejected', true),
-      )
       .onLinkedDocRevoked('linkedAccess', 'markLinkedDocRevoked', (steps) =>
         steps.replaceValue('SetLinkedDocRevoked', '/linkedDocRevoked', true),
       )
@@ -913,10 +983,6 @@ describe('access step helpers execution', () => {
             .emitType(
               'EmitLinkedDocGranted',
               'MyOS/Single Document Permission Granted',
-            )
-            .emitType(
-              'EmitLinkedDocRejected',
-              'MyOS/Single Document Permission Rejected',
             )
             .emitType(
               'EmitAccessRevoked',
@@ -1017,7 +1083,6 @@ describe('access step helpers execution', () => {
     expect(processedJson.linkedAccessRejected).toBe(true);
     expect(processedJson.linkedAccessRevoked).toBe(true);
     expect(processedJson.linkedDocGranted).toBe(true);
-    expect(processedJson.linkedDocRejected).toBe(true);
     expect(processedJson.linkedDocRevoked).toBe(true);
     expect(processedJson.agencyGranted).toBe(true);
     expect(processedJson.agencyRevoked).toBe(true);
@@ -1171,8 +1236,7 @@ describe('access step helpers execution', () => {
             .access('counterAccess')
             .requestPermissionForTarget(
               'override-access-target',
-              { read: true, write: true },
-              true,
+              { read: true, share: true },
             )
             .access('counterAccess')
             .revokePermissionForTarget('override-access-target')
@@ -1210,7 +1274,10 @@ describe('access step helpers execution', () => {
         expect.objectContaining({
           type: 'MyOS/Single Document Permission Grant Requested',
           targetSessionId: 'override-access-target',
-          grantSessionSubscriptionOnResult: true,
+          permissions: {
+            read: true,
+            share: true,
+          },
         }),
         expect.objectContaining({
           type: 'MyOS/Single Document Permission Revoke Requested',
@@ -1415,12 +1482,13 @@ describe('access step helpers execution', () => {
       .find((event) => event.type === 'MyOS/Start Worker Session Requested');
     expect(startEvent).toBeDefined();
     expect(startEvent).toMatchObject({
-      agentChannelKey: 'ownerChannel',
+      onBehalfOf: 'ownerChannel',
       document: {
         name: 'Basic Worker',
       },
     });
     expect(startEvent).not.toHaveProperty('channelBindings');
-    expect(startEvent).not.toHaveProperty('options');
+    expect(startEvent).not.toHaveProperty('initialMessages');
+    expect(startEvent).not.toHaveProperty('capabilities');
   });
 });

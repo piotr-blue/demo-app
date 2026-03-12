@@ -24,14 +24,22 @@ export function defaultBootstrapBinding(env: LiveEnv = readLiveEnv()): {
   email?: string;
   accountId?: string;
 } {
-  if (env.accountId) {
-    return { accountId: env.accountId };
-  }
+  const binding: {
+    email?: string;
+    accountId?: string;
+  } = {};
+
   if (env.bootstrapEmail) {
-    return { email: env.bootstrapEmail };
+    binding.email = env.bootstrapEmail;
+  }
+  if (env.accountId) {
+    binding.accountId = env.accountId;
+  }
+  if (binding.email || binding.accountId) {
+    return binding;
   }
   throw new Error(
-    'Missing bootstrap identity. Provide MYOS_BOOTSTRAP_EMAIL or MYOS_ACCOUNT_ID.',
+    'Missing bootstrap identity. Provide MYOS_BOOTSTRAP_EMAIL and/or MYOS_ACCOUNT_ID.',
   );
 }
 

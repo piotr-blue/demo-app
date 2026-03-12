@@ -1,7 +1,10 @@
 import { ensureExpression } from '../core/serialization.js';
 import { toTypeAlias, type TypeLike } from '../core/type-alias.js';
 import type { JsonObject, JsonValue } from '../core/types.js';
-import { assertRepositoryTypeAliasAvailable } from '../core/runtime-type-support.js';
+import {
+  assertRepositoryTypeAliasAvailable,
+  RuntimeEventTypes,
+} from '../core/runtime-type-support.js';
 import type { AIIntegrationConfig } from '../ai/ai-types.js';
 import type {
   AccessConfig,
@@ -91,6 +94,19 @@ function ensureProcessor(payloadBuilder: PaymentRequestPayloadBuilder): void {
 
 function copyEntries(source: JsonObject): JsonObject {
   return structuredClone(source);
+}
+
+type BootstrapPayloadCustomizer = (payload: EventPayloadBuilder) => void;
+
+function requireText(value: unknown, message: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(message);
+  }
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    throw new Error(message);
+  }
+  return normalized;
 }
 
 type RailKey =
@@ -573,11 +589,9 @@ export class StepsBuilder {
     this.steps.push(
       step(name, 'Conversation/Trigger Event', {
         event: {
-          type: 'Conversation/Event',
+          ...payloadObject,
+          type: RuntimeEventTypes.NamedEvent,
           name: eventName,
-          ...(Object.keys(payloadObject).length > 0
-            ? { payload: payloadObject }
-            : {}),
         },
       }),
     );
@@ -660,8 +674,9 @@ export class StepsBuilder {
   bootstrapDocument(
     stepName: string,
     document: JsonObject,
-    channelBindings: Record<string, string>,
-    options?: (payload: EventPayloadBuilder) => void,
+    channelBindings: Record<string, JsonObject>,
+    onBehalfOf: string,
+    options?: BootstrapPayloadCustomizer,
   ): this {
     return this.emitType(
       stepName,
@@ -669,6 +684,7 @@ export class StepsBuilder {
       (payload) => {
         payload.put('document', copyEntries(document));
         payload.put('channelBindings', structuredClone(channelBindings));
+        payload.put('onBehalfOf', requireText(onBehalfOf, 'onBehalfOf is required'));
         options?.(payload);
       },
     );
@@ -677,8 +693,9 @@ export class StepsBuilder {
   bootstrapDocumentExpr(
     stepName: string,
     documentExpression: string,
-    channelBindings: Record<string, string>,
-    options?: (payload: EventPayloadBuilder) => void,
+    channelBindings: Record<string, JsonObject>,
+    onBehalfOf: string,
+    options?: BootstrapPayloadCustomizer,
   ): this {
     return this.emitType(
       stepName,
@@ -686,6 +703,7 @@ export class StepsBuilder {
       (payload) => {
         payload.putExpression('document', documentExpression);
         payload.put('channelBindings', structuredClone(channelBindings));
+        payload.put('onBehalfOf', requireText(onBehalfOf, 'onBehalfOf is required'));
         options?.(payload);
       },
     );

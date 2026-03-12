@@ -161,7 +161,12 @@ export class MyOsHttpClient {
           continue;
         }
         throw mapErrorByStatus({
-          message: `MyOS API request failed with status ${response.status}`,
+          message: buildHttpErrorMessage({
+            method: options.method,
+            path: options.path,
+            status: response.status,
+            responseBody: errorBody,
+          }),
           statusCode: response.status,
           responseBody: errorBody,
           blueContext,
@@ -186,6 +191,78 @@ export class MyOsHttpClient {
         throw new MyOsError(init);
       }
     }
+  }
+}
+
+interface HttpErrorMessageArgs {
+  readonly method: HttpRequestOptions['method'];
+  readonly path: string;
+  readonly status: number;
+  readonly responseBody: unknown;
+}
+
+function buildHttpErrorMessage(args: HttpErrorMessageArgs): string {
+  const parts = [
+    `MyOS API ${args.method} ${args.path} failed with status ${args.status}`,
+  ];
+  const summary = summarizeErrorBody(args.responseBody);
+  if (summary) {
+    parts.push(summary);
+  }
+  const payload = serializeForMessage(args.responseBody);
+  if (payload) {
+    parts.push(`responseBody=${payload}`);
+  }
+  return parts.join(' | ');
+}
+
+function summarizeErrorBody(responseBody: unknown): string | undefined {
+  if (!responseBody) {
+    return undefined;
+  }
+  if (typeof responseBody === 'string') {
+    const normalized = responseBody.trim();
+    return normalized.length > 0 ? normalized : undefined;
+  }
+  if (typeof responseBody !== 'object' || Array.isArray(responseBody)) {
+    return undefined;
+  }
+
+  const body = responseBody as Record<string, unknown>;
+  const type = readStringValue(body.type);
+  const reason = readStringValue(body.reason);
+  const message = readStringValue(body.message);
+  const error = readStringValue(body.error);
+  const fragments = [
+    type ? `type=${type}` : undefined,
+    reason ? `reason=${reason}` : undefined,
+    message ? `message=${message}` : undefined,
+    error ? `error=${error}` : undefined,
+  ].filter((value): value is string => Boolean(value));
+
+  return fragments.length > 0 ? fragments.join(' | ') : undefined;
+}
+
+function readStringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : undefined;
+}
+
+function serializeForMessage(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  try {
+    const serialized = JSON.stringify(value);
+    if (!serialized) {
+      return undefined;
+    }
+    return serialized.length > 2_000
+      ? `${serialized.slice(0, 2_000)}...`
+      : serialized;
+  } catch {
+    return String(value);
   }
 }
 

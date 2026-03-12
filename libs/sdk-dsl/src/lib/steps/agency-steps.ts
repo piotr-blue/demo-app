@@ -116,7 +116,6 @@ export class AgencySteps {
     return this.parent
       .myOs()
       .subscribeToSession(
-        resolveOnBehalfOf(this.config),
         this.requireTargetSessionId(),
         subscriptionId,
         ...resolvedEventTypes,
@@ -133,7 +132,6 @@ export class AgencySteps {
     return this.parent
       .myOs()
       .subscribeToSession(
-        resolveOnBehalfOf(this.config),
         targetSessionId,
         subscriptionId,
         ...resolvedEventTypes,

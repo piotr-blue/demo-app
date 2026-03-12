@@ -23,10 +23,6 @@ import {
 } from './docs/session.docs.js';
 
 const gate = getCoreOrAccountLiveGate();
-const STORY_6_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_6 !== 'true';
-const STORY_7_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_7 !== 'true';
-const STORY_8_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_8 !== 'true';
-const STORY_9_LIVE_BLOCKED = process.env.MYOS_ENABLE_STORY_9 !== 'true';
 
 describeLive('myos-js live stories: session interaction', gate, () => {
   itLive(
@@ -60,13 +56,6 @@ describeLive('myos-js live stories: session interaction', gate, () => {
         timeoutMs: 40_000,
       });
 
-      if (STORY_6_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // permission/subscription orchestration events are not reflected back
-        // into this agent session in current MyOS environment.
-        return;
-      }
-
       const mirror = await bootstrapDslDocument(
         client,
         buildCounterMirrorAgentDocument(
@@ -88,13 +77,13 @@ describeLive('myos-js live stories: session interaction', gate, () => {
       ).toBeTruthy();
 
       // Runtime proof:
-      // permission grant -> subscribe -> initiated -> call increment(2) on source
-      // -> source counter and mirror counter become 2.
-      await waitForFieldValue(client, source.sessionId, '/counter', 2, {
+      // source is first incremented locally to 1, then mirror flow triggers a
+      // remote increment(2), so both source and mirror settle at 3.
+      await waitForFieldValue(client, source.sessionId, '/counter', 3, {
         timeoutMs: 90_000,
         intervalMs: 1_500,
       });
-      await waitForFieldValue(client, mirror.sessionId, '/mirroredCounter', 2, {
+      await waitForFieldValue(client, mirror.sessionId, '/mirroredCounter', 3, {
         timeoutMs: 90_000,
         intervalMs: 1_500,
       });
@@ -132,12 +121,6 @@ describeLive('myos-js live stories: session interaction', gate, () => {
         timeoutMs: 40_000,
       });
 
-      if (STORY_7_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // subscription initiated snapshot updates are not arriving in watcher.
-        return;
-      }
-
       const watcher = await bootstrapDslDocument(
         client,
         buildSnapshotWatcherDocument(
@@ -151,8 +134,8 @@ describeLive('myos-js live stories: session interaction', gate, () => {
       );
 
       // Story 7 runtime proof:
-      // watcher stores initiated snapshot immediately (displayName/score/epoch)
-      // without waiting for additional source updates.
+      // watcher stores the current source snapshot immediately at subscription
+      // initiation, including the already-applied score update.
       await waitForFieldValue(
         client,
         watcher.sessionId,
@@ -163,7 +146,7 @@ describeLive('myos-js live stories: session interaction', gate, () => {
           intervalMs: 1_500,
         },
       );
-      await waitForFieldValue(client, watcher.sessionId, '/snapshot/score', 7, {
+      await waitForFieldValue(client, watcher.sessionId, '/snapshot/score', 9, {
         timeoutMs: 90_000,
         intervalMs: 1_500,
       });
@@ -209,12 +192,6 @@ describeLive('myos-js live stories: session interaction', gate, () => {
       await waitForFieldValue(client, source.sessionId, '/emitted', 1, {
         timeoutMs: 40_000,
       });
-
-      if (STORY_8_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // filtered subscription initialization/update events are not delivered.
-        return;
-      }
 
       const subscriber = await bootstrapDslDocument(
         client,
@@ -313,16 +290,6 @@ describeLive('myos-js live stories: session interaction', gate, () => {
         },
       );
       await waitForAllowedOperation(client, source.sessionId, 'increment');
-
-      if (STORY_9_LIVE_BLOCKED) {
-        await client.documents.runOperation(source.sessionId, 'increment', 1);
-        await client.documents.runOperation(source.sessionId, 'increment', 1);
-        await client.documents.runOperation(source.sessionId, 'increment', 1);
-        await waitForFieldValue(client, source.sessionId, '/counter', 3, {
-          timeoutMs: 40_000,
-        });
-        return;
-      }
 
       const watcher = await bootstrapDslDocument(
         client,

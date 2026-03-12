@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { toOfficialYaml } from '../../core/serialization.js';
+import { toOfficialJson, toOfficialYaml } from '../../core/serialization.js';
 import { PayNotes } from '../paynotes.js';
+
+function contractsOf(document: ReturnType<typeof toOfficialJson>): Record<
+  string,
+  { request?: unknown }
+> {
+  return document.contracts as Record<string, { request?: unknown }>;
+}
 
 describe('paynote mapping', () => {
   it('maps paynote defaults, amount, and capture workflows', () => {
@@ -21,13 +28,10 @@ type: PayNote/PayNote
 contracts:
   payerChannel:
     type: Conversation/Timeline Channel
-    timelineId: payer-timeline
   payeeChannel:
     type: Conversation/Timeline Channel
-    timelineId: payee-timeline
   guarantorChannel:
     type: Conversation/Timeline Channel
-    timelineId: guarantor-timeline
   initLifecycleChannel:
     type: Core/Lifecycle Event Channel
     event:
@@ -81,8 +85,6 @@ amount:
     description: Request reserve funds
     type: Conversation/Operation
     channel: payerChannel`);
-    expect(yaml).toContain(`request:
-      type: Integer`);
     expect(yaml).toContain(`requestReserveImpl:
     type: Conversation/Sequential Workflow Operation`);
     expect(yaml).toContain(`type: PayNote/Reserve Funds Requested`);
@@ -91,6 +93,11 @@ amount:
     type: Conversation/Operation
     channel: guarantorChannel`);
     expect(yaml).toContain(`type: PayNote/Reservation Release Requested`);
+
+    const json = toOfficialJson(payNote);
+    const contracts = contractsOf(json);
+    expect(contracts.requestReserve?.request).toBeUndefined();
+    expect(contracts.requestRelease?.request).toBeUndefined();
   });
 
   it('maps capture unlock and partial-request operation helpers', () => {
@@ -121,9 +128,12 @@ amount:
     description: Request partial capture
     type: Conversation/Operation
     channel: guarantorChannel`);
-    expect(yaml).toContain(`request:
-      type: Text`);
     expect(yaml).toContain(`amount: \${event.message.request}`);
+
+    const json = toOfficialJson(payNote);
+    const contracts = contractsOf(json);
+    expect(contracts.unlockCapture?.request).toBeUndefined();
+    expect(contracts.capturePartial?.request).toBeUndefined();
   });
 
   it('maps capture unlock-on-event workflow helper', () => {
@@ -192,6 +202,12 @@ amount:
     type: Conversation/Operation
     channel: guarantorChannel`);
     expect(yaml).toContain(`amount: \${event.message.request}`);
+
+    const json = toOfficialJson(payNote);
+    const contracts = contractsOf(json);
+    expect(contracts.requestCapture?.request).toBeUndefined();
+    expect(contracts.requestRelease?.request).toBeUndefined();
+    expect(contracts.requestPartialRelease?.request).toBeUndefined();
   });
 
   it('surfaces type-availability failure for release lock helpers', () => {

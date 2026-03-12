@@ -25,7 +25,6 @@ import {
 } from './docs/basic.docs.js';
 
 const gate = getCoreOrAccountLiveGate();
-const DIRECT_CHANGE_LIVE_BLOCKED = true;
 
 describeLive('myos-js live stories: basic + events', gate, () => {
   itLive(
@@ -122,17 +121,13 @@ describeLive('myos-js live stories: basic + events', gate, () => {
         extractField(retrieved, '/contracts/contractsPolicy'),
       ).toBeTruthy();
 
-      if (DIRECT_CHANGE_LIVE_BLOCKED) {
-        // Runtime blocker documented in libs/myos-js/issues.md:
-        // direct-change request enters feed but does not mutate document state.
-        return;
-      }
-
       await waitForAllowedOperation(client, sessionId, 'changeDocument');
       await client.documents.runOperation(sessionId, 'changeDocument', {
         type: 'Conversation/Change Request',
+        summary: 'Update text',
         changeset: [
           {
+            type: 'Core/Json Patch Entry',
             op: 'replace',
             path: '/text',
             val: 'Updated text',
@@ -169,7 +164,7 @@ describeLive('myos-js live stories: basic + events', gate, () => {
       await waitForAllowedOperation(client, sessionId, 'ownerUpdate');
       await client.documents.runOperation(sessionId, 'ownerUpdate', [
         {
-          type: 'Conversation/Event',
+          type: 'Common/Named Event',
           name: 'shipment-confirmed',
         },
       ]);
@@ -182,11 +177,9 @@ describeLive('myos-js live stories: basic + events', gate, () => {
 
       await client.documents.runOperation(sessionId, 'ownerUpdate', [
         {
-          type: 'Conversation/Event',
+          type: 'Common/Named Event',
           name: 'shipment-confirmed-with-payload',
-          payload: {
-            orderId: 'ORD-100',
-          },
+          orderId: 'ORD-100',
         },
       ]);
       await waitForFieldValue(
@@ -237,7 +230,7 @@ describeLive('myos-js live stories: basic + events', gate, () => {
 
       await client.timelines.entries.create(signalTimelineId!, {
         message: {
-          type: 'Conversation/Event',
+          type: 'Common/Named Event',
           name: 'shipment-confirmed',
         },
       });

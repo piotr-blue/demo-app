@@ -1,4 +1,9 @@
-import { DocBuilder, PayNotes, type JsonObject } from '@blue-labs/sdk-dsl';
+import {
+  DocBuilder,
+  PayNotes,
+  fromChannel,
+  type JsonObject,
+} from '@blue-labs/sdk-dsl';
 
 export function buildVoucherChildDocument(name: string) {
   return DocBuilder.doc()
@@ -13,6 +18,7 @@ export function buildVoucherChildDocument(name: string) {
 
 export function buildParentVoucherOrchestratorDocument(name: string) {
   const childTemplate = buildVoucherChildDocument(`${name} Child Voucher`);
+  const requestId = 'REQ_CHILD_VOUCHER_BOOTSTRAP';
   return DocBuilder.doc()
     .name(name)
     .type('MyOS/Agent')
@@ -33,19 +39,32 @@ export function buildParentVoucherOrchestratorDocument(name: string) {
       (steps) =>
         steps
           .myOs('myOsAdminChannel')
-          .bootstrapDocument('BootstrapChildVoucher', childTemplate, {
-            ownerChannel: 'ownerChannel',
-          }),
+          .bootstrapDocument(
+            'BootstrapChildVoucher',
+            childTemplate,
+            {
+              ownerChannel: fromChannel('ownerChannel'),
+            },
+            'ownerChannel',
+            (payload) => {
+              payload.put('requestId', requestId);
+            },
+          ),
     )
-    .onEvent(
+    .onTriggeredWithMatcher(
       'onTargetSessionStarted',
       'MyOS/Target Document Session Started',
+      {
+        inResponseTo: {
+          requestId,
+        },
+      },
       (steps) =>
         steps
           .replaceExpression(
             'StoreChildSessionId',
             '/childSessionId',
-            'event.targetSessionId',
+            'event.initiatorSessionIds[0]',
           )
           .replaceValue('MarkChildReady', '/childStatus', 'ready'),
     )
@@ -54,7 +73,11 @@ export function buildParentVoucherOrchestratorDocument(name: string) {
 }
 
 export function buildShipmentEscrowPayNoteDocument(name: string) {
+  // TODO: MyOS Bootstrap only supports MyOS/MyOS Timeline Channel, default PayNote builder uses Conversation/Timeline Channel.
   const payNoteJson = PayNotes.payNote(name)
+    .channel('payerChannel', { type: 'MyOS/MyOS Timeline Channel' })
+    .channel('payeeChannel', { type: 'MyOS/MyOS Timeline Channel' })
+    .channel('guarantorChannel', { type: 'MyOS/MyOS Timeline Channel' })
     .currency('USD')
     .amountMinor(10000)
     .capture()
