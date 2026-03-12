@@ -7,6 +7,10 @@ let documentStatusTemplatesPromptCache: string | null = null;
 let documentQaPromptCache: string | null = null;
 let documentReferenceRendererPromptCache: string | null = null;
 
+function shouldBypassPromptCache(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
 function promptCandidates(fileName: string): string[] {
   return [
     path.join(process.cwd(), "lib", "prompts", fileName),
@@ -29,6 +33,9 @@ async function readPrompt(fileName: string): Promise<string> {
 }
 
 export async function getBlueprintArchitectPrompt(): Promise<string> {
+  if (shouldBypassPromptCache()) {
+    return readPrompt("blueprint-architect-prompt.md");
+  }
   if (architectPromptCache) {
     return architectPromptCache;
   }
@@ -37,6 +44,9 @@ export async function getBlueprintArchitectPrompt(): Promise<string> {
 }
 
 export async function getBlueprintToJsDslPrompt(): Promise<string> {
+  if (shouldBypassPromptCache()) {
+    return readPrompt("blueprint-to-js-dsl-prompt.md");
+  }
   if (dslPromptCache) {
     return dslPromptCache;
   }
@@ -45,6 +55,9 @@ export async function getBlueprintToJsDslPrompt(): Promise<string> {
 }
 
 export async function getDocumentStatusTemplatesPrompt(): Promise<string> {
+  if (shouldBypassPromptCache()) {
+    return readPrompt("document-status-templates-prompt.md");
+  }
   if (documentStatusTemplatesPromptCache) {
     return documentStatusTemplatesPromptCache;
   }
@@ -55,6 +68,9 @@ export async function getDocumentStatusTemplatesPrompt(): Promise<string> {
 }
 
 export async function getDocumentQaPrompt(): Promise<string> {
+  if (shouldBypassPromptCache()) {
+    return readPrompt("document-qa-prompt.md");
+  }
   if (documentQaPromptCache) {
     return documentQaPromptCache;
   }
@@ -63,6 +79,9 @@ export async function getDocumentQaPrompt(): Promise<string> {
 }
 
 export async function getDocumentReferenceRendererPrompt(): Promise<string> {
+  if (shouldBypassPromptCache()) {
+    return readPrompt("document-reference-renderer-prompt.md");
+  }
   if (documentReferenceRendererPromptCache) {
     return documentReferenceRendererPromptCache;
   }

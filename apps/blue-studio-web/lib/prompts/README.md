@@ -30,3 +30,5 @@ These prompt files are synced into this app at build time and are **not** fetche
 ## Runtime note
 
 Prompt files are read from this directory during API route execution and shipped with the deployed artifact.
+In development, prompt files are re-read on every request so prompt edits are visible without relying on process cache.
+In production, prompt contents are cached per process after the first read.

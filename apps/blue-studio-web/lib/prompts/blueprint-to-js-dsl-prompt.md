@@ -145,6 +145,18 @@ DocBuilder.doc()
   .description('Description')
 ```
 
+CRITICAL: blueprint `TYPE` is NOT the same thing as document `.type(...)`.
+- `TYPE: Document | Agent | PayNote` classifies the blueprint only.
+- Do NOT emit `.type('Document')`, `.type('Agent')`, or `.type('PayNote')`.
+- For PayNotes, use `PayNotes.payNote(...)`; do not set `.type(...)` manually.
+- If the blueprint or context names a concrete Blue document type, use that exact
+  type in `.type(...)`.
+- If the document uses MyOS-centric surface such as `MyOS/MyOS Timeline Channel`,
+  `MyOS/Document Anchors`, MyOS bootstrap/session/agency flows, prefer:
+  `.type('MyOS/Agent')`.
+- Otherwise, for a generic document with no concrete runtime type specified,
+  omit `.type(...)` entirely.
+
 Editing existing JSON / BlueNode:
 ```ts
 DocBuilder.edit(existingDocument)
@@ -256,6 +268,13 @@ Use `ownerChannel` for permission flows unless the blueprint says otherwise.
 and `agency(...)`.
 Add it manually only when you directly use `steps.myOs()` or MyOS bootstrap helpers.
 
+CRITICAL:
+- Channel contract definitions describe the channel type/shape only.
+- Do NOT put participant bindings such as `accountId` or `email` inside
+  `.channel(...)` contract definitions.
+- Fixed participant bindings belong in bootstrap/runtime context, not in the
+  document channel contract itself.
+
 ════════════════════════════════════════════════════════════
 SECTIONS
 ════════════════════════════════════════════════════════════
@@ -350,6 +369,34 @@ RULES:
 - Use `BasicBlueTypes.*` or explicit type strings for request schemas.
 - Do not emit Java classes.
 - For no-request operations, call `.noRequest()`.
+- If the blueprint says an operation accepts anything / forwards anything /
+  has no defined request type, leave the request schema undefined. Do NOT invent
+  wrapper shapes like `{ request: ... }`, `Object`, or fake bootstrap payloads.
+
+Pass-through event forwarding with no defined request type:
+```ts
+.operation('forwardRequest')
+  .channel('ownerChannel')
+  .description('Forward the incoming Blue event unchanged')
+  .steps((steps) =>
+    steps.jsRaw(
+      'Forward',
+      `
+      return {
+        events: [event.message.request],
+      };
+      `,
+    ),
+  )
+  .done()
+```
+
+CRITICAL for `jsRaw(... return { events: [...] })`:
+- Each item inside `events` must already be a full Blue event payload.
+- Do NOT wrap forwarded events as `{ channel: ..., message: ... }` unless the
+  blueprint explicitly requires a timeline-entry envelope.
+- If the blueprint says "forward the incoming request unchanged", emit
+  `event.message.request` directly.
 
 ════════════════════════════════════════════════════════════
 REACTIONS (document-level handlers)
@@ -509,6 +556,14 @@ CRITICAL:
 - `fromChannel(...)` and `fromEmail(...)` only build binding values.
 - They do NOT copy the child channel contract or `type`.
 - The child document itself must already define the correct channel types.
+- If you need to forward an already-formed
+  `Conversation/Document Bootstrap Requested`, re-emit `event.message.request`
+  unchanged. Do NOT reconstruct a second bootstrap request by hand unless the
+  blueprint explicitly asks to transform it.
+- Do NOT assume `steps.bootstrapDocument(...)` exposes a synchronous step result
+  like `steps.SomeBootstrap.sessionId`.
+- If the blueprint needs the created child session id, handle the follow-up
+  MyOS/bootstrap response event explicitly and save the id from that event.
 
 ════════════════════════════════════════════════════════════
 AI DSL
@@ -828,6 +883,33 @@ IMPORTANT:
     - `requestOnEvent(...)`
 - In this JS branch, stick to the supported helper surface above.
 - Do not call `.name(...)` on a PayNote builder.
+- `PayNotes.payNote(...)` does NOT expose the full `DocBuilder` surface.
+  In particular, do not assume it supports arbitrary `.operation(...)`,
+  `.ai(...)`, `.access(...)`, `.accessLinked(...)`, or `.agency(...)`.
+- Directly on a `PayNote` builder, use only the supported PayNote surface plus
+  the exposed document-level hooks such as `.field(...)`, `.section(...)`,
+  `.onEvent(...)`, `.onChannelEvent(...)`, and `.onDocChange(...)`.
+- If the blueprint needs arbitrary operations or richer non-payment document
+  structure in addition to a PayNote lifecycle, build the PayNote template
+  first, then augment it via:
+  ```ts
+  const payNote = PayNotes.payNote('Name')
+    .currency('USD')
+    .amountMinor(10000)
+    .buildJson();
+
+  return DocBuilder.from(payNote)
+    .operation('confirmSomething')
+      .channel('ownerChannel')
+      .noRequest()
+      .steps((steps) => ...)
+      .done()
+    .buildDocument();
+  ```
+- If the blueprint says “capture when participant X confirms Y”, prefer the
+  PayNote-native pattern:
+  `.capture().unlockOnOperation(operationKey, channelKey, description?)`
+  and only add extra reactions around the resulting PayNote events if needed.
 
 ════════════════════════════════════════════════════════════
 EXAMPLES
@@ -925,6 +1007,46 @@ export function buildDocument() {
 }
 ```
 
+Requestless pass-through bootstrap relay:
+```ts
+import { DocBuilder } from '@blue-labs/sdk-dsl';
+
+export function buildDocument() {
+  return DocBuilder.doc()
+    .name('Bootstrap Relay')
+    .type('MyOS/Agent')
+    .channel('merchantChannel', {
+      type: 'MyOS/MyOS Timeline Channel',
+    })
+    .channel('receiverChannel', {
+      type: 'MyOS/MyOS Timeline Channel',
+    })
+    .documentAnchors({
+      deliveries: {
+        type: 'MyOS/Document Anchor',
+      },
+      sourceDocs: {
+        type: 'MyOS/Document Anchor',
+      },
+    })
+    .operation('sendPayNote')
+      .channel('merchantChannel')
+      .description('Forward the incoming bootstrap request unchanged')
+      .steps((steps) =>
+        steps.jsRaw(
+          'ForwardBootstrap',
+          `
+          return {
+            events: [event.message.request],
+          };
+          `,
+        ),
+      )
+      .done()
+    .buildDocument();
+}
+```
+
 ════════════════════════════════════════════════════════════
 COMMON PITFALLS
 ════════════════════════════════════════════════════════════
@@ -948,7 +1070,10 @@ COMMON PITFALLS
 8. Reading uninitialized fields.
 9. Forgetting to guard `onDocChange` handlers by value.
 10. Treating `revokePermission()` as the default MyOS revoke pattern.
-11. Emitting prose before or after the fenced TypeScript block.
+11. Putting `accountId` / `email` into `.channel(...)` definitions instead of
+    bootstrap/runtime bindings.
+12. Modeling document anchors as fields instead of `.documentAnchors(...)`.
+13. Emitting prose before or after the fenced TypeScript block.
 
 ════════════════════════════════════════════════════════════
 FINAL RESPONSE RULES
