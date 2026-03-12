@@ -26,6 +26,8 @@ surface is considered production-ready within the current public runtime.
 
 - `Conversation/Document Bootstrap Requested` bootstrap helpers require
   `onBehalfOf`
+- low-level bootstrap helpers require explicit channel binding objects; plain
+  string shorthand is not supported
 - `steps.myOs().bootstrapDocument(...)` still injects `bootstrapAssignee`, but
   the requester channel must be passed explicitly because the real MyOS Admin
   direct-bootstrap flow rejects requests that omit it
@@ -45,8 +47,7 @@ surface is considered production-ready within the current public runtime.
   `requestPartialOnOperation(...)` do not emit synthetic request schemas
 - runtime proof for these helpers is on the resolved-content
   `Conversation/Operation Request` timeline-entry path used by the real MyOS
-  flow and mirrored by sdk-dsl test support, with local request-type
-  materialization only inside that harness
+  flow and mirrored by sdk-dsl test support
 - this does not claim a broader raw-node processor contract-validation path
 
 ## Deferred / runtime-guarded items

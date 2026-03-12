@@ -231,12 +231,16 @@ For each section state:
 - Decision: `steps.bootstrapDocument(...)`,
   `steps.bootstrapDocumentExpr(...)`, and `steps.myOs().bootstrapDocument(...)`
   now require an explicit `onBehalfOf` argument; the legacy bootstrap form
-  without requester-channel input is no longer supported.
+  without requester-channel input is no longer supported. Low-level bootstrap
+  helpers also require explicit channel binding objects instead of string
+  shorthand.
 - Why: the real MyOS Admin direct-bootstrap path validates `onBehalfOf` on
   `Conversation/Document Bootstrap Requested`. Supporting it as first-class SDK
   input closes the runtime gap and avoids authoring request shapes that would be
-  rejected at runtime. This stays separate from the runtime-correct subscribe
-  helper semantics, which still do not accept `onBehalfOf`.
+  rejected at runtime. Removing string shorthand avoids ambiguous guessing
+  between account/email/timeline references. This stays separate from the
+  runtime-correct subscribe helper semantics, which still do not accept
+  `onBehalfOf`.
 
 ## Post-mainline correction pass
 
@@ -254,9 +258,7 @@ For each section state:
   or `Text` request schemas on the operation contract.
 - Why: these helpers target requestless or wildcard operation semantics. The
   runtime proof is the resolved-content MyOS-style operation request path in
-  sdk-dsl test support, with local request-type materialization used only to
-  satisfy the raw processor matcher. It is not a broader raw-node
-  processor-schema claim.
+  sdk-dsl test support. It is not a broader raw-node processor-schema claim.
 
 ### Package status docs refresh
 - Decision: replace stale package-level status docs with final runtime-correct
