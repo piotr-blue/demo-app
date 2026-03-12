@@ -20,6 +20,14 @@ export class AgencyCapabilitiesBuilder {
     return this.set('participantsOrchestration', enabled);
   }
 
+  sessionInteraction(enabled: boolean): this {
+    return this.set('sessionInteraction', enabled);
+  }
+
+  workerAgency(enabled: boolean): this {
+    return this.set('workerAgency', enabled);
+  }
+
   build(): JsonObject {
     return structuredClone(this.values);
   }

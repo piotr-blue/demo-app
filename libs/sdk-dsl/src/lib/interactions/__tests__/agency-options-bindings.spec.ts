@@ -33,7 +33,10 @@ describe('agency helpers', () => {
       .defaultMessage('Booting worker')
       .channelMessage('ownerChannel', 'Worker started')
       .capabilities((capabilities: AgencyCapabilitiesBuilder) =>
-        capabilities.participantsOrchestration(true),
+        capabilities
+          .participantsOrchestration(true)
+          .sessionInteraction(true)
+          .workerAgency(true),
       )
       .build();
 
@@ -46,6 +49,8 @@ describe('agency helpers', () => {
       },
       capabilities: {
         participantsOrchestration: true,
+        sessionInteraction: true,
+        workerAgency: true,
       },
     });
   });
