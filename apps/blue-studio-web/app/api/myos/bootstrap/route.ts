@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { MyOsClient } from "@blue-labs/myos-js";
 import { parseRouteCredentials } from "@/lib/api/credentials";
-import { rewriteCoreChannelTypeForBootstrap } from "@/lib/myos/bootstrap-request";
 import { toMyOsBindings } from "@/lib/myos/bindings";
 import { safeErrorMessage } from "@/lib/security/redact";
 
@@ -255,13 +254,7 @@ export async function POST(request: Request) {
     });
 
     const normalizedBindings = toMyOsBindings(body.bindings);
-    // TODO(temporary-dirty-fix): MyOS bootstrap currently misbehaves with Core/Channel.
-    // Force canonical timeline channel type right before bootstrap.
-    const bootstrapDocumentJson = rewriteCoreChannelTypeForBootstrap(body.documentJson) as Record<
-      string,
-      unknown
-    >;
-    const bootstrap = await client.documents.bootstrap(bootstrapDocumentJson, normalizedBindings);
+    const bootstrap = await client.documents.bootstrap(body.documentJson, normalizedBindings);
     const bootstrapPayload = bootstrap as Record<string, unknown>;
     const bootstrapSessionId = readString(bootstrapPayload.sessionId);
     if (!bootstrapSessionId) {
