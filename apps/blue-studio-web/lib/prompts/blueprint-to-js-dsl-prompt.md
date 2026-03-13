@@ -170,6 +170,12 @@ PayNotes.payNote('Name') // constructor takes the name
   .currency('USD')
   .amountMinor(50000)
 ```
+- `PayNotes.payNote(...)` already defines the standard PayNote participant channels:
+  `payerChannel`, `payeeChannel`, and `guarantorChannel`.
+- Do NOT re-add those three channels unless you are explicitly overriding their
+  contract on purpose.
+- Only add extra channels that the blueprint actually needs beyond the standard
+  PayNote participants.
 
 Expressions:
 ```ts
@@ -894,6 +900,14 @@ IMPORTANT:
 - Use those methods directly on the PayNote builder. Do NOT route through
   `DocBuilder.from(payNote.buildJson())` unless the user explicitly asks for
   an edit-from-existing-document pattern.
+- `PayNotes.payNote(...)` already includes `payerChannel`, `payeeChannel`,
+  and `guarantorChannel`. Do NOT emit redundant `.channel('payerChannel')`,
+  `.channel('payeeChannel')`, or `.channel('guarantorChannel')` calls unless
+  you are intentionally overriding those default contracts.
+- If the blueprint needs an extra participant beyond the default PayNote roles,
+  add only that extra channel. For MyOS-targeting documents, give extra
+  participant channels an explicit MyOS-safe contract, e.g.
+  `.channel('shippingCompanyChannel', { type: 'MyOS/MyOS Timeline Channel' })`.
 - If the blueprint says “capture when participant X confirms Y”, prefer the
   PayNote-native pattern:
   `.capture().unlockOnOperation(operationKey, channelKey, description?)`
@@ -908,6 +922,7 @@ PayNotes.payNote('Delivery Capture')
   .capture()
     .lockOnInit()
     .done()
+  .channel('shippingCompanyChannel', { type: 'MyOS/MyOS Timeline Channel' })
   .operation('confirmDelivery')
     .channel('shippingCompanyChannel')
     .noRequest()
