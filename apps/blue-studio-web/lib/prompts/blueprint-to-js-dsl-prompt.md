@@ -816,18 +816,23 @@ PAYMENT STEPS
 Payment helpers exist on `StepsBuilder`.
 Use blueprint-provided Blue event type aliases, not Java classes.
 
-Examples:
+Example:
 ```ts
-steps.triggerPayment('RequestPayment', 'MyPayments/Payment Requested', (payload) =>
+steps.triggerPayment('RequestReserve', 'PayNote/Reserve Funds Requested', (payload) =>
   payload
     .processor('guarantorChannel')
     .payer('payerChannel')
     .payee('payeeChannel')
     .currency('USD')
     .amountMinor(10000)
-    .reason('voucher-activation'),
+    .reason('voucher-activation')
+    .putCustom('idempotencyKey', 'payment-1')
+    .putCustomExpression('merchantRef', "document('/merchant/ref')")
+    .putCustomExpression(
+      'voucherPayNoteStartPayload',
+      "document('/voucherPayNoteStartPayload')",
+    ),
 )
-
 ```
 
 `steps.requestBackwardPayment(...)` is runtime-guarded. Do not generate it
@@ -846,6 +851,11 @@ payload.viaCrypto().put('asset', 'BTC').put('chain', 'bitcoin').done()
 ```
 
 `processor(...)` is mandatory.
+- `put(...)` exists only on rail sub-builders like `viaAch()`, `viaWire()`,
+  `viaCrypto()`, etc.
+- For non-rail custom top-level payment payload fields, use
+  `putCustom(...)` or `putCustomExpression(...)`.
+- Do NOT generate `.reason(...).put(...)` on the main payment payload builder.
 
 ════════════════════════════════════════════════════════════
 PAYNOTE DSL (CURRENT JS BRANCH)
@@ -904,6 +914,8 @@ IMPORTANT:
   and `guarantorChannel`. Do NOT emit redundant `.channel('payerChannel')`,
   `.channel('payeeChannel')`, or `.channel('guarantorChannel')` calls unless
   you are intentionally overriding those default contracts.
+- The default PayNote `payerChannel`, `payeeChannel`, and `guarantorChannel`
+  are already bootstrap-bindable `MyOS/MyOS Timeline Channel`.
 - If the blueprint needs an extra participant beyond the default PayNote roles,
   add only that extra channel. For MyOS-targeting documents, give extra
   participant channels an explicit MyOS-safe contract, e.g.

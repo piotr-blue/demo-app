@@ -232,13 +232,13 @@ export class PayNoteBuilder extends DocBuilder {
     super();
     this.name(name).type('PayNote/PayNote');
     this.channel('payerChannel', {
-      type: 'Conversation/Timeline Channel',
+      type: 'MyOS/MyOS Timeline Channel',
     });
     this.channel('payeeChannel', {
-      type: 'Conversation/Timeline Channel',
+      type: 'MyOS/MyOS Timeline Channel',
     });
     this.channel('guarantorChannel', {
-      type: 'Conversation/Timeline Channel',
+      type: 'MyOS/MyOS Timeline Channel',
     });
   }
 

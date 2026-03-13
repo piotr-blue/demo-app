@@ -27,11 +27,11 @@ description: Escrow paynote
 type: PayNote/PayNote
 contracts:
   payerChannel:
-    type: Conversation/Timeline Channel
+    type: MyOS/MyOS Timeline Channel
   payeeChannel:
-    type: Conversation/Timeline Channel
+    type: MyOS/MyOS Timeline Channel
   guarantorChannel:
-    type: Conversation/Timeline Channel
+    type: MyOS/MyOS Timeline Channel
   initLifecycleChannel:
     type: Core/Lifecycle Event Channel
     event:
