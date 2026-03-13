@@ -1,7 +1,6 @@
-import type { BlueNode } from '@blue-labs/language';
 import { DocBuilder } from '../doc-builder/doc-builder.js';
 import type { TypeLike } from '../core/type-alias.js';
-import type { JsonObject, JsonValue } from '../core/types.js';
+import type { JsonObject } from '../core/types.js';
 import { assertRepositoryTypeAliasAvailable } from '../core/runtime-type-support.js';
 import type { StepsBuilder } from '../steps/steps-builder.js';
 
@@ -72,7 +71,7 @@ export class PayNoteActionBuilder {
   ) {}
 
   lockOnInit(): this {
-    this.parent.onInitWorkflow(`${this.mode}LockOnInit`, (steps) =>
+    this.parent.onInit(`${this.mode}LockOnInit`, (steps) =>
       steps.triggerEvent('Lock', { type: eventType(this.mode, 'lock') }),
     );
     return this;
@@ -80,7 +79,7 @@ export class PayNoteActionBuilder {
 
   unlockOnEvent(eventTypeRef: TypeLike): this {
     const eventSuffix = sanitizeTypeLabel(eventTypeRef);
-    this.parent.onEventWorkflow(
+    this.parent.onEvent(
       `${this.mode}UnlockOn${eventSuffix}`,
       typeof eventTypeRef === 'string' ? eventTypeRef : eventTypeRef.name,
       (steps) =>
@@ -90,7 +89,7 @@ export class PayNoteActionBuilder {
   }
 
   requestOnInit(): this {
-    this.parent.onInitWorkflow(`${this.mode}RequestOnInit`, (steps) =>
+    this.parent.onInit(`${this.mode}RequestOnInit`, (steps) =>
       steps.triggerEvent('Request', {
         type: eventType(this.mode, 'request'),
         amount: "${document('/amount/total')}",
@@ -187,7 +186,7 @@ export class PayNoteActionBuilder {
   }
 
   unlockOnDocPathChange(path: string): this {
-    this.parent.onDocChangeWorkflow(
+    this.parent.onDocChange(
       `${this.mode}UnlockOnPath${sanitizeTypeLabel(path)}`,
       path,
       (steps) =>
@@ -197,7 +196,7 @@ export class PayNoteActionBuilder {
   }
 
   requestOnDocPathChange(path: string): this {
-    this.parent.onDocChangeWorkflow(
+    this.parent.onDocChange(
       `${this.mode}RequestOnPath${sanitizeTypeLabel(path)}`,
       path,
       (steps) =>
@@ -211,7 +210,7 @@ export class PayNoteActionBuilder {
 
   requestOnEvent(eventTypeRef: TypeLike): this {
     const eventSuffix = sanitizeTypeLabel(eventTypeRef);
-    this.parent.onEventWorkflow(
+    this.parent.onEvent(
       `${this.mode}RequestOn${eventSuffix}`,
       typeof eventTypeRef === 'string' ? eventTypeRef : eventTypeRef.name,
       (steps) =>
@@ -228,62 +227,37 @@ export class PayNoteActionBuilder {
   }
 }
 
-export class PayNoteBuilder {
-  private constructor(private readonly builder: DocBuilder) {}
-
-  static create(name: string): PayNoteBuilder {
-    const builder = DocBuilder.doc()
-      .name(name)
-      .type('PayNote/PayNote')
-      .channel('payerChannel', {
-        type: 'Conversation/Timeline Channel',
-      })
-      .channel('payeeChannel', {
-        type: 'Conversation/Timeline Channel',
-      })
-      .channel('guarantorChannel', {
-        type: 'Conversation/Timeline Channel',
-      });
-    return new PayNoteBuilder(builder);
+export class PayNoteBuilder extends DocBuilder {
+  private constructor(name: string) {
+    super();
+    this.name(name).type('PayNote/PayNote');
+    this.channel('payerChannel', {
+      type: 'MyOS/MyOS Timeline Channel',
+    });
+    this.channel('payeeChannel', {
+      type: 'MyOS/MyOS Timeline Channel',
+    });
+    this.channel('guarantorChannel', {
+      type: 'MyOS/MyOS Timeline Channel',
+    });
   }
 
-  description(description: string): this {
-    this.builder.description(description);
-    return this;
+  static create(name: string): PayNoteBuilder {
+    return new PayNoteBuilder(name);
   }
 
   currency(currency: string): this {
-    this.builder.field('/currency', currency);
+    this.field('/currency', currency);
     return this;
   }
 
   amountMinor(amountMinor: number): this {
-    this.builder.field('/amount/total', amountMinor);
+    this.field('/amount/total', amountMinor);
     return this;
   }
 
   amountMajor(amountMajor: string): this {
-    this.builder.field('/amount/total', toMinor(amountMajor));
-    return this;
-  }
-
-  channel(channelKey: string, contract?: JsonObject): this {
-    this.builder.channel(channelKey, contract);
-    return this;
-  }
-
-  field(path: string, value: JsonValue): this {
-    this.builder.field(path, value);
-    return this;
-  }
-
-  section(key: string, title: string, summary?: string): this {
-    this.builder.section(key, title, summary);
-    return this;
-  }
-
-  endSection(): this {
-    this.builder.endSection();
+    this.field('/amount/total', toMinor(amountMajor));
     return this;
   }
 
@@ -299,29 +273,6 @@ export class PayNoteBuilder {
     return new PayNoteActionBuilder(this, 'release');
   }
 
-  buildJson(): JsonObject {
-    return this.builder.buildJson();
-  }
-
-  buildDocument(): BlueNode {
-    return this.builder.buildDocument();
-  }
-
-  onInitWorkflow(
-    workflowKey: string,
-    stepsBuilder: (steps: StepsBuilder) => void,
-  ): void {
-    this.builder.onInit(workflowKey, stepsBuilder);
-  }
-
-  onEventWorkflow(
-    workflowKey: string,
-    eventType: TypeLike,
-    stepsBuilder: (steps: StepsBuilder) => void,
-  ): void {
-    this.builder.onEvent(workflowKey, eventType, stepsBuilder);
-  }
-
   operationTrigger(
     operationKey: string,
     channelKey: string,
@@ -330,7 +281,7 @@ export class PayNoteBuilder {
     event: JsonObject,
     additionalSteps?: (steps: StepsBuilder) => void,
   ): void {
-    const operation = this.builder.operation(operationKey).channel(channelKey);
+    const operation = this.operation(operationKey).channel(channelKey);
     if (description) {
       operation.description(description);
     }
@@ -343,94 +294,5 @@ export class PayNoteBuilder {
         additionalSteps?.(steps);
       })
       .done();
-  }
-
-  onEvent(
-    workflowKey: string,
-    eventType: TypeLike,
-    customizer: (steps: StepsBuilder) => void,
-  ): this {
-    this.builder.onEvent(workflowKey, eventType, customizer);
-    return this;
-  }
-
-  onChannelEvent(
-    workflowKey: string,
-    channelKey: string,
-    eventType: TypeLike,
-    customizer: (steps: StepsBuilder) => void,
-  ): this {
-    this.builder.onChannelEvent(workflowKey, channelKey, eventType, customizer);
-    return this;
-  }
-
-  onDocChange(
-    workflowKey: string,
-    path: string,
-    customizer: (steps: StepsBuilder) => void,
-  ): this {
-    this.builder.onDocChange(workflowKey, path, customizer);
-    return this;
-  }
-
-  onMyOsResponse(
-    workflowKey: string,
-    responseType: TypeLike,
-    customizer: (steps: StepsBuilder) => void,
-  ): this;
-  onMyOsResponse(
-    workflowKey: string,
-    responseType: TypeLike,
-    requestId: string,
-    customizer: (steps: StepsBuilder) => void,
-  ): this;
-  onMyOsResponse(
-    workflowKey: string,
-    responseType: TypeLike,
-    matcher: JsonObject,
-    customizer: (steps: StepsBuilder) => void,
-  ): this;
-  onMyOsResponse(
-    workflowKey: string,
-    responseType: TypeLike,
-    requestIdOrMatcherOrCustomizer:
-      | string
-      | JsonObject
-      | ((steps: StepsBuilder) => void),
-    customizerMaybe?: (steps: StepsBuilder) => void,
-  ): this {
-    if (typeof requestIdOrMatcherOrCustomizer === 'function') {
-      this.builder.onMyOsResponse(
-        workflowKey,
-        responseType,
-        requestIdOrMatcherOrCustomizer,
-      );
-      return this;
-    }
-    const customizer = customizerMaybe as (steps: StepsBuilder) => void;
-    if (typeof requestIdOrMatcherOrCustomizer === 'string') {
-      this.builder.onMyOsResponse(
-        workflowKey,
-        responseType,
-        requestIdOrMatcherOrCustomizer,
-        customizer,
-      );
-      return this;
-    }
-    this.builder.onMyOsResponse(
-      workflowKey,
-      responseType,
-      requestIdOrMatcherOrCustomizer,
-      customizer,
-    );
-    return this;
-  }
-
-  onDocChangeWorkflow(
-    workflowKey: string,
-    path: string,
-    stepsBuilder: (steps: StepsBuilder) => void,
-  ): void {
-    this.builder.onDocChange(workflowKey, path, stepsBuilder);
   }
 }

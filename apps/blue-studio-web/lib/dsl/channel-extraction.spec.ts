@@ -50,7 +50,7 @@ describe("extractChannelBindingsFromStructure", () => {
     ]);
   });
 
-  it("includes runtime channels by default so user can choose to ignore them", () => {
+  it("excludes internal runtime channels from bootstrap bindings", () => {
     const bindings = extractChannelBindingsFromStructure({
       accountId: "acc_1",
       structure: {
@@ -69,35 +69,35 @@ describe("extractChannelBindingsFromStructure", () => {
           {
             key: "Triggered Event Channel",
             kind: "channel",
-            raw: {},
+            raw: { type: "Triggered Event Channel" },
             fingerprint: "fp_triggered_plain",
             sectionKeys: [],
           },
           {
             key: "Core/Triggered Event Channel",
             kind: "channel",
-            raw: {},
+            raw: { type: "Core/Triggered Event Channel" },
             fingerprint: "fp_triggered_core",
             sectionKeys: [],
           },
           {
             key: "Core/Lifecycle Event Channel",
             kind: "channel",
-            raw: {},
+            raw: { type: "Core/Lifecycle Event Channel" },
             fingerprint: "fp_lifecycle_core",
             sectionKeys: [],
           },
           {
             key: "Embedded Node Channel",
             kind: "channel",
-            raw: {},
+            raw: { type: "Core/Embedded Node Channel" },
             fingerprint: "fp_embedded_plain",
             sectionKeys: [],
           },
           {
             key: "Document Update Channel",
             kind: "channel",
-            raw: {},
+            raw: { type: "Core/Document Update Channel" },
             fingerprint: "fp_doc_update_plain",
             sectionKeys: [],
           },
@@ -117,11 +117,6 @@ describe("extractChannelBindingsFromStructure", () => {
 
     expect(bindings.map((entry) => entry.channelName)).toEqual([
       "ownerChannel",
-      "Triggered Event Channel",
-      "Core/Triggered Event Channel",
-      "Core/Lifecycle Event Channel",
-      "Embedded Node Channel",
-      "Document Update Channel",
       "reviewerChannel",
     ]);
     expect(bindings.every((entry) => entry.ignored === false)).toBe(true);

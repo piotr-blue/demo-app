@@ -42,7 +42,8 @@ const doc = DocBuilder.doc()
 - step composition (`StepsBuilder`) including MyOS and payment helpers
 - high-level interaction builders (`access`, `accessLinked`, `agency`) aligned to Java construct semantics
 - AI integration builder + response workflows
-- PayNote builder (`PayNotes.payNote(...)`)
+- PayNote builder (`PayNotes.payNote(...)`) with document-level authoring
+  surface plus payment action helpers
 - `DocStructure.from(...)` for stable structure extraction + prompt summaries
 - `DocPatch.from(...)` for generic RFC-6902 style patch generation
 - `BlueChangeCompiler` for Blue-aware change planning

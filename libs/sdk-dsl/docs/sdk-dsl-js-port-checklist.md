@@ -34,7 +34,8 @@ Legend:
 
 ## PayNote DSL
 
-- ✅ `PayNotes.payNote(name)` + `PayNoteBuilder`
+- ✅ `PayNotes.payNote(name)` + `PayNoteBuilder` inheriting the document-level
+  builder surface
 - ✅ amount/currency helpers
 - ✅ capture/reserve/release action builders (including operation unlock/partial-request variants)
 - ⚠️ full Java parity for all paynote operation trigger variants (reserve/release lock/unlock aliases unavailable in current repository models)

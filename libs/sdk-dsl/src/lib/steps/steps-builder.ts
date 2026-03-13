@@ -198,12 +198,12 @@ export class PaymentRequestPayloadBuilder {
   }
 
   amountMinor(amountMinor: number): this {
-    this.payload.amountMinor = amountMinor;
+    this.payload.amount = amountMinor;
     return this;
   }
 
   amountMinorExpression(expression: string): this {
-    this.payload.amountMinor = ensureExpression(expression);
+    this.payload.amount = ensureExpression(expression);
     return this;
   }
 

@@ -18,7 +18,8 @@ CRITICAL OUTPUT RULES:
 - Return the built document from `buildDocument()`.
 - The final builder chain must end with `.buildDocument();`.
 - Import only the symbols you actually use from `@blue-labs/sdk-dsl`.
-- Typical imports are `DocBuilder`, `PayNotes`, `BasicBlueTypes`, and `MyOsPermissions`.
+- Typical imports are `DocBuilder`, `PayNotes`, `BasicBlueTypes`,
+  `MyOsPermissions`, `fromChannel`, and `fromEmail`.
 - Never emit Java.
 - Never emit `.class`, `new Node()`, `List.of()`, `Map.of()`, Java lambdas, Java text blocks, or Java-only helpers.
 - Use plain TypeScript objects, arrays, strings, numbers, and booleans.
@@ -40,7 +41,7 @@ CRITICAL RULES:
    `onSubscriptionUpdate`, `onAIResponse`, `onAIResponseForTask`,
    `onAINamedResponse`, `onAccessGranted`, `onAccessRejected`,
    `onAccessRevoked`, `onLinkedAccessGranted`, `onLinkedAccessRejected`,
-   `onLinkedAccessRevoked`, `onLinkedDocGranted`, `onLinkedDocRejected`,
+   `onLinkedAccessRevoked`, `onLinkedDocGranted`,
    `onLinkedDocRevoked`, `onAgencyGranted`, `onAgencyRejected`,
    `onAgencyRevoked`, `onCallResponse`, `onSessionCreated`,
    `onSessionStarting`, `onSessionStarted`, `onSessionFailed`,
@@ -136,6 +137,18 @@ DocBuilder.doc()
   .description('Description')
 ```
 
+CRITICAL: blueprint `TYPE` is NOT the same thing as document `.type(...)`.
+- `TYPE: Document | Agent | PayNote` classifies the blueprint only.
+- Do NOT emit `.type('Document')`, `.type('Agent')`, or `.type('PayNote')`.
+- For PayNotes, use `PayNotes.payNote(...)`; do not set `.type(...)` manually.
+- If the blueprint or context names a concrete Blue document type, use that exact
+  type in `.type(...)`.
+- If the document uses MyOS-centric surface such as `MyOS/MyOS Timeline Channel`,
+  `MyOS/Document Anchors`, MyOS bootstrap/session/agency flows, prefer:
+  `.type('MyOS/Agent')`.
+- Otherwise, for a generic document with no concrete runtime type specified,
+  omit `.type(...)` entirely.
+
 Editing existing JSON / BlueNode:
 ```ts
 DocBuilder.edit(existingDocument)
@@ -149,6 +162,12 @@ PayNotes.payNote('Name') // constructor takes the name
   .currency('USD')
   .amountMinor(50000)
 ```
+- `PayNotes.payNote(...)` already defines the standard PayNote participant channels:
+  `payerChannel`, `payeeChannel`, and `guarantorChannel`.
+- Do NOT re-add those three channels unless you are explicitly overriding their
+  contract on purpose.
+- Only add extra channels that the blueprint actually needs beyond the standard
+  PayNote participants.
 
 Expressions:
 ```ts
@@ -247,6 +266,13 @@ Use `ownerChannel` for permission flows unless the blueprint says otherwise.
 and `agency(...)`.
 Add it manually only when you directly use `steps.myOs()` or MyOS bootstrap helpers.
 
+CRITICAL:
+- Channel contract definitions describe the channel type/shape only.
+- Do NOT put participant bindings such as `accountId` or `email` inside
+  `.channel(...)` contract definitions.
+- Fixed participant bindings belong in bootstrap/runtime context, not in the
+  document channel contract itself.
+
 ════════════════════════════════════════════════════════════
 SECTIONS
 ════════════════════════════════════════════════════════════
@@ -341,6 +367,34 @@ RULES:
 - Use `BasicBlueTypes.*` or explicit type strings for request schemas.
 - Do not emit Java classes.
 - For no-request operations, call `.noRequest()`.
+- If the blueprint says an operation accepts anything / forwards anything /
+  has no defined request type, leave the request schema undefined. Do NOT invent
+  wrapper shapes like `{ request: ... }`, `Object`, or fake bootstrap payloads.
+
+Pass-through event forwarding with no defined request type:
+```ts
+.operation('forwardRequest')
+  .channel('ownerChannel')
+  .description('Forward the incoming Blue event unchanged')
+  .steps((steps) =>
+    steps.jsRaw(
+      'Forward',
+      `
+      return {
+        events: [event.message.request],
+      };
+      `,
+    ),
+  )
+  .done()
+```
+
+CRITICAL for `jsRaw(... return { events: [...] })`:
+- Each item inside `events` must already be a full Blue event payload.
+- Do NOT wrap forwarded events as `{ channel: ..., message: ... }` unless the
+  blueprint explicitly requires a timeline-entry envelope.
+- If the blueprint says "forward the incoming request unchanged", emit
+  `event.message.request` directly.
 
 ════════════════════════════════════════════════════════════
 REACTIONS (document-level handlers)
@@ -488,6 +542,15 @@ steps.bootstrapDocumentExpr('BootstrapFromExpr', "document('/templateDoc')", {
 }, 'ownerChannel')
 ```
 
+CRITICAL:
+- `fromChannel(...)` and `fromEmail(...)` only build binding values.
+- They do NOT copy the child channel contract or `type`.
+- The child document itself must already define the correct channel types.
+- Do NOT assume `steps.bootstrapDocument(...)` exposes a synchronous step result
+  like `steps.SomeBootstrap.sessionId`.
+- If the blueprint needs the created child session id, handle the follow-up
+  MyOS/bootstrap response event explicitly and save the id from that event.
+
 ════════════════════════════════════════════════════════════
 AI DSL
 ════════════════════════════════════════════════════════════
@@ -555,18 +618,23 @@ DOCUMENT INTERACTION DSL (JS BRANCH)
 
 CRITICAL JS DIFFERENCE:
 - In this TS SDK branch, `access(...)`, `accessLinked(...)`, and `agency(...)`
-  are CONFIG BUILDERS.
-- They register names, ids, and permission channels.
-- They do NOT provide the full Java builder surface like `.read(true)`,
-  `.operations(...)`, `.requestPermissionOnInit()`, `.statusPath(...)`,
-  `.subscribeAfterGranted()`, `.allowedTypes(...)`, or `.allowedOperations(...)`.
-- Drive permission requests, subscriptions, and follow-up calls from handlers/steps.
+  are CONFIG BUILDERS with a meaningful public surface.
+- Prefer configuring permission defaults, timing, status paths, subscriptions,
+  and allowed capabilities on the builder itself.
+- Use step helpers for explicit manual requests, target overrides, subscriptions,
+  calls, and other one-off flows.
 
 ACCESS CONFIG:
 ```ts
 .access('orders')
   .permissionFrom('ownerChannel')
   .targetSessionId(DocBuilder.expr("document('/ordersSessionId')"))
+  .read(true)
+  .operations('getStatus')
+  .statusPath('/orders/status')
+  .subscribeAfterGranted()
+  .subscriptionEvents('Conversation/Event')
+  .requestPermissionOnInit()
   .done()
 ```
 
@@ -580,7 +648,6 @@ steps.access('orders').requestPermissionForTarget(
   DocBuilder.expr("document('/dynamicSessionId')"),
   { read: true },
 )
-steps.access('orders').revokePermission()
 steps.access('orders').subscribe('Conversation/Event')
 steps.access('orders').call('getStatus')
 steps.access('orders').call('updateQuantity', {
@@ -588,11 +655,25 @@ steps.access('orders').call('updateQuantity', {
 })
 ```
 
+For MyOS-targeting generations, do NOT use `revokePermission()` as the default
+revoke model. Current runtime flows are grant-document-centric, not arbitrary
+controller-document revoke requests.
+
 LINKED ACCESS CONFIG:
 ```ts
 .accessLinked('shopData')
   .permissionFrom('ownerChannel')
   .targetSessionId(DocBuilder.expr("document('/shopPortalSessionId')"))
+  .link('purchases')
+    .read(true)
+    .operations('getReceipt')
+    .done()
+  .link('returns')
+    .read(true)
+    .done()
+  .statusPath('/shopData/status')
+  .subscriptionEvents('Conversation/Event')
+  .requestPermissionOnInit()
   .done()
 ```
 
@@ -602,7 +683,6 @@ steps.accessLinked('shopData').requestPermission({
   purchases: MyOsPermissions.create().read(true).singleOps('getReceipt'),
   returns: { read: true },
 })
-steps.accessLinked('shopData').revokePermission()
 steps.accessLinked('shopData').subscribe('Conversation/Event')
 steps.accessLinked('shopData').call('getReceipt', { receiptId: '123' })
 ```
@@ -612,6 +692,10 @@ AGENCY CONFIG:
 .agency('procurement')
   .permissionFrom('ownerChannel')
   .targetSessionId(DocBuilder.expr("document('/agencyTargetSessionId')"))
+  .allowedTypes('Procurement/Offer')
+  .allowedOperations('proposeOffer')
+  .statusPath('/agency/status')
+  .requestPermissionOnInit()
   .done()
 ```
 
@@ -620,8 +704,6 @@ AGENCY STEPS:
 steps.viaAgency('procurement').requestPermission({
   // blueprint-provided workerAgencyPermissions payload
 })
-
-steps.viaAgency('procurement').revokePermission()
 
 steps.viaAgency('procurement').call('proposeOffer', {
   maxPrice: DocBuilder.expr("document('/maxPrice')"),
@@ -634,22 +716,28 @@ steps.viaAgency('procurement').startWorkerSessionWith(
   childDoc,
   (bindings) =>
     bindings.bind('buyerChannel', {
-      timelineId: 'buyer@example.com',
+      accountId: 'acc-buyer',
     }),
   (options) =>
     options
-      .bootstrapAssignee('myOsAdminChannel')
-      .defaultMessage('A new child document was created.'),
+      .defaultMessage('A new child document was created.')
+      .capabilities((capabilities) =>
+        capabilities
+          .participantsOrchestration(true)
+          .sessionInteraction(true),
+      ),
 )
 ```
 
 IMPORTANT JS-SPECIFIC AGENCY RULES:
 - Use `startWorkerSession(...)` / `startWorkerSessionWith(...)`.
 - Do NOT invent Java-only helpers like `startSession(...)`, `bindFromCurrentDoc(...)`,
-  `bindExpr(...)`, `initiator(...)`, or `capabilities(...)`.
+  `bindExpr(...)`, or `initiator(...)`.
 - `AgencyBindingsBuilder` supports `.bind(channelKey, { accountId?, timelineId?, documentId? })`.
-- `AgencyOptionsBuilder` supports `.bootstrapAssignee(...)`, `.defaultMessage(...)`,
-  and `.channelMessage(...)`.
+- `AgencyOptionsBuilder` supports `.defaultMessage(...)`, `.channelMessage(...)`,
+  and `.capabilities(...)`.
+- Do NOT use `.bootstrapAssignee(...)` on agency worker-session options; the
+  public runtime rejects it.
 
 Recommended permission flow pattern:
 ```ts
@@ -695,7 +783,6 @@ steps.myOs().callOperation(
 )
 
 steps.myOs().subscribeToSession(
-  'ownerChannel',
   DocBuilder.expr("document('/targetSessionId')"),
   'SUB_1',
   'Conversation/Event',
@@ -709,28 +796,27 @@ PAYMENT STEPS
 Payment helpers exist on `StepsBuilder`.
 Use blueprint-provided Blue event type aliases, not Java classes.
 
-Examples:
+Example:
 ```ts
-steps.triggerPayment('RequestPayment', 'MyPayments/Payment Requested', (payload) =>
+steps.triggerPayment('RequestReserve', 'PayNote/Reserve Funds Requested', (payload) =>
   payload
     .processor('guarantorChannel')
     .payer('payerChannel')
     .payee('payeeChannel')
     .currency('USD')
     .amountMinor(10000)
-    .reason('voucher-activation'),
-)
-
-steps.requestBackwardPayment('VoucherCredit', (payload) =>
-  payload
-    .processor('guarantorChannel')
-    .from('payeeChannel')
-    .to('payerChannel')
-    .currency('USD')
-    .amountMinor(10000)
-    .reason('voucher-activation'),
+    .reason('voucher-activation')
+    .putCustom('idempotencyKey', 'payment-1')
+    .putCustomExpression('merchantRef', "document('/merchant/ref')")
+    .putCustomExpression(
+      'voucherPayNoteStartPayload',
+      "document('/voucherPayNoteStartPayload')",
+    ),
 )
 ```
+
+`steps.requestBackwardPayment(...)` is runtime-guarded. Do not generate it
+unless the target runtime explicitly exposes `PayNote/Backward Payment Requested`.
 
 Rails:
 ```ts
@@ -745,6 +831,11 @@ payload.viaCrypto().put('asset', 'BTC').put('chain', 'bitcoin').done()
 ```
 
 `processor(...)` is mandatory.
+- `put(...)` exists only on rail sub-builders like `viaAch()`, `viaWire()`,
+  `viaCrypto()`, etc.
+- For non-rail custom top-level payment payload fields, use
+  `putCustom(...)` or `putCustomExpression(...)`.
+- Do NOT generate `.reason(...).put(...)` on the main payment payload builder.
 
 ════════════════════════════════════════════════════════════
 PAYNOTE DSL (CURRENT JS BRANCH)
@@ -770,8 +861,11 @@ PayNotes.payNote('Armchair')
 Supported PayNote action helpers in this TS branch:
 - `.lockOnInit()`
 - `.unlockOnEvent(eventType)`
+- `.unlockOnDocPathChange(path)`
 - `.unlockOnOperation(operationKey, channelKey, description?)`
 - `.requestOnInit()`
+- `.requestOnEvent(eventType)`
+- `.requestOnDocPathChange(path)`
 - `.requestOnOperation(operationKey, channelKey, description?)`
 - `.requestPartialOnOperation(operationKey, channelKey, amountExpression, description?)`
 
@@ -782,12 +876,58 @@ Available action builders:
 
 IMPORTANT:
 - Do NOT invent unavailable Java-parity helpers like:
-    - `unlockOnDocPathChange(...)`
-    - `requestOnDocPathChange(...)`
     - `requestPartialOnEvent(...)`
-    - `requestOnEvent(...)`
 - In this JS branch, stick to the supported helper surface above.
 - Do not call `.name(...)` on a PayNote builder.
+- `PayNotes.payNote(...)` is a specialized document builder.
+- It supports the normal document-level surface directly, including
+  `.field(...)`, `.section(...)`, `.endSection()`, `.operation(...)`,
+  `.onInit(...)`, `.onEvent(...)`, `.onChannelEvent(...)`,
+  `.onNamedEvent(...)`, `.onDocChange(...)`, `.onMyOsResponse(...)`,
+  `.documentAnchors(...)`, `.documentLinks(...)`, `.sessionLink(...)`,
+  `.documentLink(...)`, `.documentTypeLink(...)`, and the other standard
+  `DocBuilder` methods.
+- Use those methods directly on the PayNote builder. Do NOT route through
+  `DocBuilder.from(payNote.buildJson())` unless the user explicitly asks for
+  an edit-from-existing-document pattern.
+- `PayNotes.payNote(...)` already includes `payerChannel`, `payeeChannel`,
+  and `guarantorChannel`. Do NOT emit redundant `.channel('payerChannel')`,
+  `.channel('payeeChannel')`, or `.channel('guarantorChannel')` calls unless
+  you are intentionally overriding those default contracts.
+- The default PayNote `payerChannel`, `payeeChannel`, and `guarantorChannel`
+  are already bootstrap-bindable `MyOS/MyOS Timeline Channel`.
+- If the blueprint needs an extra participant beyond the default PayNote roles,
+  add only that extra channel. For MyOS-targeting documents, give extra
+  participant channels an explicit MyOS-safe contract, e.g.
+  `.channel('shippingCompanyChannel', { type: 'MyOS/MyOS Timeline Channel' })`.
+- If the blueprint says “capture when participant X confirms Y”, prefer the
+  PayNote-native pattern:
+  `.capture().unlockOnOperation(operationKey, channelKey, description?)`
+  and only add extra reactions around the resulting PayNote events if needed.
+
+Custom operation directly on a PayNote:
+```ts
+PayNotes.payNote('Delivery Capture')
+  .currency('USD')
+  .amountMinor(50000)
+  .field('/deliveryConfirmed', false)
+  .capture()
+    .lockOnInit()
+    .done()
+  .channel('shippingCompanyChannel', { type: 'MyOS/MyOS Timeline Channel' })
+  .operation('confirmDelivery')
+    .channel('shippingCompanyChannel')
+    .noRequest()
+    .steps((steps) => steps.namedEvent('EmitConfirmed', 'delivery-confirmed'))
+    .done()
+  .onNamedEvent('onDeliveryConfirmed', 'delivery-confirmed', (steps) =>
+    steps
+      .replaceValue('MarkConfirmed', '/deliveryConfirmed', true)
+      .capture()
+      .requestNow(),
+  )
+  .buildDocument()
+```
 
 ════════════════════════════════════════════════════════════
 EXAMPLES
@@ -899,16 +1039,19 @@ COMMON PITFALLS
     - `expectsNamed(...)`
     - `onAIResponse(..., 'event-name', ...)`
     - `steps.viaAgency(...).startSession(...)`
+    - `onLinkedDocRejected(...)`
     - `bindFromCurrentDoc(...)`
     - `bindExpr(...)`
-    - access/agency builder methods like `.read(true)`, `.operations(...)`,
-      `.requestPermissionOnInit()`, `.subscribeAfterGranted()`, `.statusPath(...)`,
-      `.allowedTypes(...)`, `.allowedOperations(...)`
+    - `.bootstrapAssignee(...)` inside `startWorkerSessionWith(..., options => ...)`
     - unsupported PayNote doc-path / event partial helpers
     - Java-only template helpers like `bySessionId(...)`
 8. Reading uninitialized fields.
 9. Forgetting to guard `onDocChange` handlers by value.
-10. Emitting prose before or after the fenced TypeScript block.
+10. Treating `revokePermission()` as the default MyOS revoke pattern.
+11. Putting `accountId` / `email` into `.channel(...)` definitions instead of
+    bootstrap/runtime bindings.
+12. Modeling document anchors as fields instead of `.documentAnchors(...)`.
+13. Emitting prose before or after the fenced TypeScript block.
 
 ════════════════════════════════════════════════════════════
 FINAL RESPONSE RULES

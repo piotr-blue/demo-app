@@ -45,6 +45,7 @@ describe("POST /api/myos/bootstrap", () => {
   });
 
   it("returns sessionId for valid payload", async () => {
+    const documentJson = { name: "Counter", contracts: { ownerChannel: { type: "Core/Channel" } } };
     const response = await POST(
       new Request("http://localhost/api/myos/bootstrap", {
         method: "POST",
@@ -56,7 +57,7 @@ describe("POST /api/myos/bootstrap", () => {
             myOsAccountId: "acc-1",
             myOsBaseUrl: "https://api.dev.myos.blue/",
           },
-          documentJson: { name: "Counter" },
+          documentJson,
           bindings: [
             {
               channelName: "ownerChannel",
@@ -77,61 +78,15 @@ describe("POST /api/myos/bootstrap", () => {
     expect(payload.ok).toBe(true);
     expect(payload.sessionId).toBe("session_123");
     expect(payload.bootstrapSucceeded).toBe(true);
-  });
-
-  it("rewrites Core/Channel types before bootstrap (temporary dirty fix)", async () => {
-    const response = await POST(
-      new Request("http://localhost/api/myos/bootstrap", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          credentials: {
-            openAiApiKey: "sk-test",
-            myOsApiKey: "myos-test",
-            myOsAccountId: "acc-1",
-            myOsBaseUrl: "https://api.dev.myos.blue/",
-          },
-          documentJson: {
-            name: "Counter",
-            contracts: {
-              ownerChannel: {
-                type: "Core/Channel",
-              },
-              nested: [
-                {
-                  type: "Core/Channel",
-                },
-                "Core/Channel",
-              ],
-            },
-          },
-          bindings: [
-            {
-              channelName: "ownerChannel",
-              mode: "accountId",
-              value: "acc-1",
-            },
-          ],
-        }),
-      })
-    );
-
-    expect(response.status).toBe(200);
-    const [bootstrappedDocument] = bootstrapMock.mock.calls[0] ?? [];
-    expect(bootstrappedDocument).toEqual({
-      name: "Counter",
-      contracts: {
+    expect(bootstrapMock).toHaveBeenCalledWith(
+      documentJson,
+      {
         ownerChannel: {
-          type: "MyOS/MyOS Timeline Channel",
+          accountId: "acc-1",
+          timelineId: undefined,
         },
-        nested: [
-          {
-            type: "MyOS/MyOS Timeline Channel",
-          },
-          "MyOS/MyOS Timeline Channel",
-        ],
-      },
-    });
+      }
+    );
   });
 
   it("starts bootstrap session and stores initiatorSessionId as target session", async () => {

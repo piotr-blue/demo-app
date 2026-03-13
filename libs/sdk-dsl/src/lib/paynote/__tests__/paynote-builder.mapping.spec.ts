@@ -27,11 +27,11 @@ description: Escrow paynote
 type: PayNote/PayNote
 contracts:
   payerChannel:
-    type: Conversation/Timeline Channel
+    type: MyOS/MyOS Timeline Channel
   payeeChannel:
-    type: Conversation/Timeline Channel
+    type: MyOS/MyOS Timeline Channel
   guarantorChannel:
-    type: Conversation/Timeline Channel
+    type: MyOS/MyOS Timeline Channel
   initLifecycleChannel:
     type: Core/Lifecycle Event Channel
     event:
@@ -208,6 +208,72 @@ amount:
     expect(contracts.requestCapture?.request).toBeUndefined();
     expect(contracts.requestRelease?.request).toBeUndefined();
     expect(contracts.requestPartialRelease?.request).toBeUndefined();
+  });
+
+  it('inherits document-level authoring directly on paynotes', () => {
+    const payNote = PayNotes.payNote('Inherited Surface')
+      .field('/status', 'draft')
+      .operation('confirmDelivery')
+      .channel('shipmentCompanyChannel')
+      .description('Confirm delivery')
+      .noRequest()
+      .steps((steps) => steps.namedEvent('EmitConfirmed', 'delivery-confirmed'))
+      .done()
+      .onNamedEvent('onDeliveryConfirmed', 'delivery-confirmed', (steps) =>
+        steps.replaceValue('MarkConfirmed', '/status', 'confirmed'),
+      )
+      .buildDocument();
+
+    const yaml = toOfficialYaml(payNote);
+    expect(yaml).toContain(`confirmDelivery:
+    description: Confirm delivery
+    type: Conversation/Operation
+    channel: shipmentCompanyChannel`);
+    expect(yaml).toContain(`confirmDeliveryImpl:
+    type: Conversation/Sequential Workflow Operation`);
+    expect(yaml).toContain(`onDeliveryConfirmed:
+    type: Conversation/Sequential Workflow`);
+    expect(yaml).toContain(`name: delivery-confirmed`);
+  });
+
+  it('supports custom operations, named-event routing, and links on paynotes', () => {
+    const payNote = PayNotes.payNote('Delivery Voucher')
+      .currency('USD')
+      .amountMinor(10_000)
+      .documentAnchors(['voucherDocs'])
+      .sessionLink('voucherSession', 'voucherDocs', 'SESSION_1')
+      .capture()
+      .lockOnInit()
+      .done()
+      .operation('confirmDelivery')
+      .channel('shipmentCompanyChannel')
+      .noRequest()
+      .steps((steps) => steps.namedEvent('EmitConfirmed', 'delivery-confirmed'))
+      .done()
+      .onNamedEvent('onDeliveryConfirmed', 'delivery-confirmed', (steps) =>
+        steps.capture().requestNow(),
+      )
+      .buildDocument();
+
+    const yaml = toOfficialYaml(payNote);
+    expect(yaml).toContain(`anchors:
+    type: MyOS/Document Anchors
+    voucherDocs:
+      type: MyOS/Document Anchor`);
+    expect(yaml).toContain(`links:
+    type: MyOS/Document Links
+    voucherSession:
+      type: MyOS/MyOS Session Link
+      anchor: voucherDocs
+      sessionId: SESSION_1`);
+    expect(yaml).toContain(`confirmDelivery:
+    type: Conversation/Operation
+    channel: shipmentCompanyChannel`);
+    expect(yaml).toContain(`confirmDeliveryImpl:
+    type: Conversation/Sequential Workflow Operation`);
+    expect(yaml).toContain(`onDeliveryConfirmed:
+    type: Conversation/Sequential Workflow`);
+    expect(yaml).toContain(`name: delivery-confirmed`);
   });
 
   it('surfaces type-availability failure for release lock helpers', () => {

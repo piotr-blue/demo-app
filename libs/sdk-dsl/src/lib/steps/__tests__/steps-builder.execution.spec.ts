@@ -625,7 +625,7 @@ describe('steps-builder execution', () => {
       from: 'payer',
       to: 'payee',
       currency: 'USD',
-      amountMinor: 12345,
+      amount: 12345,
       asset: 'USDC',
       chain: 'BASE',
       fromWalletRef: 'wallet_1',

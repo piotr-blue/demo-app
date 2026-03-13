@@ -32,6 +32,7 @@ import {
 } from "@/lib/blueprint/metadata";
 import { getMessageText } from "@/lib/chat/message-utils";
 import { resolveStatusMessage } from "@/lib/document/status-templates/evaluate";
+import { buildBootstrapRequestPreview } from "@/lib/myos/bootstrap-request";
 import {
   buildAccountHash,
   clearThreadRoutingStorage,
@@ -129,6 +130,7 @@ export function WorkspaceShell({
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
+  const [showBootstrapPayload, setShowBootstrapPayload] = useState(false);
   const [threads, setThreads] = useState<ThreadListItem[]>([]);
   const [unreadThreadIds, setUnreadThreadIds] = useState<Set<string>>(new Set());
   const router = useRouter();
@@ -1625,6 +1627,23 @@ export function WorkspaceShell({
   };
 
   const latestSnapshot = workspace?.documentSnapshots.at(-1);
+  const bootstrapPreviewBindings = useMemo(() => {
+    if (!workspace) {
+      return [];
+    }
+    if (workspace.finalBindings) {
+      return workspace.finalBindings;
+    }
+    return workspace.channelBindings.filter(
+      (binding) => !binding.ignored && binding.value.trim().length > 0
+    );
+  }, [workspace]);
+  const bootstrapRequestPreview = useMemo(() => {
+    if (!workspace?.currentDocumentJson) {
+      return null;
+    }
+    return buildBootstrapRequestPreview(workspace.currentDocumentJson, bootstrapPreviewBindings);
+  }, [workspace?.currentDocumentJson, bootstrapPreviewBindings]);
   const selectedViewer = workspace?.viewerChannel ?? null;
   const selectedTemplateBundle =
     selectedViewer && workspace ? workspace.statusTemplatesByViewer[selectedViewer] ?? null : null;
@@ -1814,7 +1833,20 @@ export function WorkspaceShell({
                   </div>
                 ))}
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  <Button
+                    disabled={!bootstrapRequestPreview}
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowBootstrapPayload(true);
+                      setWorkspace((previous) =>
+                        previous ? withInspectorTab(previous, "bootstrap") : previous
+                      );
+                    }}
+                  >
+                    Inspect final payload
+                  </Button>
                   <Button disabled={busy} onClick={handleBootstrap}>
                     OK — bootstrap
                   </Button>
@@ -1991,6 +2023,34 @@ export function WorkspaceShell({
 
               {tab.key === "bootstrap" && (
                 <div className="space-y-2">
+                  {bootstrapRequestPreview && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm">Final MyOS bootstrap request body</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Exact JSON body sent to <code>/documents/bootstrap</code> after local
+                          binding normalization and bootstrap document rewrite.
+                        </p>
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowBootstrapPayload((previous) => !previous)}
+                          >
+                            {showBootstrapPayload ? "Hide payload" : "Inspect payload"}
+                          </Button>
+                        </div>
+                        {showBootstrapPayload && (
+                          <pre className="rounded-lg border bg-muted/30 p-3 font-mono text-xs whitespace-pre-wrap">
+                            {formatJson(bootstrapRequestPreview)}
+                          </pre>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                   {workspace.bootstrapStatus.length === 0 && (
                     <p className="text-sm text-muted-foreground">No bootstrap activity yet.</p>
                   )}
