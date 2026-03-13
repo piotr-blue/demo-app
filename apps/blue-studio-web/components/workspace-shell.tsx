@@ -2026,12 +2026,12 @@ export function WorkspaceShell({
                   {bootstrapRequestPreview && (
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">Final bootstrap payload</CardTitle>
+                        <CardTitle className="text-sm">Final MyOS bootstrap request body</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <p className="text-sm text-muted-foreground">
-                          Exact request preview after local binding normalization and bootstrap
-                          document rewrite.
+                          Exact JSON body sent to <code>/documents/bootstrap</code> after local
+                          binding normalization and bootstrap document rewrite.
                         </p>
                         <div className="flex justify-end">
                           <Button

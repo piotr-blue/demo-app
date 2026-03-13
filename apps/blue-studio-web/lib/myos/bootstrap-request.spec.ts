@@ -32,7 +32,7 @@ describe("buildBootstrapRequestPreview", () => {
     );
 
     expect(preview).toEqual({
-      documentJson: {
+      document: {
         contracts: {
           ownerChannel: {
             type: "MyOS/MyOS Timeline Channel",
@@ -42,7 +42,7 @@ describe("buildBootstrapRequestPreview", () => {
           },
         },
       },
-      bindings: {
+      channelBindings: {
         ownerChannel: {
           accountId: "acc_1",
           timelineId: undefined,

@@ -1,11 +1,11 @@
-import type { ChannelBindingsInput } from "@blue-labs/myos-js";
+import {
+  buildBootstrapPayload,
+  type ChannelBindingsInput,
+} from "@blue-labs/myos-js";
 import { toMyOsBindings } from "@/lib/myos/bindings";
 import type { ChannelBindingDraft } from "@/lib/workspace/types";
 
-export interface BootstrapRequestPreview {
-  documentJson: unknown;
-  bindings: ChannelBindingsInput;
-}
+export type BootstrapRequestPreview = Record<string, unknown>;
 
 export function rewriteCoreChannelTypeForBootstrap(value: unknown): unknown {
   if (value === "Core/Channel") {
@@ -30,8 +30,8 @@ export function buildBootstrapRequestPreview(
   documentJson: unknown,
   bindings: ChannelBindingDraft[]
 ): BootstrapRequestPreview {
-  return {
-    documentJson: rewriteCoreChannelTypeForBootstrap(documentJson),
-    bindings: toMyOsBindings(bindings),
-  };
+  return buildBootstrapPayload({
+    document: rewriteCoreChannelTypeForBootstrap(documentJson) as Record<string, unknown>,
+    channelBindings: toMyOsBindings(bindings) as ChannelBindingsInput,
+  });
 }
