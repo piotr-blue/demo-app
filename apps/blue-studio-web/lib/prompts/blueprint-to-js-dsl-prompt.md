@@ -104,14 +104,6 @@ CRITICAL RULES:
 
 5. `onDocChange` fires on ANY change to the path. Always guard the value.
 
-6. `onChannelEvent(...)` depends on the channel type:
-   - For timeline-like channels (`Conversation/Timeline Channel`,
-     `Conversation/Composite Timeline Channel`, `MyOS/MyOS Timeline Channel`),
-     matching on `Conversation/Event` or another event type happens under
-     `event.message`.
-   - Use `Conversation/Timeline Entry` when you need the timeline-entry envelope.
-   - For direct-event channels, matching stays on the root `event`.
-
 ════════════════════════════════════════════════════════════
 STRICT TS / JS AUTHORING RULES
 ════════════════════════════════════════════════════════════
@@ -413,7 +405,6 @@ Core handlers:
 .onInit('setup', (steps) => ...)
 .onEvent('onFundsCaptured', 'PayNote/Funds Captured', (steps) => ...)
 .onChannelEvent('onOwnerMessage', 'ownerChannel', 'Conversation/Event', (steps) => ...)
-.onChannelEvent('onOwnerEntry', 'ownerChannel', 'Conversation/Timeline Entry', (steps) => ...)
 .onNamedEvent('onReady', 'data-loaded', (steps) => ...)
 .onDocChange('onStatus', '/status', (steps) => ...)
 .onTriggeredWithId('onReq', 'MyOS/Call Operation Responded', 'requestId', 'REQ_1', (steps) => ...)
@@ -469,19 +460,12 @@ CRITICAL for `onDocChange`: guard the expected VALUE change, not the path change
 
 ✓ RIGHT:
 ```ts
-.onDocChange('routeApproved', '/status', (steps) =>
-  steps.jsRaw(
-    'Route',
-    `
-    if (document('/status') !== 'approved') return {};
-    return {
-      events: [{ type: 'Common/Named Event', name: 'status-approved' }],
-    };
-    `,
-  ),
-)
-.onNamedEvent('onApproved', 'status-approved', (steps) =>
-  steps.capture().requestNow(),
+.onDocChange('onApproved', '/status', (steps) =>
+  steps
+    .jsRaw('Guard', "if (document('/status') !== 'approved') return {};")
+    .updateDocumentFromExpression('Apply', 'steps.Guard.changeset')
+    .capture()
+    .requestNow(),
 )
 ```
 
@@ -562,10 +546,6 @@ CRITICAL:
 - `fromChannel(...)` and `fromEmail(...)` only build binding values.
 - They do NOT copy the child channel contract or `type`.
 - The child document itself must already define the correct channel types.
-- If you need to forward an already-formed
-  `Conversation/Document Bootstrap Requested`, re-emit `event.message.request`
-  unchanged. Do NOT reconstruct a second bootstrap request by hand unless the
-  blueprint explicitly asks to transform it.
 - Do NOT assume `steps.bootstrapDocument(...)` exposes a synchronous step result
   like `steps.SomeBootstrap.sessionId`.
 - If the blueprint needs the created child session id, handle the follow-up
@@ -1041,46 +1021,6 @@ export function buildDocument() {
     .onAccessGranted('orders', 'subscribeOrders', (steps) =>
       steps.access('orders').subscribe('Conversation/Event'),
     )
-    .buildDocument();
-}
-```
-
-Requestless pass-through bootstrap relay:
-```ts
-import { DocBuilder } from '@blue-labs/sdk-dsl';
-
-export function buildDocument() {
-  return DocBuilder.doc()
-    .name('Bootstrap Relay')
-    .type('MyOS/Agent')
-    .channel('merchantChannel', {
-      type: 'MyOS/MyOS Timeline Channel',
-    })
-    .channel('receiverChannel', {
-      type: 'MyOS/MyOS Timeline Channel',
-    })
-    .documentAnchors({
-      deliveries: {
-        type: 'MyOS/Document Anchor',
-      },
-      sourceDocs: {
-        type: 'MyOS/Document Anchor',
-      },
-    })
-    .operation('sendPayNote')
-      .channel('merchantChannel')
-      .description('Forward the incoming bootstrap request unchanged')
-      .steps((steps) =>
-        steps.jsRaw(
-          'ForwardBootstrap',
-          `
-          return {
-            events: [event.message.request],
-          };
-          `,
-        ),
-      )
-      .done()
     .buildDocument();
 }
 ```
