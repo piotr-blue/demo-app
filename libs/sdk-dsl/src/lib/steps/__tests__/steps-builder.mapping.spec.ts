@@ -47,7 +47,7 @@ describe('steps-builder mapping', () => {
       from: payer
       to: payee
       currency: USD
-      amountMinor: \${document('/amount/total')}
+      amount: \${document('/amount/total')}
       routingNumber: '111000025'
   - name: RequestCaptureLock
     type: Conversation/Trigger Event
