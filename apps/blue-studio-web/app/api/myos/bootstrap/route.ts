@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { MyOsClient } from "@blue-labs/myos-js";
 import { parseRouteCredentials } from "@/lib/api/credentials";
+import { rewriteCoreChannelTypeForBootstrap } from "@/lib/myos/bootstrap-request";
 import { toMyOsBindings } from "@/lib/myos/bindings";
 import { safeErrorMessage } from "@/lib/security/redact";
 
@@ -162,25 +163,6 @@ function pickBootstrapStartOperation(allowedOperations: string[]): string | null
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function rewriteCoreChannelTypeForBootstrap(value: unknown): unknown {
-  if (value === "Core/Channel") {
-    return "MyOS/MyOS Timeline Channel";
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((entry) => rewriteCoreChannelTypeForBootstrap(entry));
-  }
-
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.entries(record).map(([key, nested]) => [key, rewriteCoreChannelTypeForBootstrap(nested)])
-    );
-  }
-
-  return value;
 }
 
 async function resolveBootstrapOutcome(
