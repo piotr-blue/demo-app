@@ -10,7 +10,8 @@ surface is considered production-ready within the current public runtime.
 - Java-aligned interaction builders (`access`, `accessLinked`, `agency`)
 - MyOS step helpers, worker/session helpers, and linked-doc helpers
 - AI integration builders and response workflows
-- PayNote builder for the runtime-confirmed subset
+- PayNote builder with the standard document surface plus runtime-confirmed
+  payment action helpers
 - editing pipeline support through `DocStructure`, `DocPatch`, and
   `BlueChangeCompiler`
 

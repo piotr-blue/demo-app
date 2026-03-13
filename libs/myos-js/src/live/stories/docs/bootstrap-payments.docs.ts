@@ -73,8 +73,7 @@ export function buildParentVoucherOrchestratorDocument(name: string) {
 }
 
 export function buildShipmentEscrowPayNoteDocument(name: string) {
-  // TODO: MyOS Bootstrap only supports MyOS/MyOS Timeline Channel, default PayNote builder uses Conversation/Timeline Channel.
-  const payNoteJson = PayNotes.payNote(name)
+  return PayNotes.payNote(name)
     .channel('payerChannel', { type: 'MyOS/MyOS Timeline Channel' })
     .channel('payeeChannel', { type: 'MyOS/MyOS Timeline Channel' })
     .channel('guarantorChannel', { type: 'MyOS/MyOS Timeline Channel' })
@@ -93,9 +92,6 @@ export function buildShipmentEscrowPayNoteDocument(name: string) {
       'Guarantor requests capture.',
     )
     .done()
-    .buildJson();
-
-  return DocBuilder.from(payNoteJson)
     .section(
       'paymentSection',
       'Payment Controls',

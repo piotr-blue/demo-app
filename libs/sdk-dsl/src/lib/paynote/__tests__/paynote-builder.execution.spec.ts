@@ -278,6 +278,62 @@ describe('paynote execution', () => {
     });
   });
 
+  it('supports custom operations and named-event routing directly on paynotes', async () => {
+    const blue = createTestBlue();
+    const processor = createTestDocumentProcessor(blue);
+    const payNote = withRuntimeChannels(PayNotes.payNote('Custom Operation Runtime'))
+      .currency('USD')
+      .amountMinor(6500)
+      .channel('shipmentCompanyChannel', {
+        type: 'Conversation/Timeline Channel',
+        timelineId: 'shipment-timeline',
+      })
+      .field('/deliveryConfirmed', false)
+      .capture()
+      .lockOnInit()
+      .done()
+      .operation('confirmDelivery')
+      .channel('shipmentCompanyChannel')
+      .noRequest()
+      .steps((steps) => steps.namedEvent('EmitConfirmed', 'delivery-confirmed'))
+      .done()
+      .onNamedEvent('onDeliveryConfirmed', 'delivery-confirmed', (steps) =>
+        steps
+          .replaceValue('MarkDeliveryConfirmed', '/deliveryConfirmed', true)
+          .capture()
+          .requestNow(),
+      )
+      .buildDocument();
+
+    const initialized = await expectSuccess(
+      processor.initializeDocument(payNote),
+      'custom paynote initialization failed',
+    );
+    const runtimeDocument = blue.resolve(initialized.document.clone());
+    const documentBlueId = storedDocumentBlueId(runtimeDocument);
+    const processed = await expectSuccess(
+      processor.processDocument(
+        runtimeDocument.clone(),
+        operationRequestEvent(blue, {
+          operation: 'confirmDelivery',
+          request: true,
+          timelineId: 'shipment-timeline',
+          allowNewerVersion: false,
+          documentBlueId,
+        }),
+      ),
+      'paynote custom operation failed',
+    );
+
+    expect(toOfficialJson(processed.document)).toMatchObject({
+      deliveryConfirmed: true,
+    });
+    const eventTypes = processed.triggeredEvents.map(
+      (event) => toOfficialJson(event).type as string,
+    );
+    expect(eventTypes).toContain('PayNote/Capture Funds Requested');
+  });
+
   it('surfaces type-availability failure for release lock helpers', async () => {
     expect(() =>
       // prettier-ignore
