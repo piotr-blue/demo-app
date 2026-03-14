@@ -37,12 +37,38 @@ describe("evaluateStatusExpression", () => {
     });
     expect(result).toBe(true);
   });
+
+  it("unwraps typed values returned by doc helper", () => {
+    const result = evaluateStatusExpression("doc('/counter') > 3", {
+      document: {
+        counter: {
+          type: { blueId: "counter-type" },
+          value: 5,
+        },
+      },
+      currencyCode: null,
+    });
+    expect(result).toBe(true);
+  });
 });
 
 describe("interpolateTemplateText", () => {
   it("interpolates expressions in template text", () => {
     const text = interpolateTemplateText("Count: {{ doc('/counter') }}", {
       document: { counter: 7 },
+      currencyCode: null,
+    });
+    expect(text).toBe("Count: 7");
+  });
+
+  it("renders wrapped typed values as their inner value", () => {
+    const text = interpolateTemplateText("Count: {{ doc('/counter') }}", {
+      document: {
+        counter: {
+          type: { blueId: "counter-type" },
+          value: 7,
+        },
+      },
       currencyCode: null,
     });
     expect(text).toBe("Count: 7");
@@ -75,6 +101,26 @@ describe("resolveStatusMessage", () => {
     });
     expect(resolved.resolved.title).toBe("Active");
     expect(resolved.resolved.body).toContain("$12.00");
+  });
+
+  it("formats wrapped numeric values in helpers", () => {
+    const body = interpolateTemplateText(
+      "Balance {{ money(doc('/amount')) }} and {{ doc('/count') }} {{ plural(doc('/count'), 'item', 'items') }}",
+      {
+        document: {
+          amount: {
+            type: { blueId: "amount-type" },
+            value: 1200,
+          },
+          count: {
+            type: { blueId: "count-type" },
+            value: 2,
+          },
+        },
+        currencyCode: "USD",
+      }
+    );
+    expect(body).toBe("Balance $12.00 and 2 items");
   });
 
   it("treats money() values as minor units", () => {
@@ -132,4 +178,3 @@ describe("resolveStatusMessage", () => {
     expect(second.changed).toBe(false);
   });
 });
-

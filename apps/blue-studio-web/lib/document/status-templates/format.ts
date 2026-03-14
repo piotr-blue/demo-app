@@ -1,3 +1,29 @@
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function unwrapTemplateValue(value: unknown): unknown {
+  let current = value;
+  while (isRecord(current) && Object.prototype.hasOwnProperty.call(current, "value")) {
+    current = current.value;
+  }
+  return current;
+}
+
+function readPathSegment(value: unknown, segment: string): { matched: boolean; value: unknown } {
+  if (Array.isArray(value)) {
+    const index = Number(segment);
+    if (!Number.isInteger(index)) {
+      return { matched: false, value: null };
+    }
+    return { matched: true, value: value[index] };
+  }
+  if (!isRecord(value) || !Object.prototype.hasOwnProperty.call(value, segment)) {
+    return { matched: false, value: null };
+  }
+  return { matched: true, value: value[segment] };
+}
+
 export function docLookup(document: unknown, path: string): unknown {
   if (!path.startsWith("/")) {
     return null;
@@ -9,26 +35,32 @@ export function docLookup(document: unknown, path: string): unknown {
 
   let current: unknown = document;
   for (const segment of segments) {
-    if (Array.isArray(current)) {
-      const index = Number(segment);
-      if (!Number.isInteger(index)) {
-        return null;
-      }
-      current = current[index];
+    const direct = readPathSegment(current, segment);
+    if (direct.matched) {
+      current = direct.value;
       continue;
     }
-    if (typeof current !== "object" || current === null) {
-      return null;
+
+    const unwrapped = unwrapTemplateValue(current);
+    if (unwrapped !== current) {
+      const unwrappedSegment = readPathSegment(unwrapped, segment);
+      if (unwrappedSegment.matched) {
+        current = unwrappedSegment.value;
+        continue;
+      }
     }
-    current = (current as Record<string, unknown>)[segment];
+
+    return null;
   }
-  return current ?? null;
+  const resolved = unwrapTemplateValue(current);
+  return resolved ?? null;
 }
 
 export function formatMoney(value: unknown, currencyCode: string | null): string {
-  const number = typeof value === "number" ? value : Number(value);
+  const resolvedValue = unwrapTemplateValue(value);
+  const number = typeof resolvedValue === "number" ? resolvedValue : Number(resolvedValue);
   if (!Number.isFinite(number)) {
-    return String(value ?? "");
+    return String(resolvedValue ?? "");
   }
 
   const normalizedCurrency =
@@ -78,7 +110,9 @@ export function pluralize(
   singular: unknown,
   plural: unknown
 ): string {
-  const count = typeof countValue === "number" ? countValue : Number(countValue);
+  const resolvedCountValue = unwrapTemplateValue(countValue);
+  const count =
+    typeof resolvedCountValue === "number" ? resolvedCountValue : Number(resolvedCountValue);
   const singularText = String(singular ?? "");
   const pluralText = String(plural ?? "");
   if (!Number.isFinite(count)) {
@@ -88,15 +122,15 @@ export function pluralize(
 }
 
 export function stringifyTemplateValue(value: unknown): string {
-  if (typeof value === "string") {
-    return value;
+  const resolvedValue = unwrapTemplateValue(value);
+  if (typeof resolvedValue === "string") {
+    return resolvedValue;
   }
-  if (value === null || value === undefined) {
+  if (resolvedValue === null || resolvedValue === undefined) {
     return "";
   }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
+  if (typeof resolvedValue === "number" || typeof resolvedValue === "boolean") {
+    return String(resolvedValue);
   }
-  return JSON.stringify(value);
+  return JSON.stringify(resolvedValue);
 }
-
