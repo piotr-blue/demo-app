@@ -24,11 +24,15 @@ export interface BootstrapPayloadOptions extends BootstrapOptions {
   readonly channelBindings: ChannelBindingsInput;
 }
 
+const GENERIC_CHANNEL_TYPE = 'Core/Channel';
+const MYOS_TIMELINE_CHANNEL_TYPE = 'MyOS/MyOS Timeline Channel';
+
 export function buildBootstrapPayload(
   options: BootstrapPayloadOptions,
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {
-    document: options.document,
+    // Temporary MyOS workaround: bootstrap currently rejects generic channel contracts.
+    document: normalizeBootstrapDocument(options.document),
     channelBindings: normalizeChannelBindings(options.channelBindings),
   };
 
@@ -52,6 +56,28 @@ export function normalizeChannelBindings(
       return [channel, { ...binding }];
     }),
   );
+}
+
+function normalizeBootstrapDocument(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeBootstrapDocument(entry));
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const normalized = Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      normalizeBootstrapDocument(entry),
+    ]),
+  );
+
+  if (normalized.type === GENERIC_CHANNEL_TYPE) {
+    normalized.type = MYOS_TIMELINE_CHANNEL_TYPE;
+  }
+
+  return normalized;
 }
 
 function normalizeInitialMessages(

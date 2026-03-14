@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { createFetchMockController } from '../../../test-harness/mock-fetch.js';
 
 describe('DocumentsResource bootstrap input handling', () => {
-  it('accepts DocBuilder-like input and normalizes channel bindings', async () => {
+  it('rewrites default DocBuilder channels for bootstrap and normalizes bindings', async () => {
     const controller = createFetchMockController();
     const builder = DocBuilder.doc()
       .name('Counter')
       .field('/counter', 0)
-      .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' });
+      .channel('ownerChannel');
 
     await controller.client.documents.bootstrap(
       builder,
@@ -38,6 +38,13 @@ describe('DocumentsResource bootstrap input handling', () => {
       unknown
     >;
     expect(payload.document).toBeTruthy();
+    expect(payload.document).toMatchObject({
+      contracts: {
+        ownerChannel: {
+          type: 'MyOS/MyOS Timeline Channel',
+        },
+      },
+    });
     expect(payload.channelBindings).toEqual({
       ownerChannel: {
         email: 'owner@example.com',
@@ -52,13 +59,16 @@ describe('DocumentsResource bootstrap input handling', () => {
     });
   });
 
-  it('accepts prebuilt BlueNode document input', async () => {
+  it('rewrites generic channel contracts in plain object document input', async () => {
     const controller = createFetchMockController();
-    const document = DocBuilder.doc()
-      .name('Node Input')
-      .field('/status', 'draft')
-      .channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })
-      .buildDocument();
+    const document = {
+      name: 'Node Input',
+      status: 'draft',
+      contracts: {
+        ownerChannel: { type: 'Core/Channel' },
+        reviewerChannel: { type: 'Conversation/Timeline Channel' },
+      },
+    };
 
     await controller.client.documents.bootstrap(document, {
       ownerChannel: {
@@ -69,7 +79,14 @@ describe('DocumentsResource bootstrap input handling', () => {
     const payload = JSON.parse(
       controller.requests[0]?.bodyText ?? '{}',
     ) as Record<string, unknown>;
-    expect(payload.document).toBeTruthy();
+    expect(payload.document).toEqual({
+      name: 'Node Input',
+      status: 'draft',
+      contracts: {
+        ownerChannel: { type: 'MyOS/MyOS Timeline Channel' },
+        reviewerChannel: { type: 'Conversation/Timeline Channel' },
+      },
+    });
     expect(payload.channelBindings).toEqual({
       ownerChannel: {
         email: 'owner@example.com',

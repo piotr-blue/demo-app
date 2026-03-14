@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildBootstrapRequestPreview } from "@/lib/myos/bootstrap-request";
 
 describe("buildBootstrapRequestPreview", () => {
-  it("keeps document shape unchanged and normalizes bindings", () => {
+  it("rewrites generic channels for bootstrap preview and normalizes bindings", () => {
     const preview = buildBootstrapRequestPreview(
       {
         contracts: {
@@ -35,7 +35,7 @@ describe("buildBootstrapRequestPreview", () => {
       document: {
         contracts: {
           ownerChannel: {
-            type: "Core/Channel",
+            type: "MyOS/MyOS Timeline Channel",
           },
           reviewerChannel: {
             type: "Conversation/Timeline Channel",
