@@ -411,6 +411,7 @@ Core handlers:
 .onTriggeredWithMatcher('onCustom', 'Conversation/Event', { name: 'ready' }, (steps) => ...)
 .onMyOsResponse('onGranted', 'MyOS/Single Document Permission Granted', 'REQ_X', (steps) => ...)
 .onSubscriptionUpdate('onSub', 'SUB_1', (steps) => ...)
+.onSubscriptionUpdate('onTypedSub', 'SUB_1', 'Conversation/Event', (steps) => ...)
 ```
 
 AI handlers:
@@ -428,8 +429,15 @@ Access / linked access / agency handlers:
 .onAccessGranted('orders', 'onGranted', (steps) => ...)
 .onAccessRejected('orders', 'onRejected', (steps) => ...)
 .onAccessRevoked('orders', 'onRevoked', (steps) => ...)
-.onUpdate('orders', 'onChanged', (steps) => ...)
-.onUpdate('orders', 'onTypedChanged', 'Conversation/Event', (steps) => ...)
+
+// Epoch snapshot — read full target document state:
+.onUpdate('counterDoc', 'onEpoch', 'MyOS/Session Epoch Advanced', (steps) => ...)
+// Inside jsRaw: event.update.document.fieldName
+
+// Specific triggered event from target document:
+.onUpdate('orders', 'onCapture', 'PayNote/Funds Captured', (steps) => ...)
+// Inside jsRaw: event.update.fieldName
+
 .onCallResponse('orders', 'onResult', (steps) => ...)
 .onCallResponse('orders', 'onTypedResult', 'MyOS/Call Operation Responded', (steps) => ...)
 .onSessionCreated('orders', 'onCreated', (steps) => ...)
@@ -636,6 +644,46 @@ ACCESS CONFIG:
   .requestPermissionOnInit()
   .done()
 ```
+
+SUBSCRIPTION EVENT TYPES
+
+When subscribing to another session, choose the event type based on what you need:
+
+CASE A — Watch the target document's full state (epoch snapshots):
+The blueprint says: "watch a field", "monitor state", "notify when X changes".
+→ subscriptionEvents: 'MyOS/Session Epoch Advanced'
+→ data is at: event.update.document.fieldName
+
+```
+.access('counterDoc')
+.subscriptionEvents('MyOS/Session Epoch Advanced')
+...
+
+.onUpdate('counterDoc', 'onEpoch', 'MyOS/Session Epoch Advanced', (steps) =>
+steps.jsRaw('Check', `
+      const counter = event.update.document.counter;
+    `)
+)
+```
+
+CASE B — Watch specific events emitted by the target document:
+The blueprint says: "react when target emits X", "when PayNote captures", "on Named Event Y".
+→ subscriptionEvents: the specific event type string
+→ data is at: event.update (the emitted event itself)
+
+```
+.access('orders')
+.subscriptionEvents('PayNote/Funds Captured')
+...
+
+.onUpdate('orders', 'onCapture', 'PayNote/Funds Captured', (steps) =>
+steps.jsRaw('Check', `
+      const amount = event.update.amountCaptured;
+    `)
+)
+```
+
+NEVER use 'Conversation/Update Document' as a subscription event type.
 
 ACCESS STEPS:
 ```ts
