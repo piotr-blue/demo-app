@@ -411,7 +411,6 @@ Core handlers:
 .onTriggeredWithMatcher('onCustom', 'Conversation/Event', { name: 'ready' }, (steps) => ...)
 .onMyOsResponse('onGranted', 'MyOS/Single Document Permission Granted', 'REQ_X', (steps) => ...)
 .onSubscriptionUpdate('onSub', 'SUB_1', (steps) => ...)
-.onSubscriptionUpdate('onTypedSub', 'SUB_1', 'Conversation/Event', (steps) => ...)
 ```
 
 AI handlers:
