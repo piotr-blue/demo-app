@@ -540,13 +540,50 @@ steps.bootstrapDocument('BootstrapDeal', childDoc, {
 }, 'ownerChannel')
 
 steps.myOs().bootstrapDocument('BootstrapDeal', childDoc, {
-  buyerChannel: fromChannel('buyerChannel'),
-  reviewerChannel: fromEmail('reviewerChannel'),
+    buyerChannel: fromChannel('buyerChannel'),
+    reviewerChannel: fromEmail('reviewerChannel'),
 }, 'ownerChannel')
 
 steps.bootstrapDocumentExpr('BootstrapFromExpr', "document('/templateDoc')", {
   buyerChannel: fromChannel('buyerChannel'),
 }, 'ownerChannel')
+```
+
+CRITICAL: Do NOT call `.buildDocument()` on a document passed to `bootstrapDocument`.
+The `.buildDocument()` result contains non-serializable objects and throws
+"could not be cloned" at runtime. Pass the builder chain directly — without
+the terminal `.buildDocument()` call.
+
+✗ WRONG:
+```ts
+const childDoc = DocBuilder.doc()
+  .name('Child')
+  .channel('ownerChannel')
+  .buildDocument(); // NEVER DO THIS for bootstrap targets
+
+steps.bootstrapDocument('Spawn', childDoc, { ... }, 'ownerChannel')
+```
+
+✓ RIGHT — builder chain without `.buildDocument()`:
+```ts
+const childDoc = DocBuilder.doc()
+  .name('Child')
+  .channel('ownerChannel')
+  // No .buildDocument() here
+
+steps.bootstrapDocument('Spawn', childDoc, { ... }, 'ownerChannel')
+```
+
+✓ ALSO RIGHT — inline directly:
+```ts
+steps.bootstrapDocument(
+  'Spawn',
+  DocBuilder.doc()
+    .name('Child')
+    .channel('ownerChannel'),  // No .buildDocument()
+  { ownerChannel: fromChannel('ownerChannel') },
+  'ownerChannel',
+)
 ```
 
 CRITICAL:
