@@ -7,9 +7,6 @@
       "path": "../language"
     },
     {
-      "path": "../sdk-dsl"
-    },
-    {
       "path": "./tsconfig.lib.json"
     },
     {
