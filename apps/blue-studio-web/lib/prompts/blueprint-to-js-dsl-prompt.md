@@ -114,7 +114,8 @@ STRICT TS / JS AUTHORING RULES
 - If an exact custom type alias is not explicitly provided and you are not certain it exists, do not synthesize one.
 - In that case, fall back to generic modeling:
     - use `BasicBlueTypes.*` or explicit schema objects for operation requests/responses,
-    - use `Conversation/Event` or `Common/Named Event` for generic emitted/listened events,
+    - use `Conversation/Event` for generic unnamed emitted/listened events,
+    - use `Common/Named Event` for stable named signals/events,
     - use plain payload objects/fields without adding a custom domain `type`.
 - For primitive schema types, prefer `BasicBlueTypes.Text`, `BasicBlueTypes.Integer`,
   `BasicBlueTypes.Double`, `BasicBlueTypes.Boolean`, `BasicBlueTypes.List`,
@@ -218,7 +219,7 @@ Do not rely on event values directly inside AI instruction templates unless they
 `jsRaw(...)` can use everything the runtime exposes:
 - `document('/path')`
 - `event.message.request`
-- `event.update.payload`
+- `event.update` (subscription handlers; concrete fields depend on the update type, for example `event.update.document.counter` or `event.update.counter`)
 - `steps.SomeStep`
 
 ════════════════════════════════════════════════════════════
@@ -714,7 +715,7 @@ steps.ai('provider').subscribe('SubscribeNow')
 IMPORTANT JS-SPECIFIC AI RULE:
 - The TS SDK does NOT expose `expectsNamed(...)`.
 - If you want the AI to return a named event, describe that requirement in the instruction,
-  optionally use `.expects('Conversation/Event')`, and handle it with
+  optionally use `.expects('Common/Named Event')`, and handle it with
   `.onAINamedResponse(...)`.
 
 AI response handlers auto-save AI context before your custom steps.
@@ -776,9 +777,10 @@ steps.jsRaw('Check', `
 ```
 
 CASE B — Watch specific events emitted by the target document:
-The blueprint says: "react when target emits X", "when PayNote captures", "on Named Event Y".
+The blueprint/context/source DSL explicitly defines the emitted event type and payload shape.
 → subscriptionEvents: the specific event type string
 → data is at: event.update (the emitted event itself)
+→ use `event.update.<field>` only when the source event schema is explicitly known
 
 ```
 .access('orders')
@@ -792,6 +794,42 @@ steps.jsRaw('Check', `
 )
 ```
 
+CASE C — Watch a specific named event emitted by the target document:
+The blueprint/context/source DSL gives a stable event name such as "Counter Updated".
+→ named events use `type: 'Common/Named Event'`
+→ named-event payload is flat on `event.update`
+→ preserve the source field names, for example `event.update.counter`
+
+If type-only filtering is acceptable:
+```ts
+.access('counterDoc')
+.subscriptionEvents('Common/Named Event')
+...
+
+.onUpdate('counterDoc', 'onCounterUpdated', 'Common/Named Event', (steps) =>
+steps.jsRaw('Check', `
+      if (event.update.name !== 'Counter Updated') {
+        return { changeset: [] };
+      }
+      const counter = event.update.counter;
+    `)
+)
+```
+
+If exact filtering by event name is required, use a matcher subscription:
+```ts
+steps.myOs().subscribeToSessionWithMatchers(
+  DocBuilder.expr("document('/targetSessionId')"),
+  'SUB_READY',
+  [{ type: 'Common/Named Event', name: 'ready' }],
+)
+```
+
+CRITICAL cross-session emitted-event rule:
+- Do not invent payload paths such as `event.update.payload.value` for emitted events unless the source event schema explicitly defines `payload`.
+- If the source event schema is unknown, do not invent fields like `value`, `data`, or `result`; either watch epoch snapshots instead or react only to known metadata such as `event.update.type` and `event.update.name`.
+- Runtime note: filtered subscriptions still receive `MyOS/Session Epoch Advanced` snapshots per epoch. Typed handlers such as `.onUpdate(..., 'Common/Named Event', ...)` only match named-event updates; broader/raw handlers must guard `event.update.type`.
+
 NEVER use 'Conversation/Update Document' as a subscription event type.
 
 ACCESS STEPS:
@@ -804,7 +842,8 @@ steps.access('orders').requestPermissionForTarget(
   DocBuilder.expr("document('/dynamicSessionId')"),
   { read: true },
 )
-steps.access('orders').subscribe('Conversation/Event')
+steps.access('orders').subscribe()
+steps.access('orders').subscribe('SubscribeOrders')
 steps.access('orders').call('getStatus')
 steps.access('orders').call('updateQuantity', {
   quantity: DocBuilder.expr("document('/quantity')"),
@@ -839,7 +878,8 @@ steps.accessLinked('shopData').requestPermission({
   purchases: MyOsPermissions.create().read(true).singleOps('getReceipt'),
   returns: { read: true },
 })
-steps.accessLinked('shopData').subscribe('Conversation/Event')
+steps.accessLinked('shopData').subscribe()
+steps.accessLinked('shopData').subscribe('SubscribeShopData')
 steps.accessLinked('shopData').call('getReceipt', { receiptId: '123' })
 ```
 
@@ -903,7 +943,7 @@ Recommended permission flow pattern:
   ),
 )
 .onAccessGranted('orders', 'subscribeOrders', (steps) =>
-  steps.access('orders').subscribe('Conversation/Event'),
+  steps.access('orders').subscribe(),
 )
 ```
 
@@ -942,6 +982,12 @@ steps.myOs().subscribeToSession(
   DocBuilder.expr("document('/targetSessionId')"),
   'SUB_1',
   'Conversation/Event',
+)
+
+steps.myOs().subscribeToSessionWithMatchers(
+  DocBuilder.expr("document('/targetSessionId')"),
+  'SUB_COUNTER_UPDATES',
+  [{ type: 'Common/Named Event', name: 'Counter Updated' }],
 )
 ```
 
@@ -1145,7 +1191,7 @@ export function buildDocument() {
             ask
               .task('summarize')
               .instruction("Request: ${document('/requestText')}")
-              .expects('Conversation/Event'),
+              .expects('Common/Named Event'),
           ),
       )
       .done()
@@ -1168,6 +1214,7 @@ export function buildDocument() {
     .access('orders')
       .permissionFrom('ownerChannel')
       .targetSessionId(DocBuilder.expr("document('/ordersSessionId')"))
+      .subscriptionEvents('MyOS/Session Epoch Advanced')
       .done()
     .onInit('requestPermission', (steps) =>
       steps.access('orders').requestPermission(
@@ -1175,7 +1222,7 @@ export function buildDocument() {
       ),
     )
     .onAccessGranted('orders', 'subscribeOrders', (steps) =>
-      steps.access('orders').subscribe('Conversation/Event'),
+      steps.access('orders').subscribe(),
     )
     .buildDocument();
 }
