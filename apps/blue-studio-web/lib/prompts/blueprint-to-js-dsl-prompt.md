@@ -89,7 +89,7 @@ CRITICAL RULES:
        }
        return {
          changeset: [{ op: 'replace', path: '/status', val: 'analyzing' }],
-         events: [{ type: 'Conversation/Event', name: 'results-ready' }],
+         events: [{ type: 'Common/Named Event', name: 'results-ready' }],
        };
        `,
      )
@@ -109,6 +109,13 @@ STRICT TS / JS AUTHORING RULES
 ════════════════════════════════════════════════════════════
 
 - Prefer string Blue type aliases unless the blueprint clearly provides an imported symbol.
+- Never invent custom Blue repository type aliases such as `Shop/...`, `Order/...`, `App/...`, or other domain-prefixed `type` strings unless that exact alias is explicitly provided by the blueprint/context.
+- Use a string type alias only when it is explicitly named in the blueprint/context or is a known built-in/runtime alias already used in this prompt and repo patterns.
+- If an exact custom type alias is not explicitly provided and you are not certain it exists, do not synthesize one.
+- In that case, fall back to generic modeling:
+    - use `BasicBlueTypes.*` or explicit schema objects for operation requests/responses,
+    - use `Conversation/Event` or `Common/Named Event` for generic emitted/listened events,
+    - use plain payload objects/fields without adding a custom domain `type`.
 - For primitive schema types, prefer `BasicBlueTypes.Text`, `BasicBlueTypes.Integer`,
   `BasicBlueTypes.Double`, `BasicBlueTypes.Boolean`, `BasicBlueTypes.List`,
   `BasicBlueTypes.Dictionary`.
@@ -121,6 +128,8 @@ STRICT TS / JS AUTHORING RULES
 - CRITICAL: `Number` maps to `Integer`, NOT `Double`.
   If the blueprint needs decimals/floats, use `BasicBlueTypes.Double` explicitly.
 - Never invent unavailable helpers or Java-parity methods that are not in this TS DSL.
+- In `jsRaw`, do not use `JSON.stringify(...)` as a fallback/debugging helper.
+- Prefer direct field reads and explicit fallback strings/numbers/booleans over runtime-dependent JS helpers.
 - Use plain objects and arrays for document values:
     - `field('/items', [])`
     - `field('/meta', {})`
@@ -261,6 +270,11 @@ You may also supply an explicit contract object:
 
 Only declare channels THIS document uses.
 Use `ownerChannel` for permission flows unless the blueprint says otherwise.
+Every document intended for MyOS bootstrap must declare at least one channel.
+If the blueprint does not specify any participant/channel, add
+`.channel('ownerChannel', { type: 'MyOS/MyOS Timeline Channel' })` as the
+minimal bootstrapable baseline.
+Do not generate channel-less documents for MyOS-targeting outputs.
 
 `myOsAdmin()` is auto-added by `ai(...)`, `access(...)`, `accessLinked(...)`,
 and `agency(...)`.
@@ -353,7 +367,11 @@ Shaped request schema:
 .operation('submit')
   .channel('ownerChannel')
   .request({
-    type: 'My/Submit Request',
+    type: BasicBlueTypes.Dictionary,
+    entries: {
+      itemName: { type: BasicBlueTypes.Text },
+      quantity: { type: BasicBlueTypes.Integer },
+    },
   })
   .description('Submit payload')
   .steps((steps) =>
@@ -364,7 +382,10 @@ Shaped request schema:
 
 RULES:
 - One operation, one channel.
-- Use `BasicBlueTypes.*` or explicit type strings for request schemas.
+- Use `BasicBlueTypes.*`, explicit Blue schema objects, or explicit known type strings for request schemas.
+- For structured request payloads, prefer Blue schema objects such as `{ type: BasicBlueTypes.Dictionary, entries: { ... } }`.
+- Inside `.request({...})`, do not use unsupported shorthand such as `{ itemName: { type: String } }`; use explicit Blue schema objects under `entries`.
+- Do not use JSON Schema / OpenAPI shapes such as `type: 'object'`, `properties`, or `required`.
 - Do not emit Java classes.
 - For no-request operations, call `.noRequest()`.
 - If the blueprint says an operation accepts anything / forwards anything /
@@ -389,12 +410,15 @@ Pass-through event forwarding with no defined request type:
   .done()
 ```
 
-CRITICAL for `jsRaw(... return { events: [...] })`:
-- Each item inside `events` must already be a full Blue event payload.
-- Do NOT wrap forwarded events as `{ channel: ..., message: ... }` unless the
-  blueprint explicitly requires a timeline-entry envelope.
-- If the blueprint says "forward the incoming request unchanged", emit
-  `event.message.request` directly.
+CRITICAL event emission rule:
+- Choose exactly one emission path per event: either return `events` from `jsRaw(...)`, or emit later with `emit(...)` / `emitType(...)` / `triggerEvent(...)`.
+- Use `jsRaw(... return { events: [...] })` when JS directly decides whether to emit an event or which event payload to emit.
+- Use a later `emit(...)` / `emitType(...)` / `triggerEvent(...)` step when JS should only compute data for a later step.
+- Each item inside `jsRaw` `events` must already be a full Blue event payload.
+- If the blueprint says "named event", "signal", or gives a stable event name, prefer `steps.namedEvent(...)`; the raw event shape is `type: 'Common/Named Event'` with `name`.
+- Do not model named events as `Conversation/Event` with a `name` field.
+- For user-visible chat output, use `type: 'Conversation/Chat Message'` with `message`.
+- If the blueprint says "forward the incoming request unchanged", emit `event.message.request` directly.
 
 ════════════════════════════════════════════════════════════
 REACTIONS (document-level handlers)
@@ -408,7 +432,7 @@ Core handlers:
 .onNamedEvent('onReady', 'data-loaded', (steps) => ...)
 .onDocChange('onStatus', '/status', (steps) => ...)
 .onTriggeredWithId('onReq', 'MyOS/Call Operation Responded', 'requestId', 'REQ_1', (steps) => ...)
-.onTriggeredWithMatcher('onCustom', 'Conversation/Event', { name: 'ready' }, (steps) => ...)
+.onTriggeredWithMatcher('onCustom', 'Common/Named Event', { name: 'ready' }, (steps) => ...)
 .onMyOsResponse('onGranted', 'MyOS/Single Document Permission Granted', 'REQ_X', (steps) => ...)
 .onSubscriptionUpdate('onSub', 'SUB_1', (steps) => ...)
 .onSubscriptionUpdate('onTypedSub', 'SUB_1', 'Conversation/Event', (steps) => ...)
@@ -423,6 +447,13 @@ AI handlers:
 .onAINamedResponse('provider', 'onPlanReady', 'meal-plan-ready', (steps) => ...)
 .onAINamedResponse('provider', 'onPlanReady', 'meal-plan-ready', 'summarize', (steps) => ...)
 ```
+
+CRITICAL subscription correlation rule:
+- If a subscription is created through `.access(...)`, handle its updates with `.onUpdate(accessName, workflowKey, [updateType], ...)`.
+- If a subscription is created through `.accessLinked(...)`, handle its updates with `.onLinkedUpdate(linkedAccessName, workflowKey, [updateType], ...)`.
+- If a subscription is created through `.agency(...)`, handle its updates with `.onAgencyUpdate(agencyName, workflowKey, subscriptionId, [updateType], ...)`.
+- Use `.onSubscriptionUpdate(workflowKey, subscriptionId, [updateType], ...)` only for raw/manual subscriptions when the actual `subscriptionId` is explicitly known.
+- Do not invent or infer `subscriptionId` from an access name, linked-access name, agency name, or workflow name.
 
 Access / linked access / agency handlers:
 ```ts
@@ -457,6 +488,38 @@ Access / linked access / agency handlers:
 .onParticipantResolved('onParticipantResolved', (steps) => ...)
 .onAllParticipantsReady('onAllParticipantsReady', (steps) => ...)
 ```
+
+CRITICAL MyOS response payload rule:
+- Use `event.update...` only in subscription-update handlers such as `.onUpdate(...)`, `.onLinkedUpdate(...)`, `.onAgencyUpdate(...)`, and `.onSubscriptionUpdate(...)`.
+- Permission grant/revoke handlers read fields directly from `event`.
+- In `.onLinkedDocGranted(...)`, the linked session id is `event.targetSessionId`.
+- Do not invent alternate payload paths unless the blueprint/context explicitly provides them.
+
+CRITICAL linked-doc / anchor observation rule:
+- `.documentAnchors(...)` only exposes anchors; it does not by itself create a direct workflow trigger like "document linked to this anchor".
+- `.documentAnchors(...)` does not accept a bare string.
+- For plain anchor names, always use an array, even for one anchor: `.documentAnchors(['orders'])`.
+- Use the object form only when defining explicit anchor contract objects.
+- Do not generate `.documentAnchors('orders')`.
+- Do not invent direct link event types such as `MyOS/Document Linked`.
+- Do not model ordinary documents as reacting directly to raw MyOS Admin link events such as `Link Created` unless the blueprint explicitly requires a MyOS Admin event-handling document.
+- To react when documents appear under an anchor, use a linked-doc watcher with `.accessLinked(...)` and correlated handlers such as `.onLinkedAccessGranted(...)`, `.onLinkedDocGranted(...)`, and optionally `.onLinkedUpdate(...)`.
+- The watcher must know the base document `sessionId` from blueprint state, bootstrap input, or explicit stored state.
+- Do not assume a document automatically knows its own runtime `sessionId`, and do not invent a self-session-id field unless the blueprint explicitly provides that source.
+- If the blueprint only asks to expose an anchor, model only `.documentAnchors(...)`.
+- If the blueprint/context says this document should already be linked under an existing document/session anchor and the target session id is explicitly known, add the actual link contract in the document itself with `.sessionLink(...)` or `.documentLinks(...)`.
+- Do not describe the link only in `.description(...)`, assumptions, or field names; the generated DSL must include the concrete link contract when the target session id is available.
+- `.sessionLink(...)` requires exactly 3 arguments: `.sessionLink(linkName, anchorName, targetSessionId)`.
+- The first argument is the local link contract key, not the anchor name and not the session id.
+- The second argument is the target anchor name.
+- The third argument is the target session id.
+- Do not generate 2-argument forms such as `.sessionLink('orders', '<session-id>')` or `.sessionLink('<session-id>', 'orders')`.
+- If the blueprint asks to react to new linked docs but no usable base-session-id source exists, prefer a separate watcher document/agent instead of a self-watching base document.
+
+When a subscription-based watcher compares incoming state against stored local state:
+- initialize the baseline in `.onSessionCreated(...)`
+- use `.onUpdate(...)` for later change detection
+- do not consume the first `.onUpdate(...)` just to initialize baseline unless the blueprint explicitly allows skipping the first observed change
 
 CRITICAL for `onDocChange`: guard the expected VALUE change, not the path change itself.
 
@@ -499,16 +562,16 @@ steps.updateDocument('Apply', (cs) =>
 steps.updateDocumentFromExpression('ApplyDynamic', 'steps.Compute.changeset')
 
 steps.triggerEvent('EmitRaw', {
-  type: 'Conversation/Event',
+  type: 'Common/Named Event',
   name: 'order-confirmed',
 })
 
 steps.emit('EmitAny', {
-  type: 'Conversation/Event',
+  type: 'Common/Named Event',
   name: 'hello',
 })
 
-steps.emitType('EmitTyped', 'Conversation/Event', (payload) =>
+steps.emitType('EmitTyped', 'Common/Named Event', (payload) =>
   payload.put('name', 'approval-notice'),
 )
 
@@ -682,6 +745,14 @@ ACCESS CONFIG:
   .done()
 ```
 
+CRITICAL access lifecycle rule:
+- Choose one permission wiring path per access.
+- If the access builder already uses `.requestPermissionOnInit()`, `.requestPermissionOnEvent(...)`, or `.requestPermissionOnDocChange(...)`, do not add a second manual permission request for the same access in `.onInit(...)` or another reaction.
+- Choose one subscription wiring path per access.
+- If the access builder already uses `.subscribeAfterGranted()`, do not also add `.onAccessGranted(...)` that calls `steps.access(accessName).subscribe()`.
+- `steps.access(accessName).subscribe(stepName?)` accepts only an optional step name; it does not take event types.
+- Configure subscription filters on the access builder with `.subscriptionEvents(...)` before subscribing.
+
 SUBSCRIPTION EVENT TYPES
 
 When subscribing to another session, choose the event type based on what you need:
@@ -690,6 +761,7 @@ CASE A — Watch the target document's full state (epoch snapshots):
 The blueprint says: "watch a field", "monitor state", "notify when X changes".
 → subscriptionEvents: 'MyOS/Session Epoch Advanced'
 → data is at: event.update.document.fieldName
+→ if this subscription comes from `.access(...)`, use `.onUpdate(accessName, workflowKey, 'MyOS/Session Epoch Advanced', ...)`
 
 ```
 .access('counterDoc')
@@ -1058,8 +1130,8 @@ export function buildDocument() {
       .sessionId(DocBuilder.expr("document('/llmProviderSessionId')"))
       .permissionFrom('ownerChannel')
       .task('summarize')
-        .instruction('Return a named Conversation/Event called meal-plan-ready.')
-        .expects('Conversation/Event')
+        .instruction('Return a named Common/Named Event called meal-plan-ready.')
+        .expects('Common/Named Event')
         .done()
       .done()
     .operation('requestMealPlan')
