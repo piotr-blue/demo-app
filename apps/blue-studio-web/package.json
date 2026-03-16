@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prepare:blue-libs": "npm run build -w @blue-labs/sdk-dsl && npm run build -w @blue-labs/myos-js",
+    "prepare:blue-libs": "npm run build -w @blue-labs/myos-js",
     "predev": "npm run prepare:blue-libs",
     "dev": "next dev --webpack",
     "prebuild": "npm run prepare:blue-libs",
@@ -26,7 +26,7 @@
     "@base-ui/react": "^1.2.0",
     "@blue-labs/language": "^3.5.0",
     "@blue-labs/myos-js": "file:../../libs/myos-js",
-    "@blue-labs/sdk-dsl": "file:../../libs/sdk-dsl",
+    "@blue-labs/sdk-dsl": "3.8.0",
     "@blue-repository/types": "^0.23.0",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@streamdown/cjk": "^1.0.2",

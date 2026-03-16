@@ -13,8 +13,8 @@ This repository hosts `apps/blue-studio-web`, a Next.js App Router + TypeScript 
 ## Repository layout
 
 - `apps/blue-studio-web` — main app
-- `libs/sdk-dsl` — imported SDK DSL source from blue-js branch
 - `libs/myos-js` — imported MyOS SDK source from blue-js branch
+- `@blue-labs/sdk-dsl` — consumed from npm (`3.8.0`)
 - `libs/language` and `libs/document-processor` — tsconfig stubs used for toolchain compatibility
 
 ## Install

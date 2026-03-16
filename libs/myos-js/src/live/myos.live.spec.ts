@@ -3,7 +3,13 @@ import { expect } from 'vitest';
 import { describeLive, itLive } from '../test-harness/live-mode.js';
 import { getCoreLiveGate } from '../test-harness/live-env.js';
 import { MyOsClient } from '../lib/client.js';
-import { defaultBootstrapBinding } from './helpers/index.js';
+import {
+  bootstrapDslDocument,
+  defaultBootstrapBinding,
+  extractTimelineId as extractRetrievedTimelineId,
+  retrieveDocument,
+  waitForAllowedOperation,
+} from './helpers/index.js';
 
 const gate = getCoreLiveGate();
 
@@ -49,35 +55,25 @@ describeLive('myos-js live integration', gate, () => {
         )
         .buildDocument();
 
-      const bootstrap = await client.documents.bootstrap(document, {
+      const { sessionId } = await bootstrapDslDocument(client, document, {
         ownerChannel: defaultBootstrapBinding(gate.env),
       });
-      const sessionId = readString(
-        (bootstrap as Record<string, unknown>).sessionId,
-      );
       expect(sessionId).toBeTruthy();
 
-      const retrieved = await client.documents.retrieve(sessionId!);
+      const retrieved = await retrieveDocument(client, sessionId);
       expect(retrieved).toBeTruthy();
 
-      const operationReady = await pollUntil(
-        async () => {
-          const latest = await client.documents.retrieve(sessionId!);
-          const allowed = readArray(
-            (latest as Record<string, unknown>).allowedOperations,
-          ).map((value) => String(value));
-          return allowed.includes('increment') ? true : undefined;
-        },
-        30_000,
-        1_000,
-      );
-      expect(operationReady).toBe(true);
+      await waitForAllowedOperation(client, sessionId, 'increment', {
+        timeoutMs: 30_000,
+        intervalMs: 1_000,
+        label: `wait for increment on ${sessionId}`,
+      });
 
-      await client.documents.runOperation(sessionId!, 'increment', 1);
+      await client.documents.runOperation(sessionId, 'increment', 1);
 
       const updated = await pollUntil(
         async () => {
-          const latest = await client.documents.retrieve(sessionId!);
+          const latest = await retrieveDocument(client, sessionId);
           const counter = extractCounter(latest);
           return counter === 1 ? latest : undefined;
         },
@@ -101,23 +97,20 @@ describeLive('myos-js live integration', gate, () => {
         .channel('reviewerChannel', { type: 'MyOS/MyOS Timeline Channel' })
         .buildDocument();
 
-      const bootstrap = await client.documents.bootstrap(document, {
+      const { sessionId } = await bootstrapDslDocument(client, document, {
         ownerChannel: defaultBootstrapBinding(gate.env),
         reviewerChannel: defaultBootstrapBinding(gate.env),
       });
+      expect(sessionId).toBeTruthy();
 
-      const bootstrappedDoc = (bootstrap as Record<string, unknown>)
-        .document as Record<string, unknown>;
-      const contracts = (bootstrappedDoc?.contracts ?? {}) as Record<
-        string,
-        Record<string, unknown>
-      >;
-
-      const ownerTimelineId = extractTimelineId(
-        contracts.ownerChannel as Record<string, unknown> | undefined,
+      const retrieved = await retrieveDocument(client, sessionId);
+      const ownerTimelineId = extractRetrievedTimelineId(
+        retrieved,
+        'ownerChannel',
       );
-      const reviewerTimelineId = extractTimelineId(
-        contracts.reviewerChannel as Record<string, unknown> | undefined,
+      const reviewerTimelineId = extractRetrievedTimelineId(
+        retrieved,
+        'reviewerChannel',
       );
 
       expect(ownerTimelineId).toBeTruthy();
@@ -258,8 +251,12 @@ function createLiveClient(): MyOsClient {
 
 function extractCounter(documentResponse: unknown): number | undefined {
   const record = documentResponse as Record<string, unknown>;
-  const document = (record.document ?? {}) as Record<string, unknown>;
-  const counter = document.counter;
+  const document = unwrapDocumentValue(record.document ?? {});
+  const documentRecord =
+    typeof document === 'object' && document !== null
+      ? (document as Record<string, unknown>)
+      : {};
+  const counter = unwrapDocumentValue(documentRecord.counter);
   return typeof counter === 'number' ? counter : undefined;
 }
 
@@ -271,39 +268,15 @@ function readArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-function extractTimelineId(
-  channelContract: Record<string, unknown> | undefined,
-): string | undefined {
-  if (!channelContract) {
-    return undefined;
+function unwrapDocumentValue(value: unknown): unknown {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    Object.prototype.hasOwnProperty.call(value, 'value')
+  ) {
+    return (value as Record<string, unknown>).value;
   }
-  return findFirstStringByKey(channelContract, 'timelineId');
-}
-
-function findFirstStringByKey(value: unknown, key: string): string | undefined {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findFirstStringByKey(item, key);
-      if (found) {
-        return found;
-      }
-    }
-    return undefined;
-  }
-  if (typeof value !== 'object' || value === null) {
-    return undefined;
-  }
-  const objectValue = value as Record<string, unknown>;
-  if (typeof objectValue[key] === 'string') {
-    return objectValue[key] as string;
-  }
-  for (const nested of Object.values(objectValue)) {
-    const found = findFirstStringByKey(nested, key);
-    if (found) {
-      return found;
-    }
-  }
-  return undefined;
+  return value;
 }
 
 async function pollUntil<T>(
