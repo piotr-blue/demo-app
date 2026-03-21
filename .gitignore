@@ -24,4 +24,5 @@ pnpm-debug.log*
 .cursor
 .idea
 
-references
+referencestest-screenshots/
+VISUAL_TEST_REPORT.md
