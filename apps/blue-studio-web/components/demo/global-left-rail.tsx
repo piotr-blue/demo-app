@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,10 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FileTextIcon,
+  MenuIcon,
   Settings2Icon,
   SparklesIcon,
+  XIcon,
 } from "lucide-react";
 
 const TOP_LEVEL_NAV_ITEMS = [
@@ -55,6 +57,7 @@ function RailLink({
   icon,
   active,
   compactIconLabel,
+  onClick,
 }: {
   collapsed: boolean;
   label: string;
@@ -62,10 +65,12 @@ function RailLink({
   icon: ReactNode;
   active: boolean;
   compactIconLabel?: string;
+  onClick?: () => void;
 }) {
   const base = (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         "group/rail-link flex items-center rounded-xl border border-transparent transition-all duration-150",
         collapsed
@@ -76,12 +81,7 @@ function RailLink({
           : "text-text-secondary hover:bg-bg-subtle hover:text-foreground"
       )}
     >
-      <span
-        className={cn(
-          "inline-flex items-center justify-center shrink-0",
-          collapsed ? "size-5" : "size-5"
-        )}
-      >
+      <span className="inline-flex size-5 items-center justify-center shrink-0">
         {icon}
       </span>
       {!collapsed ? (
@@ -108,40 +108,42 @@ export function GlobalLeftRail() {
   const { snapshot } = useDemoApp();
   const workspaces = snapshot ? getWorkspaceScopes(snapshot) : [];
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCollapsed(readDemoLeftRailCollapsed());
   }, []);
 
-  /* auto-collapse on narrow viewports */
+  /* track mobile breakpoint */
   useEffect(() => {
     const mql = window.matchMedia("(min-width: 768px)");
-    const handler = (e: MediaQueryListEvent) => {
-      if (!e.matches) {
-        setCollapsed(true);
-        writeDemoLeftRailCollapsed(true);
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      const isDesktop = "matches" in e ? e.matches : (e as MediaQueryListEvent).matches;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsMobile(!isDesktop);
+      if (!isDesktop) {
+        setMobileOpen(false);
       }
     };
-    mql.addEventListener("change", handler);
-    // collapse immediately if currently narrow
-    if (!mql.matches) {
-      setCollapsed(true);
-      writeDemoLeftRailCollapsed(true);
-    }
-    return () => mql.removeEventListener("change", handler);
+    handler(mql);
+    mql.addEventListener("change", handler as (e: MediaQueryListEvent) => void);
+    return () => mql.removeEventListener("change", handler as (e: MediaQueryListEvent) => void);
   }, []);
 
-  const railCollapsed = collapsed;
+  const closeMobileDrawer = useCallback(() => {
+    setMobileOpen(false);
+  }, []);
+
+  const railCollapsed = isMobile ? false : collapsed;
   const navItems = useMemo(() => TOP_LEVEL_NAV_ITEMS, []);
 
-  return (
-    <aside
-      className={cn(
-        "flex h-screen shrink-0 flex-col border-r border-border-soft bg-card transition-[width] duration-300 ease-in-out",
-        railCollapsed ? "w-[72px]" : "w-[260px]"
-      )}
-    >
+  /* On mobile, we show a hamburger button and an overlay drawer.
+     On desktop, we show the permanent sidebar (collapsible). */
+
+  const sidebarContent = (
+    <>
       {/* Header */}
       <div
         className={cn(
@@ -158,19 +160,31 @@ export function GlobalLeftRail() {
             <p className="text-xs text-text-muted">Demo</p>
           </div>
         </div>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={() => {
-            const next = !railCollapsed;
-            setCollapsed(next);
-            writeDemoLeftRailCollapsed(next);
-          }}
-          aria-label={railCollapsed ? "Expand navigation" : "Collapse navigation"}
-          className="text-text-muted hover:text-foreground"
-        >
-          {railCollapsed ? <ChevronRightIcon className="size-4" /> : <ChevronLeftIcon className="size-4" />}
-        </Button>
+        {isMobile ? (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={closeMobileDrawer}
+            aria-label="Close navigation"
+            className="text-text-muted hover:text-foreground"
+          >
+            <XIcon className="size-4" />
+          </Button>
+        ) : (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={() => {
+              const next = !railCollapsed;
+              setCollapsed(next);
+              writeDemoLeftRailCollapsed(next);
+            }}
+            aria-label={railCollapsed ? "Expand navigation" : "Collapse navigation"}
+            className="text-text-muted hover:text-foreground"
+          >
+            {railCollapsed ? <ChevronRightIcon className="size-4" /> : <ChevronLeftIcon className="size-4" />}
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -186,6 +200,7 @@ export function GlobalLeftRail() {
                 label={item.label}
                 icon={<item.icon className="size-[18px]" />}
                 active={item.isActive(pathname)}
+                onClick={isMobile ? closeMobileDrawer : undefined}
               />
             ))}
 
@@ -220,6 +235,7 @@ export function GlobalLeftRail() {
                   }
                   active={pathname === `/workspaces/${workspace.id}`}
                   compactIconLabel={workspace.name}
+                  onClick={isMobile ? closeMobileDrawer : undefined}
                 />
               ))
             )}
@@ -248,6 +264,7 @@ export function GlobalLeftRail() {
                 label={item.label}
                 icon={<item.icon className="size-[18px]" />}
                 active={item.isActive(pathname)}
+                onClick={isMobile ? closeMobileDrawer : undefined}
               />
             ))}
         </div>
@@ -277,6 +294,54 @@ export function GlobalLeftRail() {
           ) : null}
         </div>
       </div>
+    </>
+  );
+
+  /* Mobile: overlay drawer */
+  if (isMobile) {
+    return (
+      <>
+        {/* Fixed hamburger button */}
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation"
+          className="fixed top-3 left-3 z-50 shadow-[var(--shadow-card)] md:hidden"
+        >
+          <MenuIcon className="size-5" />
+        </Button>
+
+        {/* Overlay backdrop */}
+        {mobileOpen ? (
+          <div
+            className="fixed inset-0 z-40 bg-black/15 backdrop-blur-[2px] transition-opacity md:hidden"
+            onClick={closeMobileDrawer}
+          />
+        ) : null}
+
+        {/* Drawer */}
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-card shadow-[var(--shadow-elevated)] transition-transform duration-300 ease-in-out md:hidden",
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          {sidebarContent}
+        </aside>
+      </>
+    );
+  }
+
+  /* Desktop: permanent sidebar */
+  return (
+    <aside
+      className={cn(
+        "hidden md:flex h-screen shrink-0 flex-col border-r border-border-soft bg-card transition-[width] duration-300 ease-in-out",
+        railCollapsed ? "w-[72px]" : "w-[260px]"
+      )}
+    >
+      {sidebarContent}
     </aside>
   );
 }

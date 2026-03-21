@@ -6,16 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import type { DemoCredentials } from "@/lib/demo/types";
+import { CheckIcon } from "lucide-react";
 
 export default function SettingsPage() {
   const { credentials, setCredentials } = useDemoApp();
   const [draft, setDraft] = useState<DemoCredentials>(credentials);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setDraft(credentials);
   }, [credentials]);
+
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), 2500);
+    return () => clearTimeout(timer);
+  }, [saved]);
 
   return (
     <section className="mx-auto max-w-2xl space-y-5">
@@ -74,16 +83,23 @@ export default function SettingsPage() {
               }
             />
           </div>
-          <div className="flex justify-end pt-1">
+          <div className="flex items-center justify-end gap-3 pt-1">
+            {saved ? (
+              <Badge variant="secondary" className="gap-1">
+                <CheckIcon className="size-3" />
+                Saved
+              </Badge>
+            ) : null}
             <Button
-              onClick={() =>
+              onClick={() => {
                 setCredentials({
                   openAiApiKey: draft.openAiApiKey.trim(),
                   myOsApiKey: draft.myOsApiKey.trim(),
                   myOsAccountId: draft.myOsAccountId.trim(),
                   myOsBaseUrl: draft.myOsBaseUrl.trim(),
-                })
-              }
+                });
+                setSaved(true);
+              }}
             >
               Save credentials
             </Button>
