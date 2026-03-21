@@ -8,7 +8,7 @@
   --font-sans: var(--font-plus-jakarta);
   --font-mono: var(--font-geist-mono);
 
-  /* app-level aliases */
+  /* app-level color aliases */
   --color-bg-app: var(--bg-app);
   --color-bg-panel: var(--bg-panel);
   --color-bg-subtle: var(--bg-subtle);
@@ -17,6 +17,8 @@
   --color-text-muted: var(--text-muted);
   --color-border-soft: var(--border-soft);
   --color-border-default: var(--border-default);
+  --color-accent-base: var(--accent-base);
+  --color-accent-soft: var(--accent-soft);
   --color-accent-strong: var(--accent-strong);
 
   /* semantic shadcn aliases */
@@ -51,6 +53,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* radius scale */
   --radius-sm: calc(var(--radius) * 0.7);
   --radius-md: calc(var(--radius) * 0.88);
   --radius-lg: var(--radius);
@@ -61,26 +65,31 @@
 }
 
 :root {
-  /* requested design tokens */
-  --bg-app: #f5f6f8;
+  /* ── design tokens ── */
+  --bg-app: #f6f7f9;
   --bg-panel: #ffffff;
-  --bg-subtle: #f2f4f7;
-  --text-primary: #1c1c1e;
-  --text-secondary: #667085;
-  --text-muted: #98a2b3;
-  --border-soft: #dde3ea;
+  --bg-subtle: #f0f2f5;
+  --text-primary: #1a1a1c;
+  --text-secondary: #5f6b7a;
+  --text-muted: #94a0b4;
+  --border-soft: #e4e8ee;
   --border-default: #d0d5dd;
-  --accent: #2563eb;
+
+  /* brand blues – "accent-base" is the raw vivid blue; shadcn's
+     --accent (hover bg) and --primary (filled bg) reference it via
+     different tints so they never shadow each other. */
+  --accent-base: #2563eb;
   --accent-soft: #eaf2ff;
   --accent-strong: #1d4ed8;
 
+  /* ── semantic tokens (shadcn / Tailwind) ── */
   --background: var(--bg-app);
   --foreground: var(--text-primary);
   --card: var(--bg-panel);
   --card-foreground: var(--text-primary);
   --popover: var(--bg-panel);
   --popover-foreground: var(--text-primary);
-  --primary: var(--accent);
+  --primary: var(--accent-base);
   --primary-foreground: #f8fbff;
   --secondary: var(--bg-subtle);
   --secondary-foreground: var(--text-primary);
@@ -91,21 +100,28 @@
   --destructive: #dc2626;
   --border: var(--border-default);
   --input: var(--border-soft);
-  --ring: color-mix(in srgb, var(--accent) 50%, white 50%);
+  --ring: color-mix(in srgb, var(--accent-base) 40%, white 60%);
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
   --radius: 0.82rem;
+
+  /* sidebar */
   --sidebar: var(--bg-panel);
   --sidebar-foreground: var(--text-primary);
-  --sidebar-primary: var(--accent);
+  --sidebar-primary: var(--accent-base);
   --sidebar-primary-foreground: #f8fbff;
   --sidebar-accent: var(--accent-soft);
   --sidebar-accent-foreground: var(--accent-strong);
   --sidebar-border: var(--border-soft);
   --sidebar-ring: var(--ring);
+
+  /* shadows */
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.04), 0 0 0 1px rgba(16, 24, 40, 0.02);
+  --shadow-elevated: 0 4px 16px rgba(16, 24, 40, 0.08), 0 0 0 1px rgba(16, 24, 40, 0.03);
+  --shadow-subtle: 0 1px 2px rgba(16, 24, 40, 0.03);
 }
 
 .dark {
@@ -117,7 +133,7 @@
   --text-muted: #9ca7ba;
   --border-soft: #2b3342;
   --border-default: #364053;
-  --accent: #4f83ff;
+  --accent-base: #4f83ff;
   --accent-soft: #1d2845;
   --accent-strong: #7ea4ff;
 
@@ -127,7 +143,7 @@
   --card-foreground: var(--text-primary);
   --popover: var(--bg-panel);
   --popover-foreground: var(--text-primary);
-  --primary: var(--accent);
+  --primary: var(--accent-base);
   --primary-foreground: #0f172a;
   --secondary: var(--bg-subtle);
   --secondary-foreground: var(--text-primary);
@@ -138,15 +154,19 @@
   --destructive: #ef4444;
   --border: var(--border-default);
   --input: var(--border-soft);
-  --ring: color-mix(in srgb, var(--accent) 55%, white 45%);
+  --ring: color-mix(in srgb, var(--accent-base) 55%, white 45%);
   --sidebar: var(--bg-panel);
   --sidebar-foreground: var(--text-primary);
-  --sidebar-primary: var(--accent);
+  --sidebar-primary: var(--accent-base);
   --sidebar-primary-foreground: #0f172a;
   --sidebar-accent: var(--accent-soft);
   --sidebar-accent-foreground: var(--accent-strong);
   --sidebar-border: var(--border-soft);
   --sidebar-ring: var(--ring);
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 @layer base {
@@ -156,8 +176,41 @@
   body {
     @apply bg-background text-foreground antialiased;
     letter-spacing: -0.01em;
+    line-height: 1.6;
   }
   html {
     @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ── typography utilities ── */
+@layer utilities {
+  .text-page-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: var(--text-primary);
+  }
+  .text-section-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+  .text-body {
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+  .text-caption {
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--text-muted);
   }
 }
