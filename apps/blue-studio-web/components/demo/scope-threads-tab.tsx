@@ -18,7 +18,7 @@ export function ScopeThreadsTab({
       <CardHeader className="flex flex-row items-center justify-between border-b border-border-soft pb-3">
         <CardTitle>Threads</CardTitle>
         <Button size="sm" onClick={() => void onAddThread()}>
-          New task
+          Add thread
         </Button>
       </CardHeader>
       <CardContent className="p-0">

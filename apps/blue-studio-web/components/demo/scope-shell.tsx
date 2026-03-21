@@ -111,7 +111,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
               value="threads"
               className="h-9 justify-start rounded-lg px-3.5 data-active:border-accent-base/10 data-active:bg-accent-soft"
             >
-              Tasks
+              Threads
             </TabsTrigger>
             <TabsTrigger
               value="documents"
