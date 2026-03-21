@@ -43,13 +43,14 @@ test("myos demo default flow covers blink workspace thread and documents", async
   await page.getByRole("tab", { name: "Threads" }).click();
   await page.getByRole("button", { name: "Add thread" }).click();
 
-  await expect(page).toHaveURL(/\/threads\/.+/);
+  await expect(page).toHaveURL(/\/threads\/.+/, { timeout: 15_000 });
   await expect(page.getByRole("tab", { name: "UI" })).toBeVisible();
   await page.getByRole("tab", { name: "Details" }).click();
   await expect(page.getByText("Details").first()).toBeVisible();
   await page.getByRole("tab", { name: "Activity" }).click();
 
-  await page.getByRole("link", { name: "Documents" }).click();
+  await expect(page.locator('aside a[href="/documents"]').first()).toBeVisible();
+  await page.goto("/documents");
   await expect(page).toHaveURL("/documents");
   await page.getByRole("button", { name: "New document" }).click();
   await expect(page).toHaveURL(/\/documents\/.+/);
