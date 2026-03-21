@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { WorkspaceTemplateDialog } from "@/components/demo/workspace-template-dialog";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import { getWorkspaceScopes } from "@/lib/demo/selectors";
+import { getScopeAvatar } from "@/lib/demo/visuals";
 import {
   readDemoLeftRailCollapsed,
   writeDemoLeftRailCollapsed,
@@ -56,6 +58,7 @@ function RailLink({
   href,
   icon,
   active,
+  showAlert = false,
   compactIconLabel,
   onClick,
 }: {
@@ -64,6 +67,7 @@ function RailLink({
   href: string;
   icon: ReactNode;
   active: boolean;
+  showAlert?: boolean;
   compactIconLabel?: string;
   onClick?: () => void;
 }) {
@@ -72,23 +76,26 @@ function RailLink({
       href={href}
       onClick={onClick}
       className={cn(
-        "group/rail-link flex items-center rounded-xl border border-transparent transition-all duration-150",
+        "group/rail-link relative flex items-center rounded-lg border border-transparent transition-all duration-150",
         collapsed
-          ? "mx-auto h-10 w-10 justify-center"
-          : "h-10 gap-2.5 px-3 text-sm",
+          ? "mx-auto h-9 w-9 justify-center"
+          : "h-9 gap-2.5 px-3 text-sm",
         active
-          ? "border-accent-base/10 bg-accent-soft text-accent-base"
+          ? "border-accent-base/12 bg-accent-soft text-accent-base"
           : "text-text-secondary hover:bg-bg-subtle hover:text-foreground"
       )}
     >
-      <span className="inline-flex size-5 items-center justify-center shrink-0">
+      <span className="inline-flex size-[18px] items-center justify-center shrink-0">
         {icon}
       </span>
       {!collapsed ? (
-        <span className="font-semibold tracking-[-0.01em]">{label}</span>
+        <span className="font-medium tracking-[-0.01em]">{label}</span>
       ) : (
         <span className="sr-only">{compactIconLabel ?? label}</span>
       )}
+      {showAlert ? (
+        <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-[#E63A45]" />
+      ) : null}
     </Link>
   );
 
@@ -107,21 +114,17 @@ export function GlobalLeftRail() {
   const pathname = usePathname();
   const { snapshot } = useDemoApp();
   const workspaces = snapshot ? getWorkspaceScopes(snapshot) : [];
-  const [collapsed, setCollapsed] = useState(false);
+  const hasPendingAttention =
+    snapshot?.attentionItems.some((item) => item.status === "pending") ?? false;
+  const [collapsed, setCollapsed] = useState(readDemoLeftRailCollapsed);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCollapsed(readDemoLeftRailCollapsed());
-  }, []);
 
   /* track mobile breakpoint */
   useEffect(() => {
     const mql = window.matchMedia("(min-width: 768px)");
     const handler = (e: MediaQueryListEvent | MediaQueryList) => {
       const isDesktop = "matches" in e ? e.matches : (e as MediaQueryListEvent).matches;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsMobile(!isDesktop);
       if (!isDesktop) {
         setMobileOpen(false);
@@ -132,12 +135,11 @@ export function GlobalLeftRail() {
     return () => mql.removeEventListener("change", handler as (e: MediaQueryListEvent) => void);
   }, []);
 
-  const closeMobileDrawer = useCallback(() => {
+  const closeMobileDrawer = () => {
     setMobileOpen(false);
-  }, []);
+  };
 
   const railCollapsed = isMobile ? false : collapsed;
-  const navItems = useMemo(() => TOP_LEVEL_NAV_ITEMS, []);
 
   /* On mobile, we show a hamburger button and an overlay drawer.
      On desktop, we show the permanent sidebar (collapsible). */
@@ -148,16 +150,16 @@ export function GlobalLeftRail() {
       <div
         className={cn(
           "flex items-center border-b border-border-soft",
-          railCollapsed ? "justify-center px-2 py-3.5" : "justify-between px-4 py-3.5"
+          railCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2.5"
         )}
       >
         <div className={cn("items-center gap-2.5", railCollapsed ? "hidden" : "flex")}>
-          <span className="inline-flex size-8 items-center justify-center rounded-xl bg-accent-soft text-accent-base">
-            <SparklesIcon className="size-4" />
+          <span className="inline-flex size-7 items-center justify-center rounded-full border border-border-soft bg-accent-soft text-accent-base">
+            <SparklesIcon className="size-3.5" />
           </span>
           <div>
-            <p className="font-bold text-base tracking-[-0.02em] text-foreground">MyOS</p>
-            <p className="text-xs text-text-muted">Demo</p>
+            <p className="font-semibold text-[13px] tracking-[-0.01em] text-foreground">Navigation</p>
+            <p className="text-[11px] text-text-muted">Blink workspaces</p>
           </div>
         </div>
         {isMobile ? (
@@ -189,8 +191,8 @@ export function GlobalLeftRail() {
 
       {/* Navigation */}
       <ScrollArea className="min-h-0 flex-1">
-        <div className={cn("space-y-1", railCollapsed ? "p-2" : "p-3")}>
-          {navItems
+        <div className={cn("space-y-1", railCollapsed ? "p-1.5" : "p-2.5")}>
+          {TOP_LEVEL_NAV_ITEMS
             .filter((item) => item.key !== "settings")
             .map((item) => (
               <RailLink
@@ -198,16 +200,17 @@ export function GlobalLeftRail() {
                 collapsed={railCollapsed}
                 href={item.href}
                 label={item.label}
-                icon={<item.icon className="size-[18px]" />}
+                icon={<item.icon className="size-[16px]" />}
                 active={item.isActive(pathname)}
+                showAlert={item.key === "documents" ? hasPendingAttention : false}
                 onClick={isMobile ? closeMobileDrawer : undefined}
               />
             ))}
 
-          <Separator className={cn("my-3", railCollapsed ? "mx-1.5" : "mx-0.5")} />
+          <Separator className={cn("my-2.5", railCollapsed ? "mx-1.5" : "mx-1")} />
 
           {!railCollapsed ? (
-            <p className="px-3 pb-1 text-xs text-text-muted uppercase tracking-[0.06em] font-medium">
+            <p className="px-3 pb-1 text-[10px] text-text-muted uppercase tracking-[0.08em] font-semibold">
               Workspaces
             </p>
           ) : null}
@@ -229,11 +232,16 @@ export function GlobalLeftRail() {
                   href={`/workspaces/${encodeURIComponent(workspace.id)}`}
                   label={workspace.name}
                   icon={
-                    <span className="inline-flex size-6 items-center justify-center rounded-lg bg-bg-subtle text-xs font-semibold text-text-secondary">
-                      {workspace.icon ?? workspace.name.slice(0, 1).toUpperCase()}
-                    </span>
+                    <Image
+                      src={getScopeAvatar(workspace)}
+                      alt={workspace.name}
+                      width={22}
+                      height={22}
+                      className="size-[22px] rounded-full border border-border-soft object-cover"
+                    />
                   }
                   active={pathname === `/workspaces/${workspace.id}`}
+                  showAlert={workspace.bootstrapStatus === "failed"}
                   compactIconLabel={workspace.name}
                   onClick={isMobile ? closeMobileDrawer : undefined}
                 />
@@ -241,20 +249,20 @@ export function GlobalLeftRail() {
             )}
           </div>
 
-          <div className={cn("pt-1.5", railCollapsed ? "flex justify-center" : "")}>
+          <div className={cn("pt-1", railCollapsed ? "flex justify-center" : "")}>
             {railCollapsed ? (
               <WorkspaceTemplateDialog
                 compact
                 tooltipLabel="New workspace"
-                buttonClassName="size-10 justify-center"
+                buttonClassName="size-9 justify-center rounded-full border-border-soft bg-bg-subtle hover:bg-accent-soft"
               />
             ) : (
-              <WorkspaceTemplateDialog buttonClassName="w-full justify-center" />
+              <WorkspaceTemplateDialog buttonClassName="h-9 w-full justify-center rounded-lg bg-bg-subtle text-foreground hover:bg-accent-soft" />
             )}
           </div>
 
-          <Separator className={cn("my-3", railCollapsed ? "mx-1.5" : "mx-0.5")} />
-          {navItems
+          <Separator className={cn("my-2.5", railCollapsed ? "mx-1.5" : "mx-1")} />
+          {TOP_LEVEL_NAV_ITEMS
             .filter((item) => item.key === "settings")
             .map((item) => (
               <RailLink
@@ -262,7 +270,7 @@ export function GlobalLeftRail() {
                 collapsed={railCollapsed}
                 href={item.href}
                 label={item.label}
-                icon={<item.icon className="size-[18px]" />}
+                icon={<item.icon className="size-[16px]" />}
                 active={item.isActive(pathname)}
                 onClick={isMobile ? closeMobileDrawer : undefined}
               />
@@ -274,22 +282,26 @@ export function GlobalLeftRail() {
       <div
         className={cn(
           "border-t border-border-soft",
-          railCollapsed ? "px-2 py-3" : "px-3 py-3"
+          railCollapsed ? "px-1.5 py-2.5" : "px-2.5 py-2.5"
         )}
       >
         <div
           className={cn(
-            "flex items-center rounded-xl bg-bg-subtle",
-            railCollapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2.5"
+            "flex items-center rounded-lg border border-border-soft bg-bg-subtle",
+            railCollapsed ? "justify-center p-1.5" : "gap-2.5 px-2.5 py-2"
           )}
         >
-          <span className="inline-flex size-8 items-center justify-center rounded-full bg-accent-soft text-accent-base text-xs font-bold shrink-0">
-            PB
-          </span>
+          <Image
+            src="/myos/avatars/piotr.svg"
+            alt="Piotr Blue"
+            width={30}
+            height={30}
+            className="size-[30px] rounded-full border border-border-soft object-cover"
+          />
           {!railCollapsed ? (
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">piotr-blue</p>
-              <p className="text-xs text-text-muted truncate">MyOS operator</p>
+              <p className="truncate text-sm font-semibold">piotr-blue</p>
+              <p className="truncate text-[11px] text-text-muted">MyOS operator</p>
             </div>
           ) : null}
         </div>
@@ -304,12 +316,12 @@ export function GlobalLeftRail() {
         {/* Fixed hamburger button */}
         <Button
           size="icon"
-          variant="outline"
+          variant="secondary"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation"
-          className="fixed top-3 left-3 z-50 shadow-[var(--shadow-card)] md:hidden"
+          className="fixed top-2.5 left-2.5 z-50 rounded-full border-border-soft bg-card md:hidden"
         >
-          <MenuIcon className="size-5" />
+          <MenuIcon className="size-[18px]" />
         </Button>
 
         {/* Overlay backdrop */}
@@ -323,7 +335,7 @@ export function GlobalLeftRail() {
         {/* Drawer */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-card shadow-[var(--shadow-elevated)] transition-transform duration-300 ease-in-out md:hidden",
+            "fixed inset-y-0 left-0 z-50 mt-12 flex w-[264px] flex-col border-r border-border-soft bg-card shadow-[var(--shadow-elevated)] transition-transform duration-300 ease-in-out md:hidden",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -337,8 +349,8 @@ export function GlobalLeftRail() {
   return (
     <aside
       className={cn(
-        "hidden md:flex h-screen shrink-0 flex-col border-r border-border-soft bg-card transition-[width] duration-300 ease-in-out",
-        railCollapsed ? "w-[72px]" : "w-[260px]"
+        "hidden md:flex h-[calc(100vh-3rem)] shrink-0 flex-col border-r border-border-soft bg-card transition-[width] duration-300 ease-in-out",
+        railCollapsed ? "mt-12 w-[66px]" : "mt-12 w-[246px]"
       )}
     >
       {sidebarContent}

@@ -168,7 +168,7 @@ export function createSeedSnapshot(): DemoSnapshot {
     id: BLINK_SCOPE_ID,
     type: "blink",
     name: "Blink",
-    icon: "✨",
+    icon: "home",
     templateKey: null,
     description: "Root assistant scope for account-level work.",
     createdAt,

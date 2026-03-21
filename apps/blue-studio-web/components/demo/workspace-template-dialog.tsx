@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDemoApp } from "@/components/demo/demo-provider";
+import { getTemplateAvatar } from "@/lib/demo/visuals";
 import { listWorkspaceTemplates } from "@/lib/demo/workspace-templates";
 import type { WorkspaceTemplateKey } from "@/lib/demo/types";
 import { PlusIcon } from "lucide-react";
@@ -86,9 +88,9 @@ export function WorkspaceTemplateDialog({
               <button
                 key={template.key}
                 type="button"
-                className={`rounded-xl text-left transition-all ${
+                className={`rounded-lg text-left transition-all ${
                   templateKey === template.key
-                    ? "ring-2 ring-accent-base/30 shadow-[var(--shadow-card)]"
+                    ? "ring-2 ring-accent-base/30"
                     : "hover:ring-1 hover:ring-border-soft"
                 }`}
                 onClick={() => {
@@ -99,9 +101,15 @@ export function WorkspaceTemplateDialog({
                 }}
               >
                 <Card size="sm" className={templateKey === template.key ? "border-accent-base/20" : ""}>
-                  <CardContent className="space-y-1 pt-4">
-                    <p className="font-semibold text-foreground">
-                      <span className="mr-2">{template.icon}</span>
+                  <CardContent className="space-y-1 pt-3.5">
+                    <p className="flex items-center gap-2.5 font-semibold text-foreground">
+                      <Image
+                        src={getTemplateAvatar(template.key)}
+                        alt={template.name}
+                        width={26}
+                        height={26}
+                        className="size-[26px] rounded-full border border-border-soft object-cover"
+                      />
                       {template.name}
                     </p>
                     <p className="text-body">{template.description}</p>
