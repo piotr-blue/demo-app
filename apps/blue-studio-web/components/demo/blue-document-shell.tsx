@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ArrowLeftIcon } from "lucide-react";
 import type { ActivityRecord, DocumentUiCard } from "@/lib/demo/types";
 
 export function BlueDocumentShell({
@@ -28,47 +30,52 @@ export function BlueDocumentShell({
   backLabel?: string;
 }) {
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/80 bg-card px-5 py-4 shadow-[0_2px_8px_rgba(16,24,40,0.04)]">
+    <section className="mx-auto max-w-5xl space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
         <div>
-          <p className="font-bold text-2xl tracking-[-0.02em]">{title}</p>
-          <p className="text-muted-foreground text-sm">
-            {kind} · {status}
-          </p>
+          <h1 className="text-page-title">{title}</h1>
+          <div className="mt-1.5 flex items-center gap-2">
+            <Badge variant="secondary">{kind}</Badge>
+            <span className="text-caption">·</span>
+            <Badge variant="secondary">{status}</Badge>
+          </div>
         </div>
         <Button variant="outline" size="sm" render={<Link href={backHref} />}>
+          <ArrowLeftIcon className="size-3.5" />
           {backLabel}
         </Button>
       </div>
 
-      <Tabs defaultValue="ui" className="gap-3">
+      {/* Tabs */}
+      <Tabs defaultValue="ui">
         <TabsList>
           <TabsTrigger value="ui">UI</TabsTrigger>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ui" className="space-y-3">
-          <Card className="border-border/80 bg-card">
+        <TabsContent value="ui" className="space-y-4">
+          <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Summary</CardTitle>
+              <CardTitle>Summary</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">{summary}</CardContent>
+            <CardContent className="text-body">{summary}</CardContent>
           </Card>
           {uiCards.length === 0 ? (
-            <Card className="border-border/80 bg-card">
-              <CardContent className="pt-4 text-sm text-muted-foreground">
+            <Card>
+              <CardContent className="pt-5 text-body text-center">
                 No dynamic UI cards available for this document yet.
               </CardContent>
             </Card>
           ) : (
             uiCards.map((card) => (
-              <Card key={card.id} className="border-border/80 bg-card">
+              <Card key={card.id}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">{card.title}</CardTitle>
+                  <CardTitle>{card.title}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p className="text-muted-foreground">{card.body}</p>
+                <CardContent className="space-y-3 text-sm">
+                  <p className="text-body">{card.body}</p>
                   {card.ctaLabel ? (
                     <Button size="sm" variant="outline">
                       {card.ctaLabel}
@@ -81,12 +88,12 @@ export function BlueDocumentShell({
         </TabsContent>
 
         <TabsContent value="details">
-          <Card className="border-border/80 bg-card">
+          <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Details</CardTitle>
+              <CardTitle>Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <pre className="max-h-[65vh] overflow-auto rounded-xl border border-border/75 bg-muted/60 p-3 font-mono text-xs whitespace-pre-wrap">
+              <pre className="max-h-[65vh] overflow-auto rounded-xl border border-border-soft bg-bg-subtle p-4 font-mono text-xs whitespace-pre-wrap leading-relaxed text-text-secondary">
                 {JSON.stringify(details, null, 2)}
               </pre>
             </CardContent>
@@ -94,21 +101,24 @@ export function BlueDocumentShell({
         </TabsContent>
 
         <TabsContent value="activity">
-          <Card className="border-border/80 bg-card">
+          <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Activity</CardTitle>
+              <CardTitle>Activity</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2.5">
               {activity.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No activity recorded for this document.</p>
+                <p className="text-body text-center py-4">No activity recorded for this document.</p>
               ) : (
                 activity.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-border/75 bg-muted/55 p-3 text-sm">
-                    <p className="font-medium">{entry.title}</p>
+                  <div key={entry.id} className="rounded-xl border border-border-soft bg-card p-4 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-foreground">{entry.title}</p>
+                      <Badge variant="secondary">{entry.kind}</Badge>
+                    </div>
                     {entry.detail ? (
-                      <p className="text-muted-foreground text-xs">{entry.detail}</p>
+                      <p className="mt-1.5 text-body">{entry.detail}</p>
                     ) : null}
-                    <p className="text-[11px] text-muted-foreground">{entry.createdAt}</p>
+                    <p className="mt-1.5 text-caption">{entry.createdAt}</p>
                   </div>
                 ))
               )}

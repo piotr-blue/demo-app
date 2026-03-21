@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import type { ThreadRecord } from "@/lib/demo/types";
 
 export function ScopeThreadsTab({
@@ -13,29 +14,29 @@ export function ScopeThreadsTab({
   onAddThread: () => Promise<void>;
 }) {
   return (
-    <Card className="border-border/80 bg-card">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-sm">Threads</CardTitle>
+        <CardTitle>Threads</CardTitle>
         <Button size="sm" onClick={() => void onAddThread()}>
           Add thread
         </Button>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-2.5">
         {threads.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No threads in this scope yet.</p>
+          <p className="text-body py-4 text-center">No threads in this scope yet.</p>
         ) : (
           threads.map((thread) => (
             <Link
               key={thread.id}
               href={`/threads/${encodeURIComponent(thread.id)}`}
-              className="block rounded-xl border border-border/75 bg-muted/55 p-3 hover:bg-muted"
+              className="block rounded-xl border border-border-soft bg-card p-4 transition-colors hover:border-accent-base/15 hover:bg-accent-soft/30"
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="font-medium text-sm">{thread.title}</p>
-                <span className="text-muted-foreground text-xs">{thread.status}</span>
+                <p className="font-semibold text-sm text-foreground">{thread.title}</p>
+                <Badge variant="secondary">{thread.status}</Badge>
               </div>
-              <p className="mt-1 text-muted-foreground text-xs">{thread.summary}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">{thread.updatedAt}</p>
+              <p className="mt-1.5 text-body line-clamp-2">{thread.summary}</p>
+              <p className="mt-1.5 text-caption">{thread.updatedAt}</p>
             </Link>
           ))
         )}

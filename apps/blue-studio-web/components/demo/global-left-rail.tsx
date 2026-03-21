@@ -69,19 +69,17 @@ function RailLink({
       className={cn(
         "group/rail-link flex items-center rounded-xl border border-transparent transition-all duration-150",
         collapsed
-          ? "mx-auto h-11 w-11 justify-center"
-          : "h-11 gap-2.5 px-3.5 text-sm",
+          ? "mx-auto h-10 w-10 justify-center"
+          : "h-10 gap-2.5 px-3 text-sm",
         active
-          ? "bg-accent text-accent-strong shadow-[inset_0_0_0_1px_rgba(37,99,235,0.18)]"
-          : "text-secondary-foreground hover:bg-muted"
+          ? "border-accent-base/10 bg-accent-soft text-accent-base"
+          : "text-text-secondary hover:bg-bg-subtle hover:text-foreground"
       )}
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center",
-          collapsed
-            ? "size-7 rounded-full bg-card text-accent-strong"
-            : "size-7 rounded-full bg-muted text-secondary-foreground group-hover/rail-link:text-foreground"
+          "inline-flex items-center justify-center shrink-0",
+          collapsed ? "size-5" : "size-5"
         )}
       >
         {icon}
@@ -116,29 +114,48 @@ export function GlobalLeftRail() {
     setCollapsed(readDemoLeftRailCollapsed());
   }, []);
 
+  /* auto-collapse on narrow viewports */
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => {
+      if (!e.matches) {
+        setCollapsed(true);
+        writeDemoLeftRailCollapsed(true);
+      }
+    };
+    mql.addEventListener("change", handler);
+    // collapse immediately if currently narrow
+    if (!mql.matches) {
+      setCollapsed(true);
+      writeDemoLeftRailCollapsed(true);
+    }
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+
   const railCollapsed = collapsed;
   const navItems = useMemo(() => TOP_LEVEL_NAV_ITEMS, []);
 
   return (
     <aside
       className={cn(
-        "flex h-screen shrink-0 flex-col border-r border-border/70 bg-card shadow-[2px_0_10px_rgba(16,24,40,0.04)] transition-[width] duration-300",
-        railCollapsed ? "w-[84px]" : "w-[286px]"
+        "flex h-screen shrink-0 flex-col border-r border-border-soft bg-card transition-[width] duration-300 ease-in-out",
+        railCollapsed ? "w-[72px]" : "w-[260px]"
       )}
     >
+      {/* Header */}
       <div
         className={cn(
-          "flex items-center border-b border-border/75",
-          railCollapsed ? "justify-center px-2 py-3" : "justify-between px-4 py-3"
+          "flex items-center border-b border-border-soft",
+          railCollapsed ? "justify-center px-2 py-3.5" : "justify-between px-4 py-3.5"
         )}
       >
         <div className={cn("items-center gap-2.5", railCollapsed ? "hidden" : "flex")}>
-          <span className="inline-flex size-8 items-center justify-center rounded-xl bg-accent text-accent-strong">
+          <span className="inline-flex size-8 items-center justify-center rounded-xl bg-accent-soft text-accent-base">
             <SparklesIcon className="size-4" />
           </span>
           <div>
             <p className="font-bold text-base tracking-[-0.02em] text-foreground">MyOS</p>
-            <p className="text-[11px] text-muted-foreground">Demo</p>
+            <p className="text-xs text-text-muted">Demo</p>
           </div>
         </div>
         <Button
@@ -150,12 +167,15 @@ export function GlobalLeftRail() {
             writeDemoLeftRailCollapsed(next);
           }}
           aria-label={railCollapsed ? "Expand navigation" : "Collapse navigation"}
+          className="text-text-muted hover:text-foreground"
         >
-          {railCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+          {railCollapsed ? <ChevronRightIcon className="size-4" /> : <ChevronLeftIcon className="size-4" />}
         </Button>
       </div>
+
+      {/* Navigation */}
       <ScrollArea className="min-h-0 flex-1">
-        <div className={cn("space-y-2", railCollapsed ? "p-2.5" : "p-3")}>
+        <div className={cn("space-y-1", railCollapsed ? "p-2" : "p-3")}>
           {navItems
             .filter((item) => item.key !== "settings")
             .map((item) => (
@@ -164,24 +184,24 @@ export function GlobalLeftRail() {
                 collapsed={railCollapsed}
                 href={item.href}
                 label={item.label}
-                icon={<item.icon className="size-4" />}
+                icon={<item.icon className="size-[18px]" />}
                 active={item.isActive(pathname)}
               />
             ))}
 
-          <Separator className={cn("my-3", railCollapsed ? "mx-2" : "mx-1")} />
+          <Separator className={cn("my-3", railCollapsed ? "mx-1.5" : "mx-0.5")} />
 
           {!railCollapsed ? (
-            <p className="px-2 text-[11px] text-muted-foreground uppercase tracking-[0.06em]">
+            <p className="px-3 pb-1 text-xs text-text-muted uppercase tracking-[0.06em] font-medium">
               Workspaces
             </p>
           ) : null}
-          <div className={cn("space-y-1.5", railCollapsed ? "px-0.5" : "")}>
+          <div className={cn("space-y-0.5", railCollapsed ? "px-0" : "")}>
             {workspaces.length === 0 ? (
               <p
                 className={cn(
-                  "text-muted-foreground",
-                  railCollapsed ? "text-center text-xs" : "px-2 text-sm"
+                  "text-text-muted",
+                  railCollapsed ? "text-center text-xs py-2" : "px-3 py-2 text-sm"
                 )}
               >
                 {railCollapsed ? "—" : "No workspaces yet."}
@@ -194,7 +214,7 @@ export function GlobalLeftRail() {
                   href={`/workspaces/${encodeURIComponent(workspace.id)}`}
                   label={workspace.name}
                   icon={
-                    <span className="text-[13px] leading-none">
+                    <span className="inline-flex size-6 items-center justify-center rounded-lg bg-bg-subtle text-xs font-semibold text-text-secondary">
                       {workspace.icon ?? workspace.name.slice(0, 1).toUpperCase()}
                     </span>
                   }
@@ -205,19 +225,19 @@ export function GlobalLeftRail() {
             )}
           </div>
 
-          <div className={cn("pt-1", railCollapsed ? "flex justify-center" : "")}>
+          <div className={cn("pt-1.5", railCollapsed ? "flex justify-center" : "")}>
             {railCollapsed ? (
               <WorkspaceTemplateDialog
                 compact
                 tooltipLabel="New workspace"
-                buttonClassName="size-11 justify-center"
+                buttonClassName="size-10 justify-center"
               />
             ) : (
               <WorkspaceTemplateDialog buttonClassName="w-full justify-center" />
             )}
           </div>
 
-          <Separator className={cn("my-3", railCollapsed ? "mx-2" : "mx-1")} />
+          <Separator className={cn("my-3", railCollapsed ? "mx-1.5" : "mx-0.5")} />
           {navItems
             .filter((item) => item.key === "settings")
             .map((item) => (
@@ -226,32 +246,33 @@ export function GlobalLeftRail() {
                 collapsed={railCollapsed}
                 href={item.href}
                 label={item.label}
-                icon={<item.icon className="size-4" />}
+                icon={<item.icon className="size-[18px]" />}
                 active={item.isActive(pathname)}
               />
             ))}
         </div>
       </ScrollArea>
 
+      {/* Footer user card */}
       <div
         className={cn(
-          "border-t border-border/75",
-          railCollapsed ? "px-2 py-2.5" : "px-4 py-3"
+          "border-t border-border-soft",
+          railCollapsed ? "px-2 py-3" : "px-3 py-3"
         )}
       >
         <div
           className={cn(
-            "flex items-center rounded-xl bg-muted/65",
-            railCollapsed ? "justify-center p-2" : "gap-2 p-2.5"
+            "flex items-center rounded-xl bg-bg-subtle",
+            railCollapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2.5"
           )}
         >
-          <span className="inline-flex size-8 items-center justify-center rounded-full bg-accent text-accent-strong text-xs font-bold">
+          <span className="inline-flex size-8 items-center justify-center rounded-full bg-accent-soft text-accent-base text-xs font-bold shrink-0">
             PB
           </span>
           {!railCollapsed ? (
-            <div>
-              <p className="text-sm font-semibold">piotr-blue</p>
-              <p className="text-[11px] text-muted-foreground">MyOS operator</p>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">piotr-blue</p>
+              <p className="text-xs text-text-muted truncate">MyOS operator</p>
             </div>
           ) : null}
         </div>

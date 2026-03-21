@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import { ScopeAssistantTab } from "@/components/demo/scope-assistant-tab";
@@ -57,27 +58,32 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
   );
 
   if (loading || !snapshot) {
-    return <div className="flex min-h-[40vh] items-center justify-center">Loading scope…</div>;
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-text-muted">
+        Loading scope…
+      </div>
+    );
   }
 
   if (!scope) {
     return (
-      <Card className="border-border/70 bg-card/80">
-        <CardContent className="pt-4 text-sm text-muted-foreground">Scope not found.</CardContent>
+      <Card>
+        <CardContent className="pt-5 text-sm text-muted-foreground">Scope not found.</CardContent>
       </Card>
     );
   }
 
   return (
-    <section className="space-y-4">
-      <div className="rounded-2xl border border-border/80 bg-card px-5 py-4 shadow-[0_2px_8px_rgba(16,24,40,0.04)]">
-        <div className="flex items-center justify-between gap-2">
+    <section className="mx-auto max-w-6xl space-y-5">
+      {/* Page header */}
+      <div className="rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="font-bold text-3xl tracking-[-0.02em] text-foreground">
+            <h1 className="text-page-title">
               <span className="mr-2.5">{scope.icon ?? "🧩"}</span>
               {scope.name}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">{scope.description}</p>
+            <p className="mt-1.5 text-body">{scope.description}</p>
           </div>
           {scope.type === "workspace" && scope.bootstrapStatus === "failed" ? (
             <Button size="sm" variant="outline" onClick={() => void retryWorkspaceBootstrap(scope.id)}>
@@ -86,16 +92,20 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
           ) : null}
         </div>
         {scope.type === "workspace" && scope.bootstrapStatus !== "ready" ? (
-          <div className="mt-3 rounded-xl border border-border/75 bg-muted/70 px-3.5 py-2.5 text-sm">
-            Core document bootstrap: <span className="font-medium">{scope.bootstrapStatus}</span>
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-border-soft bg-bg-subtle px-4 py-3 text-sm">
+            <span className="text-text-secondary">Core document bootstrap:</span>
+            <Badge variant={scope.bootstrapStatus === "failed" ? "destructive" : "secondary"}>
+              {scope.bootstrapStatus}
+            </Badge>
             {scope.bootstrapError ? (
-              <p className="text-destructive text-xs">{scope.bootstrapError}</p>
+              <p className="text-destructive text-xs ml-2">{scope.bootstrapError}</p>
             ) : null}
           </div>
         ) : null}
       </div>
 
-      <Tabs defaultValue="assistant" className="gap-3">
+      {/* Tab section */}
+      <Tabs defaultValue="assistant">
         <TabsList>
           <TabsTrigger value="assistant">Assistant</TabsTrigger>
           <TabsTrigger value="threads">Threads</TabsTrigger>

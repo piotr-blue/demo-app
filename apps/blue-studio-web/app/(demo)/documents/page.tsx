@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import { getRootDocuments } from "@/lib/demo/selectors";
 
@@ -12,17 +13,21 @@ export default function DocumentsPage() {
   const { snapshot, loading, createRootDocument } = useDemoApp();
 
   if (loading || !snapshot) {
-    return <div className="flex min-h-[40vh] items-center justify-center">Loading documents…</div>;
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-text-muted">
+        Loading documents…
+      </div>
+    );
   }
 
   const documents = getRootDocuments(snapshot);
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/80 bg-card px-5 py-4 shadow-[0_2px_8px_rgba(16,24,40,0.04)]">
+    <section className="mx-auto max-w-5xl space-y-5">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
         <div>
-          <h1 className="font-bold text-3xl tracking-[-0.02em]">Documents</h1>
-          <p className="text-muted-foreground text-sm">Root-only documents (unscoped) for V1.</p>
+          <h1 className="text-page-title">Documents</h1>
+          <p className="mt-1.5 text-body">Root-only documents (unscoped) for V1.</p>
         </div>
         <Button
           size="sm"
@@ -38,26 +43,26 @@ export default function DocumentsPage() {
         </Button>
       </div>
 
-      <Card className="border-border/80 bg-card">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Root documents</CardTitle>
+          <CardTitle>Root documents</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-2.5">
           {documents.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No root documents yet.</p>
+            <p className="text-body py-4 text-center">No root documents yet.</p>
           ) : (
             documents.map((document) => (
               <Link
                 key={document.id}
                 href={`/documents/${encodeURIComponent(document.id)}`}
-                className="block rounded-xl border border-border/75 bg-muted/55 p-3 hover:bg-muted"
+                className="block rounded-xl border border-border-soft bg-card p-4 transition-colors hover:border-accent-base/15 hover:bg-accent-soft/30"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-sm">{document.title}</p>
-                  <span className="text-muted-foreground text-xs">{document.kind}</span>
+                  <p className="font-semibold text-sm text-foreground">{document.title}</p>
+                  <Badge variant="secondary">{document.kind}</Badge>
                 </div>
-                <p className="mt-1 text-muted-foreground text-xs">{document.summary}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Updated: {document.updatedAt}</p>
+                <p className="mt-1.5 text-body line-clamp-2">{document.summary}</p>
+                <p className="mt-1.5 text-caption">Updated: {document.updatedAt}</p>
               </Link>
             ))
           )}

@@ -70,7 +70,7 @@ export function WorkspaceTemplateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="workspace-name">Workspace name</Label>
             <Input
@@ -81,12 +81,16 @@ export function WorkspaceTemplateDialog({
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2.5">
             {templates.map((template) => (
               <button
                 key={template.key}
                 type="button"
-                className={`rounded-xl text-left ${templateKey === template.key ? "ring-2 ring-primary/25" : ""}`}
+                className={`rounded-xl text-left transition-all ${
+                  templateKey === template.key
+                    ? "ring-2 ring-accent-base/30 shadow-[var(--shadow-card)]"
+                    : "hover:ring-1 hover:ring-border-soft"
+                }`}
                 onClick={() => {
                   setTemplateKey(template.key);
                   if (!workspaceName.trim()) {
@@ -94,13 +98,13 @@ export function WorkspaceTemplateDialog({
                   }
                 }}
               >
-                <Card className="border-border/80 bg-card">
+                <Card size="sm" className={templateKey === template.key ? "border-accent-base/20" : ""}>
                   <CardContent className="space-y-1 pt-4">
-                    <p className="font-semibold">
+                    <p className="font-semibold text-foreground">
                       <span className="mr-2">{template.icon}</span>
                       {template.name}
                     </p>
-                    <p className="text-muted-foreground text-sm">{template.description}</p>
+                    <p className="text-body">{template.description}</p>
                   </CardContent>
                 </Card>
               </button>

@@ -7,39 +7,45 @@ import type { ScopeRecord } from "@/lib/demo/types";
 export function ScopeSettingsTab({ scope }: { scope: ScopeRecord }) {
   return (
     <div className="space-y-4">
-      <Card className="border-border/80 bg-card">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Scope details</CardTitle>
+          <CardTitle>Scope details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>
-            <span className="font-medium">Name:</span> {scope.name}
-          </p>
-          <p>
-            <span className="font-medium">Type:</span> {scope.type}
-          </p>
+        <CardContent className="space-y-3 text-sm">
+          <div className="grid grid-cols-[120px_1fr] gap-2 items-baseline">
+            <span className="text-text-muted font-medium">Name</span>
+            <span className="text-foreground">{scope.name}</span>
+          </div>
+          <div className="grid grid-cols-[120px_1fr] gap-2 items-baseline">
+            <span className="text-text-muted font-medium">Type</span>
+            <span className="text-foreground">{scope.type}</span>
+          </div>
           {scope.templateKey ? (
-            <p>
-              <span className="font-medium">Template:</span> {scope.templateKey}
-            </p>
+            <div className="grid grid-cols-[120px_1fr] gap-2 items-baseline">
+              <span className="text-text-muted font-medium">Template</span>
+              <span className="text-foreground">{scope.templateKey}</span>
+            </div>
           ) : null}
-          <p>
-            <span className="font-medium">Bootstrap status:</span> {scope.bootstrapStatus}
-          </p>
+          <div className="grid grid-cols-[120px_1fr] gap-2 items-baseline">
+            <span className="text-text-muted font-medium">Bootstrap</span>
+            <Badge variant={scope.bootstrapStatus === "failed" ? "destructive" : "secondary"}>
+              {scope.bootstrapStatus}
+            </Badge>
+          </div>
           {scope.bootstrapError ? (
             <p className="text-destructive text-sm">{scope.bootstrapError}</p>
           ) : null}
-          <p className="font-mono text-xs text-muted-foreground">scopeId: {scope.id}</p>
+          <p className="font-mono text-xs text-text-muted pt-2">scopeId: {scope.id}</p>
         </CardContent>
       </Card>
 
-      <Card className="border-border/80 bg-card">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Anchors</CardTitle>
+          <CardTitle>Anchors</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {scope.anchors.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No anchors defined.</p>
+            <p className="text-body">No anchors defined.</p>
           ) : (
             scope.anchors.map((anchor) => (
               <Badge key={anchor} variant="secondary">
@@ -50,17 +56,19 @@ export function ScopeSettingsTab({ scope }: { scope: ScopeRecord }) {
         </CardContent>
       </Card>
 
-      <Card className="border-border/80 bg-card">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Assistant</CardTitle>
+          <CardTitle>Assistant</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>
-            <span className="font-medium">Name:</span> {scope.assistant.name}
-          </p>
-          <p>
-            <span className="font-medium">Tone:</span> {scope.assistant.tone}
-          </p>
+        <CardContent className="space-y-3 text-sm">
+          <div className="grid grid-cols-[120px_1fr] gap-2 items-baseline">
+            <span className="text-text-muted font-medium">Name</span>
+            <span className="text-foreground">{scope.assistant.name}</span>
+          </div>
+          <div className="grid grid-cols-[120px_1fr] gap-2 items-baseline">
+            <span className="text-text-muted font-medium">Tone</span>
+            <span className="text-foreground">{scope.assistant.tone}</span>
+          </div>
         </CardContent>
       </Card>
     </div>

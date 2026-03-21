@@ -6,23 +6,23 @@ import type { AttentionItem } from "@/lib/demo/types";
 
 export function AttentionList({ items }: { items: AttentionItem[] }) {
   return (
-    <Card className="border-border/80 bg-card">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm">Attention</CardTitle>
+    <Card size="sm">
+      <CardHeader className="pb-2">
+        <CardTitle>Attention</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {items.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No pending asks right now.</p>
+          <p className="text-body">No pending asks right now.</p>
         ) : (
           items.map((item) => (
-            <div key={item.id} className="rounded-xl border border-border/75 bg-muted/55 p-2.5 text-sm">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <p className="font-medium">{item.title}</p>
+            <div key={item.id} className="rounded-xl border border-border-soft bg-card p-3 text-sm">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="font-semibold text-foreground">{item.title}</p>
                 <Badge variant={item.priority === "high" ? "destructive" : "secondary"}>
                   {item.priority}
                 </Badge>
               </div>
-              <p className="text-muted-foreground">{item.body}</p>
+              <p className="text-body">{item.body}</p>
             </div>
           ))
         )}

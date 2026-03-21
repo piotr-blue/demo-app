@@ -18,19 +18,19 @@ export default function SettingsPage() {
   }, [credentials]);
 
   return (
-    <section className="space-y-4">
-      <div className="rounded-2xl border border-border/80 bg-card px-5 py-4 shadow-[0_2px_8px_rgba(16,24,40,0.04)]">
-        <h1 className="font-bold text-3xl tracking-[-0.02em]">Settings</h1>
-        <p className="text-muted-foreground text-sm">
+    <section className="mx-auto max-w-2xl space-y-5">
+      <div className="rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
+        <h1 className="text-page-title">Settings</h1>
+        <p className="mt-1.5 text-body">
           Local demo credentials and environment info.
         </p>
       </div>
 
-      <Card className="border-border/80 bg-card">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Credentials (localStorage)</CardTitle>
+          <CardTitle>Credentials (localStorage)</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3">
+        <CardContent className="grid gap-4">
           <div className="space-y-2">
             <Label htmlFor="openai-key">OpenAI API key</Label>
             <Input
@@ -74,7 +74,7 @@ export default function SettingsPage() {
               }
             />
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-1">
             <Button
               onClick={() =>
                 setCredentials({
@@ -91,12 +91,12 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/80 bg-card">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Legacy route</CardTitle>
+          <CardTitle>Legacy route</CardTitle>
         </CardHeader>
         <CardContent className="text-sm">
-          <p className="mb-2 text-muted-foreground">
+          <p className="mb-3 text-body">
             The legacy blueprint/DSL/bootstrap flow remains available for regression safety.
           </p>
           <Button variant="outline" size="sm" render={<Link href="/t/thread_demo_legacy" />}>

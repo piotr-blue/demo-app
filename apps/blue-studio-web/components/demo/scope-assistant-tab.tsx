@@ -13,6 +13,7 @@ import type {
   ScopeRecord,
   ThreadRecord,
 } from "@/lib/demo/types";
+import { SendIcon } from "lucide-react";
 
 export function ScopeAssistantTab({
   scope,
@@ -37,18 +38,19 @@ export function ScopeAssistantTab({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr_320px]">
+    <div className="grid gap-5 lg:grid-cols-[260px_1fr_300px]">
+      {/* Left sidebar - scope info */}
       <div className="space-y-4">
-        <Card className="border-border/80 bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">
-              <span className="mr-2">{scope.icon ?? "🧩"}</span>
+        <Card size="sm">
+          <CardHeader className="pb-2">
+            <CardTitle>
+              <span className="mr-1.5">{scope.icon ?? "🧩"}</span>
               {scope.name}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <p className="text-muted-foreground">{scope.description}</p>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-body">{scope.description}</p>
+            <p className="text-caption">
               Assistant: {scope.assistant.name} · {scope.assistant.tone}
             </p>
             <div className="flex flex-col gap-2 pt-1">
@@ -65,36 +67,37 @@ export function ScopeAssistantTab({
         <AttentionList items={attentionItems} />
       </div>
 
-      <Card className="border-border/80 bg-card">
+      {/* Center - chat */}
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Assistant chat</CardTitle>
+          <CardTitle>Assistant chat</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="max-h-[56vh] space-y-2.5 overflow-auto pr-1">
+        <CardContent className="space-y-4">
+          <div className="max-h-[56vh] space-y-3 overflow-auto pr-1">
             {scope.messages.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No messages yet.</p>
+              <p className="text-body py-4 text-center">No messages yet. Start a conversation.</p>
             ) : (
               scope.messages.map((messageItem) => (
                 <div
                   key={messageItem.id}
-                  className={`rounded-xl border px-3 py-2.5 text-sm ${
+                  className={`rounded-xl border px-4 py-3 text-sm ${
                     messageItem.role === "assistant"
-                      ? "bg-muted/75"
+                      ? "border-border-soft bg-bg-subtle"
                       : messageItem.role === "user"
-                        ? "border-primary/15 bg-accent/65"
-                        : "bg-background"
+                        ? "border-accent-base/12 bg-accent-soft"
+                        : "border-border-soft bg-card"
                   }`}
                 >
-                  <p className="mb-1.5 text-[11px] uppercase tracking-[0.04em] text-muted-foreground">
+                  <p className="mb-1.5 text-xs uppercase tracking-[0.04em] text-text-muted font-medium">
                     {messageItem.role}
                   </p>
-                  <p className="leading-relaxed text-secondary-foreground">{messageItem.text}</p>
+                  <p className="leading-relaxed text-foreground">{messageItem.text}</p>
                 </div>
               ))
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <Textarea
               rows={3}
               value={message}
@@ -117,6 +120,7 @@ export function ScopeAssistantTab({
                   setBusy(false);
                 }}
               >
+                <SendIcon className="size-3.5" />
                 {busy ? "Sending..." : "Send"}
               </Button>
             </div>
@@ -124,64 +128,65 @@ export function ScopeAssistantTab({
         </CardContent>
       </Card>
 
+      {/* Right sidebar */}
       <div className="space-y-4">
-        <Card className="border-border/80 bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Active threads</CardTitle>
+        <Card size="sm">
+          <CardHeader className="pb-2">
+            <CardTitle>Active threads</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {threads.length === 0 ? (
-              <p className="text-muted-foreground">No threads yet.</p>
+              <p className="text-body">No threads yet.</p>
             ) : (
               threads.slice(0, 6).map((thread) => (
                 <Link
                   key={thread.id}
                   href={`/threads/${encodeURIComponent(thread.id)}`}
-                  className="block rounded-xl border border-border/75 bg-muted/50 p-2.5 hover:bg-muted"
+                  className="block rounded-xl border border-border-soft bg-card p-3 transition-colors hover:border-accent-base/15 hover:bg-accent-soft/40"
                 >
-                  <p className="font-medium">{thread.title}</p>
-                  <p className="line-clamp-2 text-muted-foreground text-xs">{thread.summary}</p>
+                  <p className="font-medium text-foreground">{thread.title}</p>
+                  <p className="line-clamp-2 text-caption mt-1">{thread.summary}</p>
                 </Link>
               ))
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Recent documents</CardTitle>
+        <Card size="sm">
+          <CardHeader className="pb-2">
+            <CardTitle>Recent documents</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {documents.length === 0 ? (
-              <p className="text-muted-foreground">No documents linked to this scope.</p>
+              <p className="text-body">No documents linked to this scope.</p>
             ) : (
               documents.slice(0, 6).map((document) => (
                 <Link
                   key={document.id}
                   href={`/documents/${encodeURIComponent(document.id)}`}
-                  className="block rounded-xl border border-border/75 bg-muted/50 p-2.5 hover:bg-muted"
+                  className="block rounded-xl border border-border-soft bg-card p-3 transition-colors hover:border-accent-base/15 hover:bg-accent-soft/40"
                 >
-                  <p className="font-medium">{document.title}</p>
-                  <p className="text-muted-foreground text-xs">{document.status}</p>
+                  <p className="font-medium text-foreground">{document.title}</p>
+                  <p className="text-caption mt-0.5">{document.status}</p>
                 </Link>
               ))
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Recent activity</CardTitle>
+        <Card size="sm">
+          <CardHeader className="pb-2">
+            <CardTitle>Recent activity</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {recentActivity.length === 0 ? (
-              <p className="text-muted-foreground">No activity yet.</p>
+              <p className="text-body">No activity yet.</p>
             ) : (
               recentActivity.slice(0, 5).map((entry) => (
-                <div key={entry.id} className="rounded-xl border border-border/75 bg-muted/55 p-2.5">
-                  <p className="font-medium">{entry.title}</p>
+                <div key={entry.id} className="rounded-xl border border-border-soft bg-card p-3">
+                  <p className="font-medium text-foreground">{entry.title}</p>
                   {entry.detail ? (
-                    <p className="text-muted-foreground text-xs">{entry.detail}</p>
+                    <p className="text-caption mt-0.5">{entry.detail}</p>
                   ) : null}
                 </div>
               ))
