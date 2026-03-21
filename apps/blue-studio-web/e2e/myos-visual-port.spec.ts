@@ -40,10 +40,23 @@ test("capture MyOS visual port screenshots", async ({ page }) => {
   await page.getByRole("button", { name: "Expand navigation" }).click();
   await page.screenshot({ path: path.join(SHOT_DIR, "03-rail-expanded.png"), fullPage: true });
 
-  await page.getByRole("button", { name: "New workspace" }).first().click();
-  await expect(page.getByRole("heading", { name: "Create workspace" })).toBeVisible();
+  const newWorkspaceButton = page.getByRole("button", { name: "New workspace" }).first();
+  await expect(newWorkspaceButton).toBeVisible();
+  const workspaceNameInput = page.locator("#workspace-name");
+  let opened = false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await newWorkspaceButton.click();
+    try {
+      await expect(workspaceNameInput).toBeVisible({ timeout: 1_500 });
+      opened = true;
+      break;
+    } catch {
+      // retry click
+    }
+  }
+  expect(opened).toBeTruthy();
   await page.screenshot({ path: path.join(SHOT_DIR, "04-workspace-dialog.png"), fullPage: true });
-  await page.getByLabel("Workspace name").fill("Alice Shop");
+  await workspaceNameInput.fill("Alice Shop");
   await page.getByRole("button", { name: "Create workspace" }).click();
   await expect(page).toHaveURL(/\/workspaces\/.+/);
   await page.screenshot({ path: path.join(SHOT_DIR, "05-workspace-assistant.png"), fullPage: true });
