@@ -125,7 +125,7 @@ test("status messages resolve and thread labels update after refresh", async ({ 
     });
   });
 
-  await page.goto("/");
+  await page.goto("/t/status_messages_legacy");
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");
   await page.getByLabel("MyOS accountId").fill("acc-1");

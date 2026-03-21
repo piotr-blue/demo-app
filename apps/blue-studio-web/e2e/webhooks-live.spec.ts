@@ -169,7 +169,7 @@ test("simulated webhook SSE invalidation refreshes matching thread status", asyn
     });
   });
 
-  await page.goto("/");
+  await page.goto("/t/webhooks_live_legacy");
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");
   await page.getByLabel("MyOS accountId").fill("acc-1");

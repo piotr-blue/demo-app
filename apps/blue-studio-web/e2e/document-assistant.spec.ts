@@ -39,7 +39,7 @@ test("assistant works right after blueprint-ready using blueprint-only mode", as
     });
   });
 
-  await page.goto("/");
+  await page.goto("/t/document_assistant_legacy_a");
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");
   await page.getByLabel("MyOS accountId").fill("acc-1");
@@ -84,7 +84,7 @@ test("assistant shows fallback guidance when participants are missing", async ({
     });
   });
 
-  await page.goto("/");
+  await page.goto("/t/document_assistant_legacy_b");
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");
   await page.getByLabel("MyOS accountId").fill("acc-1");

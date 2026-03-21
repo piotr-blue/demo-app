@@ -1,22 +1,21 @@
 "use client";
 
+import { useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { BlueDocumentShell } from "@/components/demo/blue-document-shell";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import { getDocumentById, getScopeById } from "@/lib/demo/selectors";
 
-export default function DocumentDetailsPage({
-  params,
-}: {
-  params: { documentId: string };
-}) {
+export default function DocumentDetailsPage() {
   const { snapshot, loading } = useDemoApp();
+  const params = useParams<{ documentId: string }>();
+  const documentId = Array.isArray(params.documentId) ? params.documentId[0] : params.documentId;
 
   if (loading || !snapshot) {
     return <div className="flex min-h-[40vh] items-center justify-center">Loading document…</div>;
   }
 
-  const document = getDocumentById(snapshot, params.documentId);
+  const document = getDocumentById(snapshot, documentId);
   if (!document) {
     return (
       <Card className="border-border/70 bg-card/80">

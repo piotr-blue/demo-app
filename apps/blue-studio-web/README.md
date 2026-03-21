@@ -1,6 +1,26 @@
 # Blue Studio Web
 
-Blue Studio Web is a two-pane AI workspace that turns user intent into a running MyOS document:
+Blue Studio Web now includes two parallel experiences:
+
+1. **MyOS Demo (default)**: Blink/workspaces/threads/documents demo app
+2. **Legacy Blue Studio**: existing blueprint → DSL → bootstrap flow at `/t/[threadId]`
+
+## MyOS Demo routes
+
+- `/` → redirects to `/blink`
+- `/blink`
+- `/documents`
+- `/documents/[documentId]`
+- `/workspaces/[workspaceId]`
+- `/threads/[threadId]`
+- `/settings`
+- `/t/[threadId]` (legacy)
+
+The MyOS demo uses a dedicated local-first state layer under `lib/demo/*` backed by IndexedDB.
+
+## Legacy Blue Studio flow
+
+Legacy Blue Studio remains a two-pane AI workspace that turns user intent into a running MyOS document:
 
 1. Chat to generate a blueprint (`STATE: questions` / `STATE: ready`)
 2. Generate JS/TS DSL from blueprint

@@ -31,7 +31,7 @@ test("workspace allows tab switching, file attach, and chat submit", async ({ pa
     });
   });
 
-  await page.goto("/");
+  await page.goto("/t/workspace_interactions_legacy");
 
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");

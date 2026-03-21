@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("credentials gate hydrates workspace and supports logout", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/t/credentials_gate_legacy");
 
   await expect(page.getByText("Connect credentials")).toBeVisible({ timeout: 30_000 });
 

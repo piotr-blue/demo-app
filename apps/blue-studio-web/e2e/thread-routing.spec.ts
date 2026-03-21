@@ -8,7 +8,7 @@ SUMMARY: Counter for thread routing test.
 PARTICIPANTS:
   - ownerChannel — owner of the counter`;
 
-test("root redirect and multi-thread routing keep independent state", async ({ page }) => {
+test("legacy /t routing keeps independent thread state", async ({ page }) => {
   await page.route("**/api/chat", async (route) => {
     await route.fulfill({
       status: 200,
@@ -17,7 +17,7 @@ test("root redirect and multi-thread routing keep independent state", async ({ p
     });
   });
 
-  await page.goto("/");
+  await page.goto("/t/thread_routing_legacy_a");
 
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");

@@ -90,7 +90,7 @@ test("plus menu supports upload, app document, and external MyOS session", async
     });
   });
 
-  await page.goto("/");
+  await page.goto("/t/attachments_menu_legacy_a");
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");
   await page.getByLabel("MyOS accountId").fill("acc-1");
@@ -169,7 +169,7 @@ test("drag-and-drop attachment behavior still works", async ({ page }) => {
     });
   });
 
-  await page.goto("/");
+  await page.goto("/t/attachments_menu_legacy_b");
   await page.getByLabel("OpenAI API key").fill("sk-test");
   await page.getByLabel("MyOS API key").fill("myos-test");
   await page.getByLabel("MyOS accountId").fill("acc-1");
