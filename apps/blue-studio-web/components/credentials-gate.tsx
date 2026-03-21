@@ -31,7 +31,7 @@ export function CredentialsGate({
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <Card className="w-full max-w-xl">
         <CardHeader>
-          <CardTitle>Connect credentials</CardTitle>
+          <CardTitle className="text-page-title">Connect credentials</CardTitle>
           <CardDescription>
             Enter your OpenAI and MyOS credentials to start Blue Studio.
           </CardDescription>

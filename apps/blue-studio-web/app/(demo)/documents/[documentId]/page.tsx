@@ -12,14 +12,18 @@ export default function DocumentDetailsPage() {
   const documentId = Array.isArray(params.documentId) ? params.documentId[0] : params.documentId;
 
   if (loading || !snapshot) {
-    return <div className="flex min-h-[40vh] items-center justify-center">Loading document…</div>;
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-text-muted">
+        Loading document…
+      </div>
+    );
   }
 
   const document = getDocumentById(snapshot, documentId);
   if (!document) {
     return (
-      <Card className="border-border/70 bg-card/80">
-        <CardContent className="pt-4 text-sm text-muted-foreground">
+      <Card>
+        <CardContent className="pt-5 text-body">
           Document not found.
         </CardContent>
       </Card>

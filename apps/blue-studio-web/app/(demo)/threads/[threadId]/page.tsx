@@ -13,14 +13,18 @@ export default function ThreadDetailsPage() {
   const threadId = Array.isArray(params.threadId) ? params.threadId[0] : params.threadId;
 
   if (loading || !snapshot) {
-    return <div className="flex min-h-[40vh] items-center justify-center">Loading thread…</div>;
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-text-muted">
+        Loading thread…
+      </div>
+    );
   }
 
   const thread = getThreadById(snapshot, threadId);
   if (!thread) {
     return (
-      <Card className="border-border/70 bg-card/80">
-        <CardContent className="pt-4 text-sm text-muted-foreground">Thread not found.</CardContent>
+      <Card>
+        <CardContent className="pt-5 text-body">Thread not found.</CardContent>
       </Card>
     );
   }

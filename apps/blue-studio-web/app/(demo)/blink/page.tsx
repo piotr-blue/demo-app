@@ -9,8 +9,8 @@ export default function BlinkPage() {
 
   if (!blinkScope) {
     return (
-      <Card className="border-border/70 bg-card/80">
-        <CardContent className="pt-4 text-sm text-muted-foreground">
+      <Card>
+        <CardContent className="pt-5 text-body">
           Blink scope not available yet.
         </CardContent>
       </Card>
