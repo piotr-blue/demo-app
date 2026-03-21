@@ -23,11 +23,11 @@ export default function DocumentsPage() {
   const documents = getRootDocuments(snapshot);
 
   return (
-    <section className="mx-auto max-w-5xl space-y-5">
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
+    <section className="mx-auto max-w-[1120px] space-y-4">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border-soft bg-card px-5 py-4 shadow-[var(--shadow-card)]">
         <div>
           <h1 className="text-page-title">Documents</h1>
-          <p className="mt-1.5 text-body">Root-only documents (unscoped) for V1.</p>
+          <p className="mt-1 text-body">Root-only documents (unscoped) for V1.</p>
         </div>
         <Button
           size="sm"
@@ -43,28 +43,39 @@ export default function DocumentsPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b border-border-soft pb-3">
           <CardTitle>Root documents</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2.5">
+        <CardContent className="p-0">
           {documents.length === 0 ? (
             <p className="text-body py-4 text-center">No root documents yet.</p>
           ) : (
-            documents.map((document) => (
-              <Link
-                key={document.id}
-                href={`/documents/${encodeURIComponent(document.id)}`}
-                className="block rounded-xl border border-border-soft bg-card p-4 transition-colors hover:border-accent-base/15 hover:bg-accent-soft/30"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-sm text-foreground">{document.title}</p>
-                  <Badge variant="secondary">{document.kind}</Badge>
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
+                <div className="grid grid-cols-[1fr_140px_180px] border-b border-border-soft bg-bg-subtle px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+                  <span>Document</span>
+                  <span>Kind</span>
+                  <span className="text-right">Updated</span>
                 </div>
-                <p className="mt-1.5 text-body line-clamp-2">{document.summary}</p>
-                <p className="mt-1.5 text-caption">Updated: {document.updatedAt}</p>
-              </Link>
-            ))
+                {documents.map((document) => (
+                  <Link
+                    key={document.id}
+                    href={`/documents/${encodeURIComponent(document.id)}`}
+                    className="grid grid-cols-[1fr_140px_180px] items-center border-b border-border-soft/80 px-4 py-3 transition-colors last:border-b-0 hover:bg-accent-soft/40"
+                  >
+                    <div className="min-w-0 pr-4">
+                      <p className="truncate text-[13px] font-semibold text-foreground">{document.title}</p>
+                      <p className="mt-0.5 truncate text-[12px] text-text-secondary">{document.summary}</p>
+                    </div>
+                    <Badge variant="secondary" className="w-fit">
+                      {document.kind}
+                    </Badge>
+                    <p className="text-right text-[11px] text-text-muted">{document.updatedAt}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

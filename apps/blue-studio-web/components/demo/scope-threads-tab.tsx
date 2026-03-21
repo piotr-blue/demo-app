@@ -14,31 +14,42 @@ export function ScopeThreadsTab({
   onAddThread: () => Promise<void>;
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border-soft pb-3">
         <CardTitle>Threads</CardTitle>
         <Button size="sm" onClick={() => void onAddThread()}>
-          Add thread
+          New task
         </Button>
       </CardHeader>
-      <CardContent className="space-y-2.5">
+      <CardContent className="p-0">
         {threads.length === 0 ? (
-          <p className="text-body py-4 text-center">No threads in this scope yet.</p>
+          <p className="py-4 text-center text-body">No threads in this scope yet.</p>
         ) : (
-          threads.map((thread) => (
-            <Link
-              key={thread.id}
-              href={`/threads/${encodeURIComponent(thread.id)}`}
-              className="block rounded-xl border border-border-soft bg-card p-4 transition-colors hover:border-accent-base/15 hover:bg-accent-soft/30"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-sm text-foreground">{thread.title}</p>
-                <Badge variant="secondary">{thread.status}</Badge>
+          <div className="overflow-x-auto">
+            <div className="min-w-[660px]">
+              <div className="grid grid-cols-[1fr_160px_150px] border-b border-border-soft bg-bg-subtle px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+                <span>Task</span>
+                <span>Status</span>
+                <span className="text-right">Last change</span>
               </div>
-              <p className="mt-1.5 text-body line-clamp-2">{thread.summary}</p>
-              <p className="mt-1.5 text-caption">{thread.updatedAt}</p>
-            </Link>
-          ))
+              {threads.map((thread) => (
+                <Link
+                  key={thread.id}
+                  href={`/threads/${encodeURIComponent(thread.id)}`}
+                  className="grid grid-cols-[1fr_160px_150px] items-center border-b border-border-soft/80 px-4 py-3 transition-colors last:border-b-0 hover:bg-accent-soft/40"
+                >
+                  <div className="min-w-0 pr-4">
+                    <p className="truncate text-[13px] font-semibold text-foreground">{thread.title}</p>
+                    <p className="mt-0.5 truncate text-[12px] text-text-secondary">{thread.summary}</p>
+                  </div>
+                  <div>
+                    <Badge variant="secondary">{thread.status}</Badge>
+                  </div>
+                  <p className="text-right text-[11px] text-text-muted">{thread.updatedAt}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

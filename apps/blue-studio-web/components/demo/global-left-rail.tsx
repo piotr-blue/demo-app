@@ -21,6 +21,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FileTextIcon,
+  HouseIcon,
   MenuIcon,
   Settings2Icon,
   SparklesIcon,
@@ -32,7 +33,7 @@ const TOP_LEVEL_NAV_ITEMS = [
     key: "blink",
     href: "/blink",
     label: "Blink",
-    icon: SparklesIcon,
+    icon: HouseIcon,
     isActive: (pathname: string) => pathname === "/blink",
   },
   {

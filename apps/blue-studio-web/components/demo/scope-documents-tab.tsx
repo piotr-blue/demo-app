@@ -14,31 +14,42 @@ export function ScopeDocumentsTab({
   onCreateDocument: () => Promise<void>;
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border-soft pb-3">
         <CardTitle>Documents</CardTitle>
         <Button size="sm" variant="outline" onClick={() => void onCreateDocument()}>
           New document
         </Button>
       </CardHeader>
-      <CardContent className="space-y-2.5">
+      <CardContent className="p-0">
         {documents.length === 0 ? (
-          <p className="text-body py-4 text-center">No scope documents yet.</p>
+          <p className="py-4 text-center text-body">No scope documents yet.</p>
         ) : (
-          documents.map((document) => (
-            <Link
-              key={document.id}
-              href={`/documents/${encodeURIComponent(document.id)}`}
-              className="block rounded-xl border border-border-soft bg-card p-4 transition-colors hover:border-accent-base/15 hover:bg-accent-soft/30"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-sm text-foreground">{document.title}</p>
-                <Badge variant="secondary">{document.kind}</Badge>
+          <div className="overflow-x-auto">
+            <div className="min-w-[620px]">
+              <div className="grid grid-cols-[1fr_140px_140px] border-b border-border-soft bg-bg-subtle px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+                <span>Document</span>
+                <span>Kind</span>
+                <span className="text-right">Status</span>
               </div>
-              <p className="mt-1.5 text-body line-clamp-2">{document.summary}</p>
-              <p className="mt-1.5 text-caption">status: {document.status}</p>
-            </Link>
-          ))
+              {documents.map((document) => (
+                <Link
+                  key={document.id}
+                  href={`/documents/${encodeURIComponent(document.id)}`}
+                  className="grid grid-cols-[1fr_140px_140px] items-center border-b border-border-soft/80 px-4 py-3 transition-colors last:border-b-0 hover:bg-accent-soft/40"
+                >
+                  <div className="min-w-0 pr-4">
+                    <p className="truncate text-[13px] font-semibold text-foreground">{document.title}</p>
+                    <p className="mt-0.5 truncate text-[12px] text-text-secondary">{document.summary}</p>
+                  </div>
+                  <Badge variant="secondary" className="w-fit">
+                    {document.kind}
+                  </Badge>
+                  <p className="text-right text-[12px] text-text-secondary">{document.status}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

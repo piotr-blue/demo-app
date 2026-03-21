@@ -17,7 +17,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <TopHeader />
       <GlobalLeftRail />
-      <main className="min-h-screen flex-1 overflow-y-auto p-3 pt-15 md:p-5 md:pt-15 lg:p-6 lg:pt-15">
+      <main className="min-h-screen flex-1 overflow-y-auto p-3 pt-[60px] md:p-5 md:pt-[60px] lg:p-6 lg:pt-[60px]">
         {children}
       </main>
     </div>

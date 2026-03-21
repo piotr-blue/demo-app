@@ -30,12 +30,12 @@ export function BlueDocumentShell({
   backLabel?: string;
 }) {
   return (
-    <section className="mx-auto max-w-5xl space-y-5">
+    <section className="mx-auto max-w-[1120px] space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border-soft bg-card px-5 py-4 shadow-[var(--shadow-card)]">
         <div>
           <h1 className="text-page-title">{title}</h1>
-          <div className="mt-1.5 flex items-center gap-2">
+          <div className="mt-1 flex items-center gap-2">
             <Badge variant="secondary">{kind}</Badge>
             <span className="text-caption">·</span>
             <Badge variant="secondary">{status}</Badge>
@@ -49,13 +49,13 @@ export function BlueDocumentShell({
 
       {/* Tabs */}
       <Tabs defaultValue="ui">
-        <TabsList>
+        <TabsList variant="line" className="border-b border-border-soft">
           <TabsTrigger value="ui">UI</TabsTrigger>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ui" className="space-y-4">
+        <TabsContent value="ui" className="space-y-3">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle>Summary</CardTitle>
@@ -77,7 +77,7 @@ export function BlueDocumentShell({
                 <CardContent className="space-y-3 text-sm">
                   <p className="text-body">{card.body}</p>
                   {card.ctaLabel ? (
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" className="h-8">
                       {card.ctaLabel}
                     </Button>
                   ) : null}
@@ -93,7 +93,7 @@ export function BlueDocumentShell({
               <CardTitle>Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <pre className="max-h-[65vh] overflow-auto rounded-xl border border-border-soft bg-bg-subtle p-4 font-mono text-xs whitespace-pre-wrap leading-relaxed text-text-secondary">
+              <pre className="max-h-[65vh] overflow-auto rounded-lg border border-border-soft bg-bg-subtle p-4 font-mono text-xs whitespace-pre-wrap leading-relaxed text-text-secondary">
                 {JSON.stringify(details, null, 2)}
               </pre>
             </CardContent>
@@ -110,7 +110,7 @@ export function BlueDocumentShell({
                 <p className="text-body text-center py-4">No activity recorded for this document.</p>
               ) : (
                 activity.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-border-soft bg-card p-4 text-sm">
+                  <div key={entry.id} className="rounded-lg border border-border-soft bg-card px-4 py-3 text-sm">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-foreground">{entry.title}</p>
                       <Badge variant="secondary">{entry.kind}</Badge>
