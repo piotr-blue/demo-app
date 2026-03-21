@@ -3,6 +3,7 @@ import type { DemoCredentials } from "@/lib/demo/types";
 const DEMO_STORAGE_KEYS = {
   credentials: "myosDemo.credentials",
   lastRoute: "myosDemo.lastRoute",
+  leftRailCollapsed: "myosDemo.leftRailCollapsed",
 } as const;
 
 const DEFAULT_MYOS_BASE_URL = "https://api.dev.myos.blue/";
@@ -73,4 +74,18 @@ export function clearDemoLastRoute(): void {
     return;
   }
   window.localStorage.removeItem(DEMO_STORAGE_KEYS.lastRoute);
+}
+
+export function readDemoLeftRailCollapsed(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return window.localStorage.getItem(DEMO_STORAGE_KEYS.leftRailCollapsed) === "true";
+}
+
+export function writeDemoLeftRailCollapsed(collapsed: boolean): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(DEMO_STORAGE_KEYS.leftRailCollapsed, collapsed ? "true" : "false");
 }

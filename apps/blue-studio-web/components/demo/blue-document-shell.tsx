@@ -28,10 +28,10 @@ export function BlueDocumentShell({
   backLabel?: string;
 }) {
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between gap-2 rounded-xl border bg-card/80 px-4 py-3">
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/80 bg-card px-5 py-4 shadow-[0_2px_8px_rgba(16,24,40,0.04)]">
         <div>
-          <p className="font-semibold text-lg">{title}</p>
+          <p className="font-bold text-2xl tracking-[-0.02em]">{title}</p>
           <p className="text-muted-foreground text-sm">
             {kind} · {status}
           </p>
@@ -49,21 +49,21 @@ export function BlueDocumentShell({
         </TabsList>
 
         <TabsContent value="ui" className="space-y-3">
-          <Card className="border-border/70 bg-card/80">
+          <Card className="border-border/80 bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Summary</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">{summary}</CardContent>
           </Card>
           {uiCards.length === 0 ? (
-            <Card className="border-border/70 bg-card/80">
+            <Card className="border-border/80 bg-card">
               <CardContent className="pt-4 text-sm text-muted-foreground">
                 No dynamic UI cards available for this document yet.
               </CardContent>
             </Card>
           ) : (
             uiCards.map((card) => (
-              <Card key={card.id} className="border-border/70 bg-card/80">
+              <Card key={card.id} className="border-border/80 bg-card">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">{card.title}</CardTitle>
                 </CardHeader>
@@ -81,12 +81,12 @@ export function BlueDocumentShell({
         </TabsContent>
 
         <TabsContent value="details">
-          <Card className="border-border/70 bg-card/80">
+          <Card className="border-border/80 bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <pre className="max-h-[65vh] overflow-auto rounded-lg border bg-muted/20 p-3 font-mono text-xs whitespace-pre-wrap">
+              <pre className="max-h-[65vh] overflow-auto rounded-xl border border-border/75 bg-muted/60 p-3 font-mono text-xs whitespace-pre-wrap">
                 {JSON.stringify(details, null, 2)}
               </pre>
             </CardContent>
@@ -94,7 +94,7 @@ export function BlueDocumentShell({
         </TabsContent>
 
         <TabsContent value="activity">
-          <Card className="border-border/70 bg-card/80">
+          <Card className="border-border/80 bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Activity</CardTitle>
             </CardHeader>
@@ -103,7 +103,7 @@ export function BlueDocumentShell({
                 <p className="text-muted-foreground text-sm">No activity recorded for this document.</p>
               ) : (
                 activity.map((entry) => (
-                  <div key={entry.id} className="rounded-lg border bg-muted/20 p-3 text-sm">
+                  <div key={entry.id} className="rounded-xl border border-border/75 bg-muted/55 p-3 text-sm">
                     <p className="font-medium">{entry.title}</p>
                     {entry.detail ? (
                       <p className="text-muted-foreground text-xs">{entry.detail}</p>

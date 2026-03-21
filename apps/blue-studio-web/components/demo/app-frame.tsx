@@ -13,9 +13,9 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+    <div className="flex min-h-screen bg-background">
       <GlobalLeftRail />
-      <main className="min-h-screen flex-1 p-4">{children}</main>
+      <main className="min-h-screen flex-1 p-4 md:p-6">{children}</main>
     </div>
   );
 }

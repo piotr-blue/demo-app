@@ -69,15 +69,15 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
   }
 
   return (
-    <section className="space-y-3">
-      <div className="rounded-xl border bg-card/80 px-4 py-3">
+    <section className="space-y-4">
+      <div className="rounded-2xl border border-border/80 bg-card px-5 py-4 shadow-[0_2px_8px_rgba(16,24,40,0.04)]">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h1 className="font-semibold text-xl">
-              <span className="mr-2">{scope.icon ?? "🧩"}</span>
+            <h1 className="font-bold text-3xl tracking-[-0.02em] text-foreground">
+              <span className="mr-2.5">{scope.icon ?? "🧩"}</span>
               {scope.name}
             </h1>
-            <p className="text-muted-foreground text-sm">{scope.description}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{scope.description}</p>
           </div>
           {scope.type === "workspace" && scope.bootstrapStatus === "failed" ? (
             <Button size="sm" variant="outline" onClick={() => void retryWorkspaceBootstrap(scope.id)}>
@@ -86,7 +86,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
           ) : null}
         </div>
         {scope.type === "workspace" && scope.bootstrapStatus !== "ready" ? (
-          <div className="mt-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+          <div className="mt-3 rounded-xl border border-border/75 bg-muted/70 px-3.5 py-2.5 text-sm">
             Core document bootstrap: <span className="font-medium">{scope.bootstrapStatus}</span>
             {scope.bootstrapError ? (
               <p className="text-destructive text-xs">{scope.bootstrapError}</p>

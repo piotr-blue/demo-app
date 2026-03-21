@@ -13,7 +13,7 @@ export function ScopeThreadsTab({
   onAddThread: () => Promise<void>;
 }) {
   return (
-    <Card className="border-border/70 bg-card/80">
+    <Card className="border-border/80 bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-sm">Threads</CardTitle>
         <Button size="sm" onClick={() => void onAddThread()}>
@@ -28,7 +28,7 @@ export function ScopeThreadsTab({
             <Link
               key={thread.id}
               href={`/threads/${encodeURIComponent(thread.id)}`}
-              className="block rounded-lg border bg-muted/20 p-3 hover:bg-muted/40"
+              className="block rounded-xl border border-border/75 bg-muted/55 p-3 hover:bg-muted"
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium text-sm">{thread.title}</p>

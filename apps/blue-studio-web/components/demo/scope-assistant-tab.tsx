@@ -37,16 +37,16 @@ export function ScopeAssistantTab({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[260px_1fr_300px]">
-      <div className="space-y-3">
-        <Card className="border-border/70 bg-card/80">
+    <div className="grid gap-4 lg:grid-cols-[280px_1fr_320px]">
+      <div className="space-y-4">
+        <Card className="border-border/80 bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">
               <span className="mr-2">{scope.icon ?? "🧩"}</span>
               {scope.name}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-3 text-sm">
             <p className="text-muted-foreground">{scope.description}</p>
             <p className="text-muted-foreground text-xs">
               Assistant: {scope.assistant.name} · {scope.assistant.tone}
@@ -65,30 +65,30 @@ export function ScopeAssistantTab({
         <AttentionList items={attentionItems} />
       </div>
 
-      <Card className="border-border/70 bg-card/80">
+      <Card className="border-border/80 bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Assistant chat</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="max-h-[56vh] space-y-2 overflow-auto pr-1">
+          <div className="max-h-[56vh] space-y-2.5 overflow-auto pr-1">
             {scope.messages.length === 0 ? (
               <p className="text-muted-foreground text-sm">No messages yet.</p>
             ) : (
               scope.messages.map((messageItem) => (
                 <div
                   key={messageItem.id}
-                  className={`rounded-lg border p-2 text-sm ${
+                  className={`rounded-xl border px-3 py-2.5 text-sm ${
                     messageItem.role === "assistant"
-                      ? "bg-muted/30"
+                      ? "bg-muted/75"
                       : messageItem.role === "user"
-                        ? "bg-primary/5"
+                        ? "border-primary/15 bg-accent/65"
                         : "bg-background"
                   }`}
                 >
-                  <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-1.5 text-[11px] uppercase tracking-[0.04em] text-muted-foreground">
                     {messageItem.role}
                   </p>
-                  <p>{messageItem.text}</p>
+                  <p className="leading-relaxed text-secondary-foreground">{messageItem.text}</p>
                 </div>
               ))
             )}
@@ -124,8 +124,8 @@ export function ScopeAssistantTab({
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
-        <Card className="border-border/70 bg-card/80">
+      <div className="space-y-4">
+        <Card className="border-border/80 bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">Active threads</CardTitle>
           </CardHeader>
@@ -137,7 +137,7 @@ export function ScopeAssistantTab({
                 <Link
                   key={thread.id}
                   href={`/threads/${encodeURIComponent(thread.id)}`}
-                  className="block rounded-lg border bg-muted/20 p-2 hover:bg-muted/40"
+                  className="block rounded-xl border border-border/75 bg-muted/50 p-2.5 hover:bg-muted"
                 >
                   <p className="font-medium">{thread.title}</p>
                   <p className="line-clamp-2 text-muted-foreground text-xs">{thread.summary}</p>
@@ -147,7 +147,7 @@ export function ScopeAssistantTab({
           </CardContent>
         </Card>
 
-        <Card className="border-border/70 bg-card/80">
+        <Card className="border-border/80 bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">Recent documents</CardTitle>
           </CardHeader>
@@ -159,7 +159,7 @@ export function ScopeAssistantTab({
                 <Link
                   key={document.id}
                   href={`/documents/${encodeURIComponent(document.id)}`}
-                  className="block rounded-lg border bg-muted/20 p-2 hover:bg-muted/40"
+                  className="block rounded-xl border border-border/75 bg-muted/50 p-2.5 hover:bg-muted"
                 >
                   <p className="font-medium">{document.title}</p>
                   <p className="text-muted-foreground text-xs">{document.status}</p>
@@ -169,7 +169,7 @@ export function ScopeAssistantTab({
           </CardContent>
         </Card>
 
-        <Card className="border-border/70 bg-card/80">
+        <Card className="border-border/80 bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">Recent activity</CardTitle>
           </CardHeader>
@@ -178,7 +178,7 @@ export function ScopeAssistantTab({
               <p className="text-muted-foreground">No activity yet.</p>
             ) : (
               recentActivity.slice(0, 5).map((entry) => (
-                <div key={entry.id} className="rounded-lg border bg-muted/20 p-2">
+                <div key={entry.id} className="rounded-xl border border-border/75 bg-muted/55 p-2.5">
                   <p className="font-medium">{entry.title}</p>
                   {entry.detail ? (
                     <p className="text-muted-foreground text-xs">{entry.detail}</p>

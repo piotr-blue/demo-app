@@ -18,10 +18,10 @@ export default function DocumentsPage() {
   const documents = getRootDocuments(snapshot);
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between gap-2 rounded-xl border bg-card/80 px-4 py-3">
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/80 bg-card px-5 py-4 shadow-[0_2px_8px_rgba(16,24,40,0.04)]">
         <div>
-          <h1 className="font-semibold text-xl">Documents</h1>
+          <h1 className="font-bold text-3xl tracking-[-0.02em]">Documents</h1>
           <p className="text-muted-foreground text-sm">Root-only documents (unscoped) for V1.</p>
         </div>
         <Button
@@ -38,7 +38,7 @@ export default function DocumentsPage() {
         </Button>
       </div>
 
-      <Card className="border-border/70 bg-card/80">
+      <Card className="border-border/80 bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Root documents</CardTitle>
         </CardHeader>
@@ -50,7 +50,7 @@ export default function DocumentsPage() {
               <Link
                 key={document.id}
                 href={`/documents/${encodeURIComponent(document.id)}`}
-                className="block rounded-lg border bg-muted/20 p-3 hover:bg-muted/40"
+                className="block rounded-xl border border-border/75 bg-muted/55 p-3 hover:bg-muted"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-sm">{document.title}</p>

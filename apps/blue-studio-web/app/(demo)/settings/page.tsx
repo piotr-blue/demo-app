@@ -18,15 +18,15 @@ export default function SettingsPage() {
   }, [credentials]);
 
   return (
-    <section className="space-y-3">
-      <div className="rounded-xl border bg-card/80 px-4 py-3">
-        <h1 className="font-semibold text-xl">Settings</h1>
+    <section className="space-y-4">
+      <div className="rounded-2xl border border-border/80 bg-card px-5 py-4 shadow-[0_2px_8px_rgba(16,24,40,0.04)]">
+        <h1 className="font-bold text-3xl tracking-[-0.02em]">Settings</h1>
         <p className="text-muted-foreground text-sm">
           Local demo credentials and environment info.
         </p>
       </div>
 
-      <Card className="border-border/70 bg-card/80">
+      <Card className="border-border/80 bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Credentials (localStorage)</CardTitle>
         </CardHeader>
@@ -91,7 +91,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/70 bg-card/80">
+      <Card className="border-border/80 bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Legacy route</CardTitle>
         </CardHeader>

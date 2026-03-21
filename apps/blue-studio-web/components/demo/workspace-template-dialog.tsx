@@ -15,14 +15,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import { listWorkspaceTemplates } from "@/lib/demo/workspace-templates";
 import type { WorkspaceTemplateKey } from "@/lib/demo/types";
+import { PlusIcon } from "lucide-react";
 
 export function WorkspaceTemplateDialog({
   buttonClassName,
+  compact = false,
+  tooltipLabel,
 }: {
   buttonClassName?: string;
+  compact?: boolean;
+  tooltipLabel?: string;
 }) {
   const router = useRouter();
   const { createWorkspace } = useDemoApp();
@@ -31,10 +37,31 @@ export function WorkspaceTemplateDialog({
   const templates = listWorkspaceTemplates();
   const [templateKey, setTemplateKey] = useState<WorkspaceTemplateKey>("shop");
   const [workspaceName, setWorkspaceName] = useState("My Workspace");
+  const triggerButton = (
+    <Button
+      className={buttonClassName}
+      size={compact ? "icon" : "default"}
+      variant={compact ? "outline" : "default"}
+    >
+      <PlusIcon />
+      <span className={compact ? "sr-only" : ""}>New workspace</span>
+    </Button>
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button className={buttonClassName}>New workspace</Button>} />
+      <DialogTrigger
+        render={
+          compact && tooltipLabel ? (
+            <Tooltip>
+              <TooltipTrigger>{triggerButton}</TooltipTrigger>
+              <TooltipContent side="right">{tooltipLabel}</TooltipContent>
+            </Tooltip>
+          ) : (
+            triggerButton
+          )
+        }
+      />
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Create workspace</DialogTitle>
@@ -43,7 +70,7 @@ export function WorkspaceTemplateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="workspace-name">Workspace name</Label>
             <Input
@@ -59,7 +86,7 @@ export function WorkspaceTemplateDialog({
               <button
                 key={template.key}
                 type="button"
-                className={`rounded-lg text-left ${templateKey === template.key ? "ring-2 ring-primary/50" : ""}`}
+                className={`rounded-xl text-left ${templateKey === template.key ? "ring-2 ring-primary/25" : ""}`}
                 onClick={() => {
                   setTemplateKey(template.key);
                   if (!workspaceName.trim()) {
@@ -67,9 +94,9 @@ export function WorkspaceTemplateDialog({
                   }
                 }}
               >
-                <Card className="border-border/70 bg-card/80">
+                <Card className="border-border/80 bg-card">
                   <CardContent className="space-y-1 pt-4">
-                    <p className="font-medium">
+                    <p className="font-semibold">
                       <span className="mr-2">{template.icon}</span>
                       {template.name}
                     </p>

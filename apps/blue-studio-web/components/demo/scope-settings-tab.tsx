@@ -6,8 +6,8 @@ import type { ScopeRecord } from "@/lib/demo/types";
 
 export function ScopeSettingsTab({ scope }: { scope: ScopeRecord }) {
   return (
-    <div className="space-y-3">
-      <Card className="border-border/70 bg-card/80">
+    <div className="space-y-4">
+      <Card className="border-border/80 bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Scope details</CardTitle>
         </CardHeader>
@@ -33,7 +33,7 @@ export function ScopeSettingsTab({ scope }: { scope: ScopeRecord }) {
         </CardContent>
       </Card>
 
-      <Card className="border-border/70 bg-card/80">
+      <Card className="border-border/80 bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Anchors</CardTitle>
         </CardHeader>
@@ -50,7 +50,7 @@ export function ScopeSettingsTab({ scope }: { scope: ScopeRecord }) {
         </CardContent>
       </Card>
 
-      <Card className="border-border/70 bg-card/80">
+      <Card className="border-border/80 bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Assistant</CardTitle>
         </CardHeader>
