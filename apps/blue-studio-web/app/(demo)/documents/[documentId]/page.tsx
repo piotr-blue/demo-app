@@ -1,0 +1,57 @@
+"use client";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { BlueDocumentShell } from "@/components/demo/blue-document-shell";
+import { useDemoApp } from "@/components/demo/demo-provider";
+import { getDocumentById, getScopeById } from "@/lib/demo/selectors";
+
+export default function DocumentDetailsPage({
+  params,
+}: {
+  params: { documentId: string };
+}) {
+  const { snapshot, loading } = useDemoApp();
+
+  if (loading || !snapshot) {
+    return <div className="flex min-h-[40vh] items-center justify-center">Loading document…</div>;
+  }
+
+  const document = getDocumentById(snapshot, params.documentId);
+  if (!document) {
+    return (
+      <Card className="border-border/70 bg-card/80">
+        <CardContent className="pt-4 text-sm text-muted-foreground">
+          Document not found.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const scope = document.scopeId ? getScopeById(snapshot, document.scopeId) : null;
+  const backHref = scope ? `/workspaces/${encodeURIComponent(scope.id)}` : "/documents";
+  const details = {
+    id: document.id,
+    scopeId: document.scopeId,
+    kind: document.kind,
+    status: document.status,
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt,
+    sessionId: document.sessionId ?? null,
+    myosDocumentId: document.myosDocumentId ?? null,
+    details: document.details,
+  };
+
+  return (
+    <BlueDocumentShell
+      title={document.title}
+      kind={document.kind}
+      summary={document.summary}
+      status={document.status}
+      uiCards={document.uiCards}
+      details={details}
+      activity={document.activity}
+      backHref={backHref}
+      backLabel={scope ? "Back to workspace" : "Back to documents"}
+    />
+  );
+}

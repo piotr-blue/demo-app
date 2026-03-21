@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Blue Studio Web",
-  description: "Blueprint to DSL workspace for MyOS bootstrapping",
+  title: "MyOS Demo App",
+  description: "Blink, workspaces, threads, and documents demo experience for MyOS",
 };
 
 export default function RootLayout({

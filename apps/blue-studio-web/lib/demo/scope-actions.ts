@@ -60,14 +60,6 @@ function touchScope(scope: ScopeRecord): ScopeRecord {
   };
 }
 
-async function persistScopeWithActivity(scope: ScopeRecord, activity: ActivityRecord): Promise<void> {
-  const nextScope = touchScope({
-    ...scope,
-    activityIds: appendUnique(scope.activityIds, activity.id),
-  });
-  await Promise.all([saveScope(nextScope), saveActivity(activity)]);
-}
-
 export async function loadDemoSnapshot(): Promise<DemoSnapshot> {
   return getDemoSnapshot();
 }
