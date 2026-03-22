@@ -10,10 +10,22 @@ import {
   loadDemoSnapshot,
   markWorkspaceBootstrapFailed,
   markWorkspaceBootstrapSuccess,
+  replyToAssistantExchange,
   resetDemoSnapshot,
+  startAssistantDemoDiscussion,
+  startUserDiscussion,
   syncThreadDocumentSnapshot,
+  updateAssistantPlaybook,
 } from "@/lib/demo/scope-actions";
-import { getBlinkScope, getDocumentById, getScopeById, getThreadById } from "@/lib/demo/selectors";
+import {
+  getBlinkScope,
+  getDocumentById,
+  getExchangeMessages,
+  getOpenAssistantExchanges,
+  getScopeAssistantPlaybook,
+  getScopeById,
+  getThreadById,
+} from "@/lib/demo/selectors";
 import { clearDemoPersistence } from "@/lib/demo/storage";
 
 describe("demo scope actions", () => {
@@ -111,6 +123,99 @@ describe("demo scope actions", () => {
     const afterThreadMessage = await appendThreadMessage(thread.id, "user", "Need a supplier follow-up.");
     const threadAfterMessage = getThreadById(afterThreadMessage, thread.id);
     expect(threadAfterMessage?.messages.at(-1)?.text).toContain("supplier follow-up");
+  });
+
+  it("runs assistant-started discussion loop and resolves with last user message", async () => {
+    const seeded = await loadDemoSnapshot();
+    const homeScope = seeded.scopes.find((scope) => scope.type === "blink");
+    expect(homeScope).toBeTruthy();
+    if (!homeScope) {
+      return;
+    }
+
+    const started = await startAssistantDemoDiscussion(homeScope.id);
+    expect(started.exchangeId).toBeTruthy();
+    if (!started.exchangeId) {
+      return;
+    }
+
+    const afterReply = await replyToAssistantExchange(started.exchangeId, "yes");
+    const exchangeAfterReply = afterReply.assistantExchanges.find(
+      (exchange) => exchange.id === started.exchangeId
+    );
+    expect(exchangeAfterReply?.status).toBe("in-progress");
+    const messagesAfterReply = getExchangeMessages(afterReply, started.exchangeId);
+    expect(messagesAfterReply.at(-1)?.body).toBe("Reply to: yes");
+
+    const afterDone = await replyToAssistantExchange(started.exchangeId, "DONE");
+    const resolvedExchange = afterDone.assistantExchanges.find(
+      (exchange) => exchange.id === started.exchangeId
+    );
+    expect(resolvedExchange?.status).toBe("resolved");
+    const resolvedMessages = getExchangeMessages(afterDone, started.exchangeId);
+    expect(resolvedMessages.at(-1)?.kind).toBe("resolution");
+    expect(resolvedMessages.at(-1)?.body).toBe("yes");
+    expect(resolvedMessages.some((message) => message.body === "DONE")).toBe(false);
+    const linkedAttention = afterDone.attentionItems.find(
+      (item) => item.id === resolvedExchange?.linkedAttentionItemId
+    );
+    expect(linkedAttention?.status).toBe("resolved");
+  });
+
+  it("runs user-started discussion loop and resolves with assistant DONE confirmation", async () => {
+    const seeded = await loadDemoSnapshot();
+    const scope = seeded.scopes.find((entry) => entry.type === "workspace");
+    expect(scope).toBeTruthy();
+    if (!scope) {
+      return;
+    }
+
+    const started = await startUserDiscussion(scope.id, "What should I track here?");
+    expect(started.exchangeId).toBeTruthy();
+    if (!started.exchangeId) {
+      return;
+    }
+
+    const openedExchange = started.snapshot.assistantExchanges.find(
+      (exchange) => exchange.id === started.exchangeId
+    );
+    expect(openedExchange?.status).toBe("in-progress");
+    const messagesAfterStart = getExchangeMessages(started.snapshot, started.exchangeId);
+    expect(messagesAfterStart.at(-1)?.body).toBe("Reply to: What should I track here?");
+
+    const afterDone = await replyToAssistantExchange(started.exchangeId, "DONE");
+    const resolvedExchange = afterDone.assistantExchanges.find(
+      (exchange) => exchange.id === started.exchangeId
+    );
+    expect(resolvedExchange?.status).toBe("resolved");
+    const finalMessages = getExchangeMessages(afterDone, started.exchangeId);
+    expect(finalMessages.at(-1)?.body).toBe("OK, so it's DONE");
+    expect(finalMessages.some((message) => message.body === "DONE")).toBe(false);
+  });
+
+  it("updates assistant playbook markdown and keeps open-ask selector accurate", async () => {
+    const seeded = await loadDemoSnapshot();
+    const homeScope = seeded.scopes.find((scope) => scope.type === "blink");
+    expect(homeScope).toBeTruthy();
+    if (!homeScope) {
+      return;
+    }
+    const beforeOpen = getOpenAssistantExchanges(seeded, homeScope.id);
+    expect(beforeOpen.length).toBeGreaterThan(0);
+
+    const updated = await updateAssistantPlaybook(homeScope.id, {
+      identityMarkdown: "Updated identity",
+      defaultsMarkdown: "Updated defaults",
+      contextMarkdown: "Updated context",
+      overridesMarkdown: "Updated overrides",
+    });
+    const nextPlaybook = getScopeAssistantPlaybook(updated, homeScope.id);
+    expect(nextPlaybook?.identityMarkdown).toBe("Updated identity");
+    expect(nextPlaybook?.defaultsMarkdown).toBe("Updated defaults");
+    expect(nextPlaybook?.contextMarkdown).toBe("Updated context");
+    expect(nextPlaybook?.overridesMarkdown).toBe("Updated overrides");
+    const afterOpen = getOpenAssistantExchanges(updated, homeScope.id);
+    expect(afterOpen.length).toBeGreaterThan(0);
   });
 
   it("resets snapshot to deterministic seed", async () => {

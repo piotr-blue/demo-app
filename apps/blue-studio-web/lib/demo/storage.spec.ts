@@ -16,5 +16,22 @@ describe("demo storage", () => {
     expect(snapshot.documents.filter((document) => document.scopeId === null)).toHaveLength(4);
     expect(snapshot.documents.some((document) => document.isService)).toBe(true);
     expect(snapshot.attentionItems.length).toBeGreaterThan(0);
+    expect(snapshot.assistantConversations.length).toBe(snapshot.scopes.length);
+    expect(snapshot.assistantPlaybooks.length).toBe(snapshot.scopes.length);
+    expect(snapshot.assistantExchanges.length).toBeGreaterThanOrEqual(4);
+    expect(snapshot.assistantExchangeMessages.length).toBeGreaterThanOrEqual(9);
+    expect(
+      snapshot.scopes.every(
+        (scope) =>
+          !!scope.assistantConversationId &&
+          snapshot.assistantConversations.some(
+            (conversation) => conversation.id === scope.assistantConversationId
+          ) &&
+          !!scope.assistantPlaybookId &&
+          snapshot.assistantPlaybooks.some(
+            (playbook) => playbook.id === scope.assistantPlaybookId
+          )
+      )
+    ).toBe(true);
   });
 });

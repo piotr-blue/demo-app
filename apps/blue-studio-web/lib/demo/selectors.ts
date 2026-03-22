@@ -1,5 +1,14 @@
 import { BLINK_SCOPE_ID } from "@/lib/demo/seed";
-import type { DemoSnapshot, DocumentRecord, ScopeRecord, ThreadRecord } from "@/lib/demo/types";
+import type {
+  AssistantConversationRecord,
+  AssistantExchangeMessageKind,
+  AssistantExchangeRecord,
+  AssistantPlaybookRecord,
+  DemoSnapshot,
+  DocumentRecord,
+  ScopeRecord,
+  ThreadRecord,
+} from "@/lib/demo/types";
 
 export function getBlinkScope(snapshot: DemoSnapshot): ScopeRecord | null {
   return snapshot.scopes.find((scope) => scope.id === BLINK_SCOPE_ID || scope.type === "blink") ?? null;
@@ -87,4 +96,120 @@ export function getScopeActivity(snapshot: DemoSnapshot, scopeId: string) {
   return snapshot.activity
     .filter((entry) => entry.scopeId === scopeId)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export function getScopeAssistantConversation(
+  snapshot: DemoSnapshot,
+  scopeId: string
+): AssistantConversationRecord | null {
+  const scope = getScopeById(snapshot, scopeId);
+  if (scope?.assistantConversationId) {
+    return (
+      snapshot.assistantConversations.find(
+        (conversation) => conversation.id === scope.assistantConversationId
+      ) ?? null
+    );
+  }
+  return (
+    snapshot.assistantConversations.find((conversation) => conversation.scopeId === scopeId) ?? null
+  );
+}
+
+export function getScopeAssistantPlaybook(
+  snapshot: DemoSnapshot,
+  scopeId: string
+): AssistantPlaybookRecord | null {
+  const scope = getScopeById(snapshot, scopeId);
+  if (scope?.assistantPlaybookId) {
+    return snapshot.assistantPlaybooks.find((playbook) => playbook.id === scope.assistantPlaybookId) ?? null;
+  }
+  return snapshot.assistantPlaybooks.find((playbook) => playbook.scopeId === scopeId) ?? null;
+}
+
+export function getScopeAssistantExchanges(
+  snapshot: DemoSnapshot,
+  scopeId: string
+): AssistantExchangeRecord[] {
+  return snapshot.assistantExchanges
+    .filter((exchange) => exchange.scopeId === scopeId)
+    .sort((left, right) => left.openedAt.localeCompare(right.openedAt));
+}
+
+export function getOpenAssistantExchanges(
+  snapshot: DemoSnapshot,
+  scopeId: string
+): AssistantExchangeRecord[] {
+  return getScopeAssistantExchanges(snapshot, scopeId).filter(
+    (exchange) => exchange.status === "open" || exchange.status === "in-progress"
+  );
+}
+
+export function getExchangeMessages(snapshot: DemoSnapshot, exchangeId: string) {
+  return snapshot.assistantExchangeMessages
+    .filter((message) => message.exchangeId === exchangeId)
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+}
+
+export interface AssistantTimelineItem {
+  id: string;
+  exchangeId: string;
+  messageId: string;
+  kind: Extract<AssistantExchangeMessageKind, "opener" | "resolution">;
+  body: string;
+  createdAt: string;
+  exchangeStatus: AssistantExchangeRecord["status"];
+  exchangeType: AssistantExchangeRecord["type"];
+  exchangeTitle: string;
+  replyCount: number;
+  requiresUserAction: boolean;
+}
+
+export function getAssistantTimelineItems(
+  snapshot: DemoSnapshot,
+  scopeId: string
+): AssistantTimelineItem[] {
+  const exchanges = getScopeAssistantExchanges(snapshot, scopeId);
+  const messageById = new Map(
+    snapshot.assistantExchangeMessages.map((message) => [message.id, message])
+  );
+  const timelineItems: AssistantTimelineItem[] = [];
+
+  for (const exchange of exchanges) {
+    const opener = messageById.get(exchange.openerMessageId);
+    if (opener) {
+      timelineItems.push({
+        id: `${exchange.id}_opener`,
+        exchangeId: exchange.id,
+        messageId: opener.id,
+        kind: "opener",
+        body: opener.body,
+        createdAt: opener.createdAt,
+        exchangeStatus: exchange.status,
+        exchangeType: exchange.type,
+        exchangeTitle: exchange.title,
+        replyCount: exchange.replyCount,
+        requiresUserAction: exchange.requiresUserAction,
+      });
+    }
+    if (exchange.resolutionMessageId) {
+      const resolution = messageById.get(exchange.resolutionMessageId);
+      if (resolution) {
+        timelineItems.push({
+          id: `${exchange.id}_resolution`,
+          exchangeId: exchange.id,
+          messageId: resolution.id,
+          kind: "resolution",
+          body: resolution.body,
+          createdAt: resolution.createdAt,
+          exchangeStatus: exchange.status,
+          exchangeType: exchange.type,
+          exchangeTitle: exchange.title,
+          replyCount: exchange.replyCount,
+          requiresUserAction: exchange.requiresUserAction,
+        });
+      }
+    }
+  }
+
+  return timelineItems.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }

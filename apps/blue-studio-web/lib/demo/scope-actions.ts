@@ -1,16 +1,32 @@
 import {
+  createAssistantConversationId,
+  createAssistantExchangeId,
+  createAssistantExchangeMessageId,
+  createAssistantPlaybookId,
   createDocumentId,
   createMessageId,
   createScopeId,
   createThreadId,
+  createAttentionId,
 } from "@/lib/demo/ids";
 import {
   clearDemoPersistence,
+  getAssistantConversation,
+  getAssistantConversationById,
+  getAssistantExchangeById,
+  getAssistantMessagesForExchange,
+  getAssistantPlaybook,
   getDemoSnapshot,
   getDocument,
   getScope,
   getThread,
   saveActivity,
+  saveActivities,
+  saveAssistantConversation,
+  saveAssistantExchange,
+  saveAssistantExchangeMessages,
+  saveAssistantPlaybook,
+  saveAttentionItem,
   saveDocument,
   saveScope,
   saveThread,
@@ -20,6 +36,11 @@ import { buildGenericDocumentCards, buildThreadUiCards } from "@/lib/demo/docume
 import { BLINK_SCOPE_ID } from "@/lib/demo/seed";
 import type {
   ActivityRecord,
+  AssistantConversationRecord,
+  AssistantExchangeMessageRecord,
+  AssistantExchangeRecord,
+  AssistantPlaybookRecord,
+  AttentionItem,
   BaseChatMessage,
   DemoActionDefinition,
   DemoSectionDefinition,
@@ -157,6 +178,92 @@ function defaultThreadUiCards(threadId: string): ThreadRecord["uiCards"] {
   ];
 }
 
+const ASSISTANT_DEMO_OPENERS = [
+  "Can you confirm whether we should prioritize Alice’s request today?",
+  "I need your decision on whether to continue this partnership review.",
+  "Should I keep this thread in daily recap or only report exceptions?",
+  "Can you confirm whether this item should stay tracked?",
+  "Do you want me to escalate this only when exception signals appear?",
+];
+
+function buildDefaultPlaybook(scope: ScopeRecord): AssistantPlaybookRecord {
+  const now = nowIso();
+  return {
+    id: createAssistantPlaybookId(),
+    scopeId: scope.id,
+    inheritsFromScopeId: scope.type === "blink" ? null : BLINK_SCOPE_ID,
+    identityMarkdown:
+      scope.type === "blink"
+        ? "You are Blink, my root operations assistant. Prefer Polish when appropriate."
+        : `You are ${scope.assistant.name} for ${scope.name}. Keep responses focused on this workspace.`,
+    defaultsMarkdown:
+      "- Speak concisely.\n- Prioritize exceptions.\n- Summarize only meaningful changes.",
+    contextMarkdown:
+      scope.type === "blink"
+        ? "- This scope coordinates all workspaces.\n- Highlight important counterparties and risks."
+        : `- Workspace context: ${scope.description}\n- Anchors: ${scope.anchors.join(", ")}`,
+    overridesMarkdown:
+      scope.type === "blink"
+        ? "- Keep low-priority chatter in digest.\n- Escalate unresolved asks."
+        : "- Use this workspace's local priorities first.\n- Keep non-critical updates as digest.",
+    updatedAt: now,
+  };
+}
+
+async function ensureScopeAssistantState(scope: ScopeRecord): Promise<{
+  scope: ScopeRecord;
+  conversation: AssistantConversationRecord;
+  playbook: AssistantPlaybookRecord;
+}> {
+  const now = nowIso();
+  let conversation = await getAssistantConversation(scope.id);
+  let playbook = await getAssistantPlaybook(scope.id);
+  let nextScope = scope;
+  const writes: Promise<unknown>[] = [];
+
+  if (!conversation) {
+    conversation = {
+      id: createAssistantConversationId(),
+      scopeId: scope.id,
+      assistantName: scope.assistant.name,
+      createdAt: now,
+      updatedAt: now,
+      lastSeenAt: null,
+      lastRecapAt: null,
+    };
+    writes.push(saveAssistantConversation(conversation));
+    nextScope = { ...nextScope, assistantConversationId: conversation.id, updatedAt: now };
+  } else if (scope.assistantConversationId !== conversation.id) {
+    nextScope = { ...nextScope, assistantConversationId: conversation.id, updatedAt: now };
+  }
+
+  if (!playbook) {
+    playbook = buildDefaultPlaybook(scope);
+    writes.push(saveAssistantPlaybook(playbook));
+    nextScope = { ...nextScope, assistantPlaybookId: playbook.id, updatedAt: now };
+  } else if (scope.assistantPlaybookId !== playbook.id) {
+    nextScope = { ...nextScope, assistantPlaybookId: playbook.id, updatedAt: now };
+  }
+
+  if (nextScope !== scope) {
+    writes.push(saveScope(nextScope));
+  }
+
+  if (writes.length > 0) {
+    await Promise.all(writes);
+  }
+
+  return { scope: nextScope, conversation, playbook };
+}
+
+function selectAssistantDemoOpener(): string {
+  return ASSISTANT_DEMO_OPENERS[Math.floor(Math.random() * ASSISTANT_DEMO_OPENERS.length)] ?? ASSISTANT_DEMO_OPENERS[0];
+}
+
+function normalizeExchangeTitle(text: string): string {
+  return text.length <= 72 ? text : `${text.slice(0, 69)}...`;
+}
+
 export async function loadDemoSnapshot(): Promise<DemoSnapshot> {
   return getDemoSnapshot();
 }
@@ -195,6 +302,437 @@ export async function appendScopeMessage(
     }),
     saveActivity(activity),
   ]);
+  return getDemoSnapshot();
+}
+
+export async function loadAssistantConversationState(scopeId: string): Promise<DemoSnapshot> {
+  const scope = await getScope(scopeId);
+  if (!scope) {
+    return getDemoSnapshot();
+  }
+  await ensureScopeAssistantState(scope);
+  return getDemoSnapshot();
+}
+
+export async function startAssistantDemoDiscussion(scopeId: string): Promise<{
+  snapshot: DemoSnapshot;
+  exchangeId: string;
+}> {
+  const scope = await getScope(scopeId);
+  if (!scope) {
+    return { snapshot: await getDemoSnapshot(), exchangeId: "" };
+  }
+
+  const now = nowIso();
+  const { scope: ensuredScope, conversation } = await ensureScopeAssistantState(scope);
+  const openerText = selectAssistantDemoOpener();
+  const exchangeId = createAssistantExchangeId();
+  const openerMessageId = createAssistantExchangeMessageId();
+  const attentionItemId = createAttentionId();
+
+  const exchange: AssistantExchangeRecord = {
+    id: exchangeId,
+    conversationId: conversation.id,
+    scopeId: ensuredScope.id,
+    type: "ask",
+    status: "open",
+    title: normalizeExchangeTitle(openerText),
+    openerMessageId,
+    resolutionMessageId: null,
+    latestMessageId: openerMessageId,
+    replyCount: 0,
+    requiresUserAction: true,
+    stickyUntilResolved: true,
+    linkedAttentionItemId: attentionItemId,
+    sourceType: "assistant-demo",
+    sourceId: null,
+    canDeliverExternally: true,
+    externalThreadKey: null,
+    openedAt: now,
+    resolvedAt: null,
+    updatedAt: now,
+  };
+  const openerMessage: AssistantExchangeMessageRecord = {
+    id: openerMessageId,
+    conversationId: conversation.id,
+    exchangeId,
+    scopeId: ensuredScope.id,
+    role: "assistant",
+    kind: "opener",
+    body: openerText,
+    createdAt: now,
+    surface: "app",
+    externalMessageId: null,
+    externalThreadMessageId: null,
+  };
+  const attentionItem: AttentionItem = {
+    id: attentionItemId,
+    scopeId: ensuredScope.id,
+    scopeType: ensuredScope.type,
+    status: "pending",
+    title: "Assistant needs your decision",
+    body: openerText,
+    priority: "high",
+    relatedThreadId: null,
+    relatedDocumentId: null,
+    relatedExchangeId: exchangeId,
+    createdAt: now,
+    resolvedAt: null,
+    delivery: {
+      inApp: true,
+      external: "not-sent",
+    },
+  };
+  const conversationUpdate: AssistantConversationRecord = {
+    ...conversation,
+    updatedAt: now,
+  };
+  const nextScope = touchScope({
+    ...ensuredScope,
+    attentionItemIds: appendUnique(ensuredScope.attentionItemIds, attentionItemId),
+  });
+  const askActivity = createScopeActivity({
+    scopeId: ensuredScope.id,
+    scopeType: ensuredScope.type,
+    kind: "assistant-ask-created",
+    title: "Assistant ask created",
+    detail: openerText,
+  });
+  const discussionOpenedActivity = createScopeActivity({
+    scopeId: ensuredScope.id,
+    scopeType: ensuredScope.type,
+    kind: "assistant-discussion-opened",
+    title: "Discussion opened",
+    detail: normalizeExchangeTitle(openerText),
+  });
+
+  await Promise.all([
+    saveAssistantExchange(exchange),
+    saveAssistantExchangeMessages([openerMessage]),
+    saveAssistantConversation(conversationUpdate),
+    saveAttentionItem(attentionItem),
+    saveScope({
+      ...nextScope,
+      activityIds: appendUnique(appendUnique(nextScope.activityIds, askActivity.id), discussionOpenedActivity.id),
+    }),
+    saveActivities([askActivity, discussionOpenedActivity]),
+  ]);
+
+  return { snapshot: await getDemoSnapshot(), exchangeId };
+}
+
+export async function startUserDiscussion(scopeId: string, openerText: string): Promise<{
+  snapshot: DemoSnapshot;
+  exchangeId: string;
+}> {
+  const scope = await getScope(scopeId);
+  if (!scope) {
+    return { snapshot: await getDemoSnapshot(), exchangeId: "" };
+  }
+  const trimmed = openerText.trim();
+  if (!trimmed) {
+    return { snapshot: await getDemoSnapshot(), exchangeId: "" };
+  }
+
+  const now = nowIso();
+  const assistantReplyAt = new Date(Date.now() + 1).toISOString();
+  const { scope: ensuredScope, conversation } = await ensureScopeAssistantState(scope);
+  const exchangeId = createAssistantExchangeId();
+  const openerMessageId = createAssistantExchangeMessageId();
+  const assistantReplyId = createAssistantExchangeMessageId();
+  const assistantReplyBody = `Reply to: ${trimmed}`;
+  const exchangeType: AssistantExchangeRecord["type"] = trimmed.endsWith("?")
+    ? "question"
+    : "instruction";
+
+  const exchange: AssistantExchangeRecord = {
+    id: exchangeId,
+    conversationId: conversation.id,
+    scopeId: ensuredScope.id,
+    type: exchangeType,
+    status: "in-progress",
+    title: normalizeExchangeTitle(trimmed),
+    openerMessageId,
+    resolutionMessageId: null,
+    latestMessageId: assistantReplyId,
+    replyCount: 1,
+    requiresUserAction: false,
+    stickyUntilResolved: false,
+    linkedAttentionItemId: null,
+    sourceType: "user-demo",
+    sourceId: null,
+    canDeliverExternally: true,
+    externalThreadKey: null,
+    openedAt: now,
+    resolvedAt: null,
+    updatedAt: now,
+  };
+  const openerMessage: AssistantExchangeMessageRecord = {
+    id: openerMessageId,
+    conversationId: conversation.id,
+    exchangeId,
+    scopeId: ensuredScope.id,
+    role: "user",
+    kind: "opener",
+    body: trimmed,
+    createdAt: now,
+    surface: "app",
+    externalMessageId: null,
+    externalThreadMessageId: null,
+  };
+  const assistantReply: AssistantExchangeMessageRecord = {
+    id: assistantReplyId,
+    conversationId: conversation.id,
+    exchangeId,
+    scopeId: ensuredScope.id,
+    role: "assistant",
+    kind: "reply",
+    body: assistantReplyBody,
+    createdAt: assistantReplyAt,
+    surface: "app",
+    externalMessageId: null,
+    externalThreadMessageId: null,
+  };
+  const conversationUpdate: AssistantConversationRecord = {
+    ...conversation,
+    updatedAt: assistantReplyAt,
+  };
+  const openedActivity = createScopeActivity({
+    scopeId: ensuredScope.id,
+    scopeType: ensuredScope.type,
+    kind: "assistant-discussion-opened",
+    title: "Discussion opened",
+    detail: trimmed,
+  });
+  const instructionActivity = createScopeActivity({
+    scopeId: ensuredScope.id,
+    scopeType: ensuredScope.type,
+    kind: "assistant-user-instruction",
+    title: "User instruction received",
+    detail: trimmed,
+  });
+
+  await Promise.all([
+    saveAssistantExchange(exchange),
+    saveAssistantExchangeMessages([openerMessage, assistantReply]),
+    saveAssistantConversation(conversationUpdate),
+    saveScope({
+      ...touchScope(ensuredScope),
+      activityIds: appendUnique(
+        appendUnique(ensuredScope.activityIds, openedActivity.id),
+        instructionActivity.id
+      ),
+    }),
+    saveActivities([openedActivity, instructionActivity]),
+  ]);
+
+  return { snapshot: await getDemoSnapshot(), exchangeId };
+}
+
+export async function replyToAssistantExchange(exchangeId: string, text: string): Promise<DemoSnapshot> {
+  const exchange = await getAssistantExchangeById(exchangeId);
+  if (!exchange) {
+    return getDemoSnapshot();
+  }
+  if (exchange.status === "resolved" || exchange.status === "dismissed") {
+    return getDemoSnapshot();
+  }
+
+  const scope = await getScope(exchange.scopeId);
+  if (!scope) {
+    return getDemoSnapshot();
+  }
+  const conversation = await getAssistantConversationById(exchange.conversationId);
+  if (!conversation) {
+    return getDemoSnapshot();
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return getDemoSnapshot();
+  }
+
+  const existingMessages = await getAssistantMessagesForExchange(exchangeId);
+  const now = nowIso();
+
+  if (trimmed === "DONE") {
+    const resolutionMessageId = createAssistantExchangeMessageId();
+    const latestUserReply = [...existingMessages]
+      .reverse()
+      .find((message) => message.role === "user" && (message.kind === "reply" || message.kind === "opener"));
+    const resolutionBody =
+      exchange.sourceType === "user-demo"
+        ? "OK, so it's DONE"
+        : latestUserReply?.body || "Done.";
+    const resolutionRole: AssistantExchangeMessageRecord["role"] =
+      exchange.sourceType === "user-demo" ? "assistant" : "user";
+    const resolutionMessage: AssistantExchangeMessageRecord = {
+      id: resolutionMessageId,
+      conversationId: exchange.conversationId,
+      exchangeId: exchange.id,
+      scopeId: exchange.scopeId,
+      role: resolutionRole,
+      kind: "resolution",
+      body: resolutionBody,
+      createdAt: now,
+      surface: "app",
+      externalMessageId: null,
+      externalThreadMessageId: null,
+    };
+    const resolvedExchange: AssistantExchangeRecord = {
+      ...exchange,
+      status: "resolved",
+      requiresUserAction: false,
+      resolutionMessageId,
+      latestMessageId: resolutionMessageId,
+      resolvedAt: now,
+      updatedAt: now,
+    };
+    const conversationUpdate: AssistantConversationRecord = {
+      ...conversation,
+      updatedAt: now,
+    };
+    const resolvedActivity = createScopeActivity({
+      scopeId: scope.id,
+      scopeType: scope.type,
+      kind: "assistant-discussion-resolved",
+      title: "Discussion resolved",
+      detail: resolutionBody,
+    });
+    const writes: Promise<unknown>[] = [
+      saveAssistantExchange(resolvedExchange),
+      saveAssistantExchangeMessages([resolutionMessage]),
+      saveAssistantConversation(conversationUpdate),
+      saveScope({
+        ...touchScope(scope),
+        activityIds: appendUnique(scope.activityIds, resolvedActivity.id),
+      }),
+      saveActivity(resolvedActivity),
+    ];
+
+    if (exchange.linkedAttentionItemId) {
+      const snapshot = await getDemoSnapshot();
+      const linkedAttention = snapshot.attentionItems.find(
+        (item) => item.id === exchange.linkedAttentionItemId
+      );
+      if (linkedAttention && linkedAttention.status === "pending") {
+        writes.push(
+          saveAttentionItem({
+            ...linkedAttention,
+            status: "resolved",
+            resolvedAt: now,
+            delivery: { ...linkedAttention.delivery, external: "responded" },
+          })
+        );
+      }
+    }
+
+    await Promise.all(writes);
+    return getDemoSnapshot();
+  }
+
+  const userReplyId = createAssistantExchangeMessageId();
+  const assistantReplyId = createAssistantExchangeMessageId();
+  const assistantReplyAt = new Date(Date.now() + 1).toISOString();
+  const userReply: AssistantExchangeMessageRecord = {
+    id: userReplyId,
+    conversationId: exchange.conversationId,
+    exchangeId: exchange.id,
+    scopeId: exchange.scopeId,
+    role: "user",
+    kind: "reply",
+    body: trimmed,
+    createdAt: now,
+    surface: "app",
+    externalMessageId: null,
+    externalThreadMessageId: null,
+  };
+  const assistantReply: AssistantExchangeMessageRecord = {
+    id: assistantReplyId,
+    conversationId: exchange.conversationId,
+    exchangeId: exchange.id,
+    scopeId: exchange.scopeId,
+    role: "assistant",
+    kind: "reply",
+    body: `Reply to: ${trimmed}`,
+    createdAt: assistantReplyAt,
+    surface: "app",
+    externalMessageId: null,
+    externalThreadMessageId: null,
+  };
+  const nextExchange: AssistantExchangeRecord = {
+    ...exchange,
+    status: "in-progress",
+    latestMessageId: assistantReplyId,
+    replyCount: exchange.replyCount + 1,
+    updatedAt: assistantReplyAt,
+  };
+  const conversationUpdate: AssistantConversationRecord = {
+    ...conversation,
+    updatedAt: assistantReplyAt,
+  };
+  const replyActivity = createScopeActivity({
+    scopeId: scope.id,
+    scopeType: scope.type,
+    kind: "assistant-reply-appended",
+    title: "Reply appended",
+    detail: trimmed,
+  });
+
+  await Promise.all([
+    saveAssistantExchange(nextExchange),
+    saveAssistantExchangeMessages([userReply, assistantReply]),
+    saveAssistantConversation(conversationUpdate),
+    saveScope({
+      ...touchScope(scope),
+      activityIds: appendUnique(scope.activityIds, replyActivity.id),
+    }),
+    saveActivity(replyActivity),
+  ]);
+
+  return getDemoSnapshot();
+}
+
+export async function resolveAssistantExchange(exchangeId: string): Promise<DemoSnapshot> {
+  return replyToAssistantExchange(exchangeId, "DONE");
+}
+
+export async function updateAssistantPlaybook(
+  scopeId: string,
+  patch: Partial<
+    Pick<
+      AssistantPlaybookRecord,
+      "identityMarkdown" | "defaultsMarkdown" | "contextMarkdown" | "overridesMarkdown"
+    >
+  >
+): Promise<DemoSnapshot> {
+  const scope = await getScope(scopeId);
+  if (!scope) {
+    return getDemoSnapshot();
+  }
+  const { scope: ensuredScope, playbook } = await ensureScopeAssistantState(scope);
+  const updatedPlaybook: AssistantPlaybookRecord = {
+    ...playbook,
+    ...patch,
+    updatedAt: nowIso(),
+  };
+  const playbookActivity = createScopeActivity({
+    scopeId,
+    scopeType: ensuredScope.type,
+    kind: "assistant-playbook-updated",
+    title: "Assistant playbook updated",
+    detail: "Assistant playbook sections were updated.",
+  });
+
+  await Promise.all([
+    saveAssistantPlaybook(updatedPlaybook),
+    saveScope({
+      ...touchScope(ensuredScope),
+      activityIds: appendUnique(ensuredScope.activityIds, playbookActivity.id),
+    }),
+    saveActivity(playbookActivity),
+  ]);
+
   return getDemoSnapshot();
 }
 
@@ -333,6 +871,8 @@ export async function createWorkspaceFromTemplate(params: {
 
   const createdAt = nowIso();
   const workspaceId = createScopeId();
+  const assistantConversationId = createAssistantConversationId();
+  const assistantPlaybookId = createAssistantPlaybookId();
   const sectionDefinitionsByTemplate: Record<WorkspaceTemplateKey, DemoSectionDefinition[]> = {
     shop: [
       { key: "overview", label: "Overview", kind: "overview" },
@@ -397,6 +937,8 @@ export async function createWorkspaceFromTemplate(params: {
     documentIds: [],
     activityIds: [],
     attentionItemIds: [],
+    assistantConversationId,
+    assistantPlaybookId,
     messages: [
       {
         id: createMessageId(),
@@ -419,8 +961,34 @@ export async function createWorkspaceFromTemplate(params: {
     activityIds: [activity.id],
     attentionItemIds: [],
   });
+  const assistantConversation: AssistantConversationRecord = {
+    id: assistantConversationId,
+    scopeId: workspaceId,
+    assistantName: template.defaultAssistantName,
+    createdAt,
+    updatedAt: createdAt,
+    lastSeenAt: null,
+    lastRecapAt: null,
+  };
+  const assistantPlaybook: AssistantPlaybookRecord = {
+    id: assistantPlaybookId,
+    scopeId: workspaceId,
+    inheritsFromScopeId: BLINK_SCOPE_ID,
+    identityMarkdown: `You are ${template.defaultAssistantName} for ${nextWorkspace.name}.`,
+    defaultsMarkdown:
+      "- Keep updates concise.\n- Prioritize exceptions.\n- Keep recurring low-signal items in digest.",
+    contextMarkdown: `- Template: ${template.name}\n- Workspace: ${nextWorkspace.description}`,
+    overridesMarkdown:
+      "- Emphasize workspace deadlines first.\n- Mention blockers early.\n- Keep a clear next action.",
+    updatedAt: createdAt,
+  };
 
-  await Promise.all([saveScope(nextWorkspace), saveActivity(activity)]);
+  await Promise.all([
+    saveScope(nextWorkspace),
+    saveActivity(activity),
+    saveAssistantConversation(assistantConversation),
+    saveAssistantPlaybook(assistantPlaybook),
+  ]);
   return { snapshot: await getDemoSnapshot(), workspaceId };
 }
 
