@@ -48,6 +48,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
   const [topLevelText, setTopLevelText] = useState("");
   const [busyTopLevel, setBusyTopLevel] = useState(false);
   const [expandedExchangeId, setExpandedExchangeId] = useState<string | null>(null);
+  const [expandedAnchorId, setExpandedAnchorId] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [busyExchangeId, setBusyExchangeId] = useState<string | null>(null);
 
@@ -82,6 +83,27 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
     );
   }, [snapshot]);
 
+  const activeExpandedAnchorId = useMemo(() => {
+    if (!expandedExchangeId) {
+      return null;
+    }
+    if (
+      expandedAnchorId &&
+      timelineItems.some(
+        (item) => item.id === expandedAnchorId && item.exchangeId === expandedExchangeId
+      )
+    ) {
+      return expandedAnchorId;
+    }
+    const openerAnchor = timelineItems.find(
+      (item) => item.exchangeId === expandedExchangeId && item.kind === "opener"
+    );
+    if (openerAnchor) {
+      return openerAnchor.id;
+    }
+    return timelineItems.find((item) => item.exchangeId === expandedExchangeId)?.id ?? null;
+  }, [expandedAnchorId, expandedExchangeId, timelineItems]);
+
   useEffect(() => {
     if (!expandedExchangeId) {
       return;
@@ -89,6 +111,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
     const stillExists = exchanges.some((exchange) => exchange.id === expandedExchangeId);
     if (!stillExists) {
       setExpandedExchangeId(null);
+      setExpandedAnchorId(null);
     }
   }, [expandedExchangeId, exchanges]);
 
@@ -122,6 +145,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                 const exchangeId = await startAssistantDemoDiscussion(scope.id);
                 if (exchangeId) {
                   setExpandedExchangeId(exchangeId);
+                  setExpandedAnchorId(null);
                 }
                 setBusyTopLevel(false);
               }}
@@ -151,7 +175,10 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                   key={exchange.id}
                   type="button"
                   className="w-full rounded-[16px] border border-destructive/20 bg-destructive/5 px-4 py-3 text-left transition hover:border-destructive/35"
-                  onClick={() => setExpandedExchangeId(exchange.id)}
+                  onClick={() => {
+                    setExpandedExchangeId(exchange.id);
+                    setExpandedAnchorId(null);
+                  }}
                 >
                   <p className="text-sm font-semibold text-foreground">{exchange.title}</p>
                   <p className="mt-1 text-caption">
@@ -180,7 +207,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                   exchange?.resolutionMessageId && item.kind === "opener"
                     ? messages.find((message) => message.id === exchange.resolutionMessageId)?.body
                     : null;
-                const isExpanded = expandedExchangeId === item.exchangeId;
+                const isExpanded = item.id === activeExpandedAnchorId;
 
                 return (
                   <div key={item.id} className="rounded-[18px] border border-border-soft bg-card">
@@ -189,7 +216,10 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                       className={`w-full rounded-[18px] px-4 py-3 text-left transition ${
                         isExpanded ? "bg-accent-soft/50" : "hover:bg-bg-subtle/80"
                       }`}
-                      onClick={() => setExpandedExchangeId(item.exchangeId)}
+                      onClick={() => {
+                        setExpandedExchangeId(item.exchangeId);
+                        setExpandedAnchorId(item.id);
+                      }}
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline">{item.exchangeType}</Badge>
@@ -310,6 +340,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                 const exchangeId = await startScopeDiscussion(scope.id, text);
                 if (exchangeId) {
                   setExpandedExchangeId(exchangeId);
+                  setExpandedAnchorId(null);
                 }
                 setTopLevelText("");
                 setBusyTopLevel(false);
