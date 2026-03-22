@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
+import { DemoPageHeader } from "@/components/demo/demo-page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import {
   getRootDocuments,
@@ -19,6 +21,15 @@ import {
   getScopeThreads,
 } from "@/lib/demo/selectors";
 import type { ScopeRecord } from "@/lib/demo/types";
+import {
+  ActivityIcon,
+  BotIcon,
+  FileTextIcon,
+  Layers3Icon,
+  ListTodoIcon,
+  SparklesIcon,
+  WorkflowIcon,
+} from "lucide-react";
 
 function formatDate(value: string) {
   const asDate = new Date(value);
@@ -35,28 +46,39 @@ function ScopeSettingsView({ scope }: { scope: ScopeRecord }) {
     <div className="grid gap-4 md:grid-cols-2">
       {scope.settingsBlocks.map((block) => (
         <Card key={block.id}>
-          <CardContent className="space-y-2.5 pt-5">
+          <CardContent className="space-y-4 pt-5">
             <h3 className="text-section-title">{block.title}</h3>
             {block.description ? <p className="text-body">{block.description}</p> : null}
-            {block.items.map((item) => (
-              <div key={`${block.id}_${item.label}`} className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-                <span className="text-text-muted">{item.label}</span>
-                <span className="text-foreground">{item.value}</span>
-              </div>
-            ))}
+            <div className="space-y-2">
+              {block.items.map((item) => (
+                <div
+                  key={`${block.id}_${item.label}`}
+                  className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5"
+                >
+                  <span className="text-text-muted">{item.label}</span>
+                  <span className="text-right font-medium text-foreground">{item.value}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       ))}
       <Card>
-        <CardContent className="space-y-2.5 pt-5">
+        <CardContent className="space-y-4 pt-5">
           <h3 className="text-section-title">Assistant profile</h3>
-          <div className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-            <span className="text-text-muted">Name</span>
-            <span className="text-foreground">{scope.assistant.name}</span>
-            <span className="text-text-muted">Tone</span>
-            <span className="text-foreground">{scope.assistant.tone}</span>
-            <span className="text-text-muted">Anchors</span>
-            <span className="text-foreground">{scope.anchors.join(", ")}</span>
+          <div className="space-y-2">
+            <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+              <span className="text-text-muted">Name</span>
+              <span className="text-right font-medium text-foreground">{scope.assistant.name}</span>
+            </div>
+            <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+              <span className="text-text-muted">Tone</span>
+              <span className="text-right font-medium text-foreground">{scope.assistant.tone}</span>
+            </div>
+            <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+              <span className="text-text-muted">Anchors</span>
+              <span className="text-right font-medium text-foreground">{scope.anchors.join(", ")}</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -136,6 +158,28 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
   const recentThreads = threads.slice(0, 4);
   const recentDocuments = documents.slice(0, 4);
   const recentActivity = activity.slice(0, 8);
+  const overviewMetrics = [
+    {
+      label: "Open tasks",
+      value: threads.length,
+      icon: <ListTodoIcon className="size-4" />,
+    },
+    {
+      label: "Documents",
+      value: documents.length,
+      icon: <FileTextIcon className="size-4" />,
+    },
+    {
+      label: scope.type === "blink" ? "Services" : "Sections",
+      value: scope.type === "blink" ? services.length : scope.sectionDefinitions.length,
+      icon: scope.type === "blink" ? <WorkflowIcon className="size-4" /> : <Layers3Icon className="size-4" />,
+    },
+    {
+      label: "Attention",
+      value: attention.length,
+      icon: <ActivityIcon className="size-4" />,
+    },
+  ];
   const threadColumns: Array<{ key: string; label: string; tone: string }> = [
     { key: "active", label: "In Progress", tone: "bg-indigo-100 text-indigo-700" },
     { key: "paused", label: "Paused", tone: "bg-amber-100 text-amber-700" },
@@ -150,9 +194,12 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
         : getScopeDocumentsBySection(snapshot, scope.id, sectionKey);
 
     return (
-      <div className="overflow-hidden rounded-xl border border-border-soft">
+      <div className="overflow-hidden rounded-[20px] border border-border-soft">
         {sectionDocuments.length === 0 ? (
-          <p className="text-body bg-card py-8 text-center">No documents in this section yet.</p>
+          <div className="demo-empty-state m-4">
+            <p className="text-section-title">No documents in this section yet</p>
+            <p className="mt-1 text-body">Create a new document to seed this section without changing the MyOS structure.</p>
+          </div>
         ) : (
           sectionDocuments.map((document) => (
             <Link
@@ -179,37 +226,42 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
   };
 
   return (
-    <section className="mx-auto max-w-6xl space-y-5">
-      {/* Page header */}
-      <div className="demo-surface px-6 py-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-page-title">
-              <span className="mr-2.5">{scope.icon ?? "🧩"}</span>
-              {scope.name}
-            </h1>
-            <p className="mt-1.5 text-body">{scope.description}</p>
-          </div>
-          {scope.type === "workspace" && scope.bootstrapStatus === "failed" ? (
+    <section className="demo-page-shell">
+      <DemoPageHeader
+        eyebrow={scope.type === "blink" ? "Home scope" : "Workspace scope"}
+        icon={<span>{scope.icon ?? "🧩"}</span>}
+        title={scope.name}
+        description={scope.description}
+        actions={
+          scope.type === "workspace" && scope.bootstrapStatus === "failed" ? (
             <Button size="sm" variant="outline" onClick={() => void retryWorkspaceBootstrap(scope.id)}>
               Retry bootstrap
             </Button>
-          ) : null}
-        </div>
-        {scope.type === "workspace" && scope.bootstrapStatus !== "ready" ? (
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-border-soft bg-bg-subtle px-4 py-3 text-sm">
-            <span className="text-text-secondary">Core document bootstrap:</span>
-            <Badge variant={scope.bootstrapStatus === "failed" ? "destructive" : "secondary"}>
-              {scope.bootstrapStatus}
-            </Badge>
-            {scope.bootstrapError ? (
-              <p className="text-destructive text-xs ml-2">{scope.bootstrapError}</p>
+          ) : null
+        }
+        meta={
+          <>
+            <Badge variant="outline">{scope.assistant.name}</Badge>
+            <Badge variant="secondary">{scope.sectionDefinitions.length} sections</Badge>
+            {scope.type === "workspace" ? (
+              <Badge variant={scope.bootstrapStatus === "failed" ? "destructive" : "secondary"}>
+                bootstrap {scope.bootstrapStatus}
+              </Badge>
             ) : null}
-          </div>
-        ) : null}
-      </div>
+          </>
+        }
+      />
 
-      {/* Tab section */}
+      {scope.type === "workspace" && scope.bootstrapStatus !== "ready" ? (
+        <div className="demo-muted-surface flex flex-wrap items-center gap-2.5 px-4 py-3 text-sm">
+          <span className="font-medium text-text-secondary">Core document bootstrap</span>
+          <Badge variant={scope.bootstrapStatus === "failed" ? "destructive" : "secondary"}>
+            {scope.bootstrapStatus}
+          </Badge>
+          {scope.bootstrapError ? <p className="text-destructive text-xs">{scope.bootstrapError}</p> : null}
+        </div>
+      ) : null}
+
       <Tabs value={activeSection} onValueChange={setActiveSection}>
         <TabsList variant="line" className="flex-wrap">
           {scope.sectionDefinitions.map((section) => (
@@ -220,86 +272,113 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
         </TabsList>
 
         {scope.sectionDefinitions.map((section) => (
-          <TabsContent key={section.key} value={section.key}>
+          <TabsContent key={section.key} value={section.key} className="pt-1">
             {section.kind === "overview" ? (
-              <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-                <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="demo-kpi">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
-                        Open tasks
-                      </p>
-                      <p className="mt-1 text-2xl font-bold text-foreground">{threads.length}</p>
-                    </div>
-                    <div className="demo-kpi">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
-                        Documents
-                      </p>
-                      <p className="mt-1 text-2xl font-bold text-foreground">{documents.length}</p>
-                    </div>
-                    <div className="demo-kpi">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
-                        Attention
-                      </p>
-                      <p className="mt-1 text-2xl font-bold text-foreground">{attention.length}</p>
-                    </div>
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_360px]">
+                <div className="space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {overviewMetrics.map((metric) => (
+                      <div key={metric.label} className="demo-kpi">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
+                              {metric.label}
+                            </p>
+                            <p className="mt-2 text-3xl font-bold tracking-[-0.03em] text-foreground">
+                              {metric.value}
+                            </p>
+                          </div>
+                          <span className="inline-flex size-10 items-center justify-center rounded-2xl border border-border-soft bg-bg-subtle text-accent-base">
+                            {metric.icon}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+
                   <Card>
-                    <CardContent className="space-y-3 pt-5">
-                      <h2 className="text-section-title">{scope.recap.headline}</h2>
-                      <ul className="space-y-2 text-body">
-                        {scope.recap.updates.map((item) => (
-                          <li key={item} className="flex gap-2">
-                            <span className="mt-1 text-accent-base">•</span>
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="rounded-xl border border-accent-base/20 bg-accent-soft/60 p-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-accent-base">
-                          Needs attention
-                        </p>
-                        <ul className="mt-2 space-y-1.5 text-sm text-foreground">
-                          {scope.recap.asks.map((ask) => (
-                            <li key={ask}>• {ask}</li>
+                    <CardContent className="space-y-5 pt-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="demo-page-eyebrow">Overview</p>
+                          <h2 className="mt-1 text-section-title">{scope.recap.headline}</h2>
+                        </div>
+                        <Badge variant="outline">{scope.type === "blink" ? "Root scope" : "Scoped workspace"}</Badge>
+                      </div>
+                      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+                        <ul className="space-y-3">
+                          {scope.recap.updates.map((item) => (
+                            <li
+                              key={item}
+                              className="flex gap-3 rounded-[18px] border border-border-soft bg-bg-subtle/55 px-4 py-3"
+                            >
+                              <span className="mt-0.5 inline-flex size-6 items-center justify-center rounded-full bg-accent-soft text-accent-base">
+                                <SparklesIcon className="size-3" />
+                              </span>
+                              <span className="text-body">{item}</span>
+                            </li>
                           ))}
                         </ul>
+                        <div className="rounded-[20px] border border-accent-base/12 bg-accent-soft/65 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent-base">
+                            Needs attention
+                          </p>
+                          <ul className="mt-3 space-y-2 text-sm text-foreground">
+                            {scope.recap.asks.map((ask) => (
+                              <li key={ask} className="flex gap-2">
+                                <span className="text-accent-base">•</span>
+                                <span>{ask}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card>
-                    <CardContent className="space-y-3 pt-5">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-section-title">{scope.assistant.name} conversation</h2>
-                        <Badge variant="secondary">{scope.messages.length} messages</Badge>
+                    <div className="demo-section-header">
+                      <div>
+                        <p className="demo-page-eyebrow">Assistant panel</p>
+                        <h2 className="mt-1 text-section-title">{scope.assistant.name} conversation</h2>
                       </div>
-                      <div className="max-h-[360px] space-y-2 overflow-auto pr-1">
+                      <Badge variant="secondary">{scope.messages.length} messages</Badge>
+                    </div>
+                    <CardContent className="space-y-4 pt-5">
+                      <div className="max-h-[420px] space-y-3 overflow-auto pr-1">
                         {scope.messages.map((entry) => (
                           <div
                             key={entry.id}
-                            className={`rounded-xl border px-3 py-2.5 ${
+                            className={`rounded-[18px] border px-4 py-3 ${
                               entry.role === "assistant"
-                                ? "border-border-soft bg-bg-subtle"
+                                ? "border-border-soft bg-bg-subtle/80"
                                 : entry.role === "user"
-                                  ? "border-accent-base/20 bg-accent-soft/40"
+                                  ? "border-accent-base/10 bg-accent-soft/55"
                                   : "border-border-soft bg-card"
                             }`}
                           >
-                            <p className="text-xs uppercase tracking-[0.06em] text-text-muted">{entry.role}</p>
-                            <p className="mt-1 text-sm text-foreground">{entry.text}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex size-7 items-center justify-center rounded-2xl border border-border-soft bg-card text-accent-base">
+                                <BotIcon className="size-3.5" />
+                              </span>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
+                                {entry.role}
+                              </p>
+                            </div>
+                            <p className="mt-3 text-sm leading-6 text-foreground">{entry.text}</p>
                           </div>
                         ))}
                       </div>
-                      <div className="flex gap-2">
-                        <input
-                          className="h-10 flex-1 rounded-xl border border-border-soft bg-card px-3 text-sm"
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input
                           value={composerText}
                           onChange={(event) => setComposerText(event.target.value)}
                           placeholder={`Message ${scope.assistant.name}…`}
+                          className="h-11 flex-1"
                         />
                         <Button
                           size="sm"
+                          className="h-11 px-4"
                           disabled={sending || composerText.trim().length === 0}
                           onClick={async () => {
                             const text = composerText.trim();
@@ -317,73 +396,102 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                   </Card>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <Card size="sm">
-                    <CardContent className="space-y-2 pt-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-section-title">Recent tasks</h3>
-                        <Button
-                          size="xs"
-                          onClick={async () => {
-                            const threadId = await createThread(scope.id);
-                            if (threadId) {
-                              router.push(`/threads/${encodeURIComponent(threadId)}`);
-                            }
-                          }}
-                        >
-                          New task
-                        </Button>
+                    <div className="demo-section-header border-b-0 px-4 py-4">
+                      <div>
+                        <p className="demo-page-eyebrow">Tasks</p>
+                        <h3 className="mt-1 text-section-title">Recent tasks</h3>
                       </div>
+                      <Button
+                        size="xs"
+                        onClick={async () => {
+                          const threadId = await createThread(scope.id);
+                          if (threadId) {
+                            router.push(`/threads/${encodeURIComponent(threadId)}`);
+                          }
+                        }}
+                      >
+                        New task
+                      </Button>
+                    </div>
+                    <CardContent className="space-y-3 pt-1">
                       {recentThreads.length === 0 ? (
-                        <p className="text-body">No tasks yet.</p>
+                        <div className="demo-empty-state px-4 py-8">
+                          <p className="text-body">No tasks yet.</p>
+                        </div>
                       ) : (
                         recentThreads.map((thread) => (
                           <Link
                             key={thread.id}
                             href={`/threads/${encodeURIComponent(thread.id)}`}
-                              className="block rounded-xl border border-border-soft bg-card px-3 py-2.5 hover:border-accent-base/30 hover:bg-accent-soft/30"
+                            className="demo-list-card block"
                           >
-                            <p className="font-medium text-sm text-foreground">{thread.title}</p>
-                            <p className="text-caption">{thread.status} · {thread.progress}%</p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-foreground">{thread.title}</p>
+                              <Badge variant="outline">{thread.progress}%</Badge>
+                            </div>
+                            <p className="mt-1.5 text-caption">
+                              {thread.status} · updated {formatDate(thread.updatedAt)}
+                            </p>
                           </Link>
                         ))
                       )}
                     </CardContent>
                   </Card>
+
                   <Card size="sm">
-                    <CardContent className="space-y-2 pt-4">
-                      <h3 className="text-section-title">Recent documents</h3>
+                    <div className="demo-section-header border-b-0 px-4 py-4">
+                      <div>
+                        <p className="demo-page-eyebrow">Documents</p>
+                        <h3 className="mt-1 text-section-title">Recent documents</h3>
+                      </div>
+                    </div>
+                    <CardContent className="space-y-3 pt-1">
                       {recentDocuments.length === 0 ? (
-                        <p className="text-body">No documents yet.</p>
+                        <div className="demo-empty-state px-4 py-8">
+                          <p className="text-body">No documents yet.</p>
+                        </div>
                       ) : (
                         recentDocuments.map((document) => (
                           <Link
                             key={document.id}
                             href={`/documents/${encodeURIComponent(document.id)}`}
-                              className="block rounded-xl border border-border-soft bg-card px-3 py-2.5 hover:border-accent-base/30 hover:bg-accent-soft/30"
+                            className="demo-list-card block"
                           >
-                            <p className="font-medium text-sm text-foreground">{document.title}</p>
-                            <p className="text-caption">{document.status}</p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-foreground">{document.title}</p>
+                              <Badge variant="secondary">{document.kind}</Badge>
+                            </div>
+                            <p className="mt-1.5 text-caption">{document.status}</p>
                           </Link>
                         ))
                       )}
                     </CardContent>
                   </Card>
+
                   <Card size="sm">
-                    <CardContent className="space-y-2 pt-4">
-                      <h3 className="text-section-title">Attention</h3>
+                    <div className="demo-section-header border-b-0 px-4 py-4">
+                      <div>
+                        <p className="demo-page-eyebrow">Alerts</p>
+                        <h3 className="mt-1 text-section-title">Attention</h3>
+                      </div>
+                    </div>
+                    <CardContent className="space-y-3 pt-1">
                       {attention.length === 0 ? (
-                        <p className="text-body">No urgent asks.</p>
+                        <div className="demo-empty-state px-4 py-8">
+                          <p className="text-body">No urgent asks.</p>
+                        </div>
                       ) : (
                         attention.slice(0, 4).map((item) => (
-                          <div key={item.id} className="rounded-xl border border-border-soft px-3 py-2.5">
+                          <div key={item.id} className="demo-list-card">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium text-sm text-foreground">{item.title}</p>
+                              <p className="text-sm font-semibold text-foreground">{item.title}</p>
                               <Badge variant={item.priority === "high" ? "destructive" : "secondary"}>
                                 {item.priority}
                               </Badge>
                             </div>
-                            <p className="mt-1 text-caption">{item.body}</p>
+                            <p className="mt-1.5 text-caption">{item.body}</p>
                           </div>
                         ))
                       )}
@@ -394,9 +502,15 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
             ) : null}
 
             {section.kind === "tasks" ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-section-title">{section.label}</h2>
+              <div className="space-y-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="demo-page-eyebrow">Task board</p>
+                    <h2 className="mt-1 text-section-title">{section.label}</h2>
+                    <p className="mt-1 text-body">
+                      {section.description ?? "Track threads in a kanban board styled to mirror TailAdmin task cards."}
+                    </p>
+                  </div>
                   <Button
                     size="sm"
                     onClick={async () => {
@@ -410,44 +524,62 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                   </Button>
                 </div>
                 {threads.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-8 text-body text-center">No tasks in this scope yet.</CardContent>
-                  </Card>
+                  <div className="demo-empty-state">
+                    <p className="text-section-title">No tasks in this scope yet</p>
+                    <p className="mt-1 text-body">Create a new thread to populate this board.</p>
+                  </div>
                 ) : (
-                  <div className="grid gap-4 xl:grid-cols-4">
+                  <div className="grid gap-5 xl:grid-cols-4">
                     {threadColumns.map((column) => {
                       const grouped = threads.filter((thread) => thread.status === column.key);
                       return (
-                        <Card key={column.key} className="overflow-hidden">
-                          <CardContent className="space-y-3 p-0">
-                            <div className="flex items-center justify-between border-b border-border-soft bg-bg-subtle/70 px-4 py-3">
-                              <p className="text-sm font-semibold text-foreground">{column.label}</p>
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${column.tone}`}>
-                                {grouped.length}
-                              </span>
+                        <div key={column.key} className="demo-kanban-column">
+                          <div className="flex items-center justify-between border-b border-border-soft bg-bg-subtle/75 px-4 py-4">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
+                                Column
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-foreground">{column.label}</p>
                             </div>
-                            <div className="space-y-3 p-4">
-                              {grouped.length === 0 ? (
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${column.tone}`}>
+                              {grouped.length}
+                            </span>
+                          </div>
+                          <div className="space-y-3 p-4">
+                            {grouped.length === 0 ? (
+                              <div className="demo-empty-state px-4 py-8">
                                 <p className="text-caption">No tasks in this column.</p>
-                              ) : (
-                                grouped.map((thread) => (
-                                  <Link
-                                    key={thread.id}
-                                    href={`/threads/${encodeURIComponent(thread.id)}`}
-                                    className="block rounded-xl border border-border-soft bg-card px-3 py-3 shadow-[var(--shadow-subtle)] hover:border-accent-base/25 hover:bg-accent-soft/25"
-                                  >
-                                    <p className="font-semibold text-sm text-foreground">{thread.title}</p>
-                                    <p className="mt-1.5 text-caption">{thread.summary}</p>
-                                    <div className="mt-2 flex items-center justify-between">
-                                      <Badge variant="outline">{thread.progress}%</Badge>
-                                      <span className="text-caption">{formatDate(thread.updatedAt)}</span>
+                              </div>
+                            ) : (
+                              grouped.map((thread) => (
+                                <Link
+                                  key={thread.id}
+                                  href={`/threads/${encodeURIComponent(thread.id)}`}
+                                  className="demo-kanban-card block"
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <Badge variant="outline">{thread.owner}</Badge>
+                                    <span className="text-caption">{formatDate(thread.updatedAt)}</span>
+                                  </div>
+                                  <p className="mt-3 text-sm font-semibold text-foreground">{thread.title}</p>
+                                  <p className="mt-1.5 text-caption line-clamp-3">{thread.summary}</p>
+                                  <div className="mt-4 space-y-2">
+                                    <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.08em] text-text-muted">
+                                      <span>Progress</span>
+                                      <span>{thread.progress}%</span>
                                     </div>
-                                  </Link>
-                                ))
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
+                                    <div className="h-2 rounded-full bg-bg-subtle">
+                                      <div
+                                        className="h-2 rounded-full bg-primary"
+                                        style={{ width: `${thread.progress}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </Link>
+                              ))
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -457,33 +589,41 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
 
             {section.kind === "documents" || section.kind === "domain" ? (
               <Card>
-                <CardContent className="space-y-3 pt-5">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-section-title">{section.label}</h2>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        if (scope.type === "blink") {
-                          const rootDocumentId = await createRootDocument();
-                          if (rootDocumentId) {
-                            router.push(`/documents/${encodeURIComponent(rootDocumentId)}`);
-                          }
-                          return;
-                        }
-                        const scopeDocumentId = await createScopeDocument(
-                          scope.id,
-                          `${scope.name} ${section.label} document`,
-                          "New workspace document for this section."
-                        );
-                        if (scopeDocumentId) {
-                          router.push(`/documents/${encodeURIComponent(scopeDocumentId)}`);
-                        }
-                      }}
-                    >
-                      New document
-                    </Button>
+                <div className="demo-section-header">
+                  <div>
+                    <p className="demo-page-eyebrow">
+                      {section.kind === "domain" ? "Workspace section" : "Documents"}
+                    </p>
+                    <h2 className="mt-1 text-section-title">{section.label}</h2>
+                    <p className="mt-1 text-body">
+                      {section.description ?? "Keep seeded demo content intact while presenting it with cleaner admin table styling."}
+                    </p>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      if (scope.type === "blink") {
+                        const rootDocumentId = await createRootDocument();
+                        if (rootDocumentId) {
+                          router.push(`/documents/${encodeURIComponent(rootDocumentId)}`);
+                        }
+                        return;
+                      }
+                      const scopeDocumentId = await createScopeDocument(
+                        scope.id,
+                        `${scope.name} ${section.label} document`,
+                        "New workspace document for this section."
+                      );
+                      if (scopeDocumentId) {
+                        router.push(`/documents/${encodeURIComponent(scopeDocumentId)}`);
+                      }
+                    }}
+                  >
+                    New document
+                  </Button>
+                </div>
+                <CardContent className="space-y-3 pt-5">
                   <div className="demo-table-head md:grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr]">
                     <span>Title</span>
                     <span>Type</span>
@@ -497,20 +637,29 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
 
             {section.kind === "services" ? (
               <Card>
+                <div className="demo-section-header">
+                  <div>
+                    <p className="demo-page-eyebrow">Service relationships</p>
+                    <h2 className="mt-1 text-section-title">Services</h2>
+                  </div>
+                  <Badge variant="outline">{services.length} linked</Badge>
+                </div>
                 <CardContent className="space-y-3 pt-5">
-                  <h2 className="text-section-title">Services</h2>
                   {services.length === 0 ? (
-                    <p className="text-body py-8 text-center">No services available.</p>
+                    <div className="demo-empty-state">
+                      <p className="text-section-title">No services available</p>
+                      <p className="mt-1 text-body">Service documents will appear here when linked to the current scope.</p>
+                    </div>
                   ) : (
                     services.map((service) => (
                       <Link
                         key={service.id}
                         href={`/documents/${encodeURIComponent(service.id)}`}
-                        className="flex items-start justify-between gap-3 rounded-xl border border-border-soft bg-card px-4 py-3 hover:border-accent-base/25 hover:bg-accent-soft/25"
+                        className="demo-list-card flex items-start justify-between gap-3"
                       >
-                        <div>
-                          <p className="font-semibold text-sm text-foreground">{service.title}</p>
-                          <p className="text-body">{service.summary}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{service.title}</p>
+                          <p className="mt-1 text-body">{service.summary}</p>
                         </div>
                         <Badge>{service.status}</Badge>
                       </Link>
@@ -522,19 +671,31 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
 
             {section.kind === "activity" ? (
               <Card>
-                <CardContent className="space-y-2.5 pt-5">
-                  <h2 className="text-section-title">Activity timeline</h2>
+                <div className="demo-section-header">
+                  <div>
+                    <p className="demo-page-eyebrow">Timeline</p>
+                    <h2 className="mt-1 text-section-title">Activity timeline</h2>
+                  </div>
+                  <Badge variant="outline">{recentActivity.length} entries</Badge>
+                </div>
+                <CardContent className="space-y-3 pt-5">
                   {recentActivity.length === 0 ? (
-                    <p className="text-body py-8 text-center">No activity yet.</p>
+                    <div className="demo-empty-state">
+                      <p className="text-section-title">No activity yet</p>
+                      <p className="mt-1 text-body">Timeline updates will appear here as actions occur inside this scope.</p>
+                    </div>
                   ) : (
                     recentActivity.map((entry) => (
-                      <div key={entry.id} className="rounded-xl border border-border-soft px-4 py-3">
+                      <div
+                        key={entry.id}
+                        className="rounded-[18px] border border-border-soft bg-card px-4 py-4 shadow-[var(--shadow-subtle)]"
+                      >
                         <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium text-sm text-foreground">{entry.title}</p>
+                          <p className="text-sm font-semibold text-foreground">{entry.title}</p>
                           <Badge variant="secondary">{entry.kind}</Badge>
                         </div>
-                        {entry.detail ? <p className="mt-1 text-body">{entry.detail}</p> : null}
-                        <p className="mt-1 text-caption">{formatDate(entry.createdAt)}</p>
+                        {entry.detail ? <p className="mt-2 text-body">{entry.detail}</p> : null}
+                        <p className="mt-2 text-caption">{formatDate(entry.createdAt)}</p>
                       </div>
                     ))
                   )}

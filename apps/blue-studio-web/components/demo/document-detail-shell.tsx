@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, FileTextIcon } from "lucide-react";
+import { DemoPageHeader } from "@/components/demo/demo-page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,22 +40,26 @@ export function DocumentDetailShell({
   );
 
   return (
-    <section className="mx-auto max-w-5xl space-y-5">
-      <div className="demo-surface flex items-center justify-between gap-3 px-6 py-5">
-        <div>
-          <h1 className="text-page-title">{document.title}</h1>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+    <section className="demo-page-shell max-w-6xl">
+      <DemoPageHeader
+        eyebrow="Document detail"
+        icon={<FileTextIcon className="size-5" />}
+        title={document.title}
+        description={document.summary}
+        actions={
+          <Button variant="outline" size="sm" render={<Link href={backHref} />}>
+            <ArrowLeftIcon className="size-3.5" />
+            {backLabel}
+          </Button>
+        }
+        meta={
+          <>
             <Badge variant="secondary">{document.kind}</Badge>
             <Badge variant={document.isService ? "default" : "outline"}>{document.status}</Badge>
-            <span className="text-caption">· {scopeName}</span>
-          </div>
-          <p className="mt-2 text-body">{document.summary}</p>
-        </div>
-        <Button variant="outline" size="sm" render={<Link href={backHref} />}>
-          <ArrowLeftIcon className="size-3.5" />
-          {backLabel}
-        </Button>
-      </div>
+            <Badge variant="outline">{scopeName}</Badge>
+          </>
+        }
+      />
 
       <Tabs defaultValue="ui">
         <TabsList variant="line">
@@ -66,11 +71,16 @@ export function DocumentDetailShell({
         <TabsContent value="ui" className="space-y-4">
           {document.uiCards.map((card) => (
             <Card key={card.id}>
-              <CardContent className="space-y-3 pt-5">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-section-title">{card.title}</h2>
+              <div className="demo-section-header">
+                <div>
+                  <p className="demo-page-eyebrow">Action surface</p>
+                  <h2 className="mt-1 text-section-title">{card.title}</h2>
+                </div>
+                <div className="flex items-center gap-2">
                   {card.metric ? <Badge variant="outline">{card.metric}</Badge> : null}
                 </div>
+              </div>
+              <CardContent className="space-y-4 pt-5">
                 <p className="text-body">{card.body}</p>
                 {card.actions?.length ? (
                   <div className="flex flex-wrap gap-2">
@@ -97,8 +107,11 @@ export function DocumentDetailShell({
           ))}
           {actionCount === 0 ? (
             <Card>
-              <CardContent className="pt-5 text-body">
-                No UI actions are configured for this document yet.
+              <CardContent className="pt-5">
+                <div className="demo-empty-state">
+                  <p className="text-section-title">No UI actions configured</p>
+                  <p className="mt-1 text-body">This document does not expose interactive controls yet.</p>
+                </div>
               </CardContent>
             </Card>
           ) : null}
@@ -108,17 +121,17 @@ export function DocumentDetailShell({
           <div className="grid gap-4 md:grid-cols-2">
             {document.settingsBlocks.map((block) => (
               <Card key={block.id}>
-                <CardContent className="space-y-2.5 pt-5">
+                <CardContent className="space-y-4 pt-5">
                   <h3 className="text-section-title">{block.title}</h3>
                   {block.description ? <p className="text-body">{block.description}</p> : null}
-                  <div className="overflow-hidden rounded-xl border border-border-soft">
+                  <div className="overflow-hidden rounded-[18px] border border-border-soft">
                     {block.items.map((item) => (
                       <div
                         key={`${block.id}_${item.label}`}
-                        className="grid grid-cols-[140px_1fr] gap-2 border-b border-border-soft/70 bg-card px-3 py-2 text-sm last:border-b-0"
+                        className="grid grid-cols-[140px_1fr] gap-2 border-b border-border-soft/70 bg-bg-subtle/45 px-4 py-3 text-sm last:border-b-0"
                       >
                         <span className="text-text-muted">{item.label}</span>
-                        <span className="text-foreground">{item.value}</span>
+                        <span className="text-right font-medium text-foreground">{item.value}</span>
                       </div>
                     ))}
                   </div>
@@ -126,17 +139,23 @@ export function DocumentDetailShell({
               </Card>
             ))}
             <Card>
-              <CardContent className="space-y-2.5 pt-5">
+              <CardContent className="space-y-4 pt-5">
                 <h3 className="text-section-title">Document metadata</h3>
-                <div className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-                  <span className="text-text-muted">Owner</span>
-                  <span className="text-foreground">{document.owner}</span>
-                  <span className="text-text-muted">Participants</span>
-                  <span className="text-foreground">{document.participants.join(", ")}</span>
-                  <span className="text-text-muted">Updated</span>
-                  <span className="text-foreground">{formatDate(document.updatedAt)}</span>
+                <div className="space-y-2">
+                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+                    <span className="text-text-muted">Owner</span>
+                    <span className="font-medium text-foreground">{document.owner}</span>
+                  </div>
+                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+                    <span className="text-text-muted">Participants</span>
+                    <span className="text-right font-medium text-foreground">{document.participants.join(", ")}</span>
+                  </div>
+                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+                    <span className="text-text-muted">Updated</span>
+                    <span className="font-medium text-foreground">{formatDate(document.updatedAt)}</span>
+                  </div>
                 </div>
-                <pre className="overflow-auto rounded-xl border border-border-soft bg-bg-subtle p-3 text-xs text-text-secondary">
+                <pre className="overflow-auto rounded-[18px] border border-border-soft bg-bg-subtle/75 p-4 text-xs leading-6 text-text-secondary">
                   {JSON.stringify(document.details, null, 2)}
                 </pre>
               </CardContent>
@@ -146,12 +165,24 @@ export function DocumentDetailShell({
 
         <TabsContent value="activity">
           <Card>
-            <CardContent className="space-y-2.5 pt-5">
+            <div className="demo-section-header">
+              <div>
+                <p className="demo-page-eyebrow">Timeline</p>
+                <h2 className="mt-1 text-section-title">Document activity</h2>
+              </div>
+            </div>
+            <CardContent className="space-y-3 pt-5">
               {document.activity.length === 0 ? (
-                <p className="text-body py-8 text-center">No activity recorded yet.</p>
+                <div className="demo-empty-state">
+                  <p className="text-section-title">No activity recorded yet</p>
+                  <p className="mt-1 text-body">Document actions, updates, and timeline entries will appear here.</p>
+                </div>
               ) : (
                 document.activity.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-border-soft bg-card px-4 py-3">
+                  <div
+                    key={entry.id}
+                    className="rounded-[18px] border border-border-soft bg-card px-4 py-4 shadow-[var(--shadow-subtle)]"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-sm text-foreground">{entry.title}</p>
                       <Badge variant="secondary">{entry.kind}</Badge>

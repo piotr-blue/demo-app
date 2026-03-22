@@ -72,16 +72,16 @@ function RailLink({
       href={href}
       onClick={onClick}
       className={cn(
-        "group/rail-link flex items-center rounded-xl border border-transparent transition-all duration-150",
+        "group/rail-link flex items-center rounded-[14px] border border-transparent transition-all duration-150",
         collapsed
-          ? "mx-auto h-10 w-10 justify-center"
-          : "h-10 gap-2.5 px-3 text-sm",
+          ? "mx-auto h-11 w-11 justify-center"
+          : "h-11 gap-3 px-3.5 text-sm",
         active
-          ? "border-accent-base/25 bg-accent-soft text-accent-base shadow-[var(--shadow-subtle)]"
+          ? "border-accent-base/10 bg-accent-soft text-accent-base shadow-[var(--shadow-subtle)]"
           : "text-text-secondary hover:border-border-soft hover:bg-bg-subtle hover:text-foreground"
       )}
     >
-      <span className="inline-flex size-5 items-center justify-center shrink-0">
+      <span className="inline-flex size-5 shrink-0 items-center justify-center">
         {icon}
       </span>
       {!collapsed ? (
@@ -142,16 +142,18 @@ export function GlobalLeftRail() {
       <div
         className={cn(
           "flex items-center border-b border-border-soft/80",
-          railCollapsed ? "justify-center px-2 py-4" : "justify-between px-4 py-4"
+          railCollapsed ? "justify-center px-2 py-4" : "justify-between px-5 py-5"
         )}
       >
         <div className={cn("items-center gap-2.5", railCollapsed ? "hidden" : "flex")}>
-          <span className="inline-flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent-base shadow-[var(--shadow-subtle)]">
+          <span className="inline-flex size-10 items-center justify-center rounded-2xl border border-border-soft bg-accent-soft text-accent-base shadow-[var(--shadow-subtle)]">
             <SparklesIcon className="size-4" />
           </span>
           <div>
-            <p className="font-bold text-base tracking-[-0.02em] text-foreground">MyOS</p>
-            <p className="text-xs text-text-muted">Demo</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-base">
+              TailAdmin shell
+            </p>
+            <p className="font-bold text-base tracking-[-0.02em] text-foreground">MyOS Demo</p>
           </div>
         </div>
         {isMobile ? (
@@ -183,7 +185,12 @@ export function GlobalLeftRail() {
 
       {/* Navigation */}
       <ScrollArea className="min-h-0 flex-1">
-        <div className={cn("space-y-1.5", railCollapsed ? "p-2" : "p-3")}>
+        <div className={cn("space-y-2", railCollapsed ? "p-2.5" : "p-4")}>
+          {!railCollapsed ? (
+            <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
+              Navigation
+            </p>
+          ) : null}
           {navItems
             .filter((item) => item.key !== "settings")
             .map((item) => (
@@ -198,10 +205,10 @@ export function GlobalLeftRail() {
               />
             ))}
 
-          <Separator className={cn("my-3", railCollapsed ? "mx-1.5" : "mx-0.5")} />
+          <Separator className={cn("my-3.5", railCollapsed ? "mx-1.5" : "mx-1")} />
 
           {!railCollapsed ? (
-            <p className="px-3 pb-1 text-[11px] text-text-muted uppercase tracking-[0.08em] font-semibold">
+            <p className="px-2 pb-1 text-[11px] text-text-muted uppercase tracking-[0.12em] font-semibold">
               Workspaces
             </p>
           ) : null}
@@ -223,7 +230,7 @@ export function GlobalLeftRail() {
                   href={`/workspaces/${encodeURIComponent(workspace.id)}`}
                   label={workspace.name}
                   icon={
-                    <span className="inline-flex size-6 items-center justify-center rounded-lg bg-bg-subtle text-xs font-semibold text-text-secondary">
+                    <span className="inline-flex size-7 items-center justify-center rounded-xl border border-border-soft bg-bg-subtle text-xs font-semibold text-text-secondary">
                       {workspace.icon ?? workspace.name.slice(0, 1).toUpperCase()}
                     </span>
                   }
@@ -240,14 +247,19 @@ export function GlobalLeftRail() {
               <WorkspaceTemplateDialog
                 compact
                 tooltipLabel="New workspace"
-                buttonClassName="size-10 justify-center"
+                buttonClassName="size-11 justify-center"
               />
             ) : (
               <WorkspaceTemplateDialog buttonClassName="w-full justify-center" />
             )}
           </div>
 
-          <Separator className={cn("my-3", railCollapsed ? "mx-1.5" : "mx-0.5")} />
+          <Separator className={cn("my-3.5", railCollapsed ? "mx-1.5" : "mx-1")} />
+          {!railCollapsed ? (
+            <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
+              Preferences
+            </p>
+          ) : null}
           {navItems
             .filter((item) => item.key === "settings")
             .map((item) => (
@@ -268,22 +280,22 @@ export function GlobalLeftRail() {
       <div
         className={cn(
           "border-t border-border-soft/80",
-          railCollapsed ? "px-2 py-3.5" : "px-3 py-3.5"
+          railCollapsed ? "px-2.5 py-4" : "px-4 py-4"
         )}
       >
         <div
           className={cn(
-            "flex items-center rounded-xl border border-border-soft/70 bg-bg-subtle/70",
-            railCollapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2.5"
+            "flex items-center rounded-[18px] border border-border-soft bg-bg-subtle/75",
+            railCollapsed ? "justify-center p-2.5" : "gap-3 px-3.5 py-3"
           )}
         >
-          <span className="inline-flex size-8 items-center justify-center rounded-full bg-accent-soft text-accent-base text-xs font-bold shrink-0">
+          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-base text-xs font-bold">
             PB
           </span>
           {!railCollapsed ? (
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">piotr-blue</p>
-              <p className="text-xs text-text-muted truncate">MyOS operator</p>
+              <p className="truncate text-sm font-semibold">piotr-blue</p>
+              <p className="truncate text-xs text-text-muted">MyOS operator</p>
             </div>
           ) : null}
         </div>
@@ -317,7 +329,7 @@ export function GlobalLeftRail() {
         {/* Drawer */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-border-soft bg-card shadow-[var(--shadow-elevated)] transition-transform duration-300 ease-in-out md:hidden",
+            "fixed inset-y-0 left-0 z-50 flex w-[292px] flex-col border-r border-border-soft bg-card shadow-[var(--shadow-elevated)] transition-transform duration-300 ease-in-out md:hidden",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -332,7 +344,7 @@ export function GlobalLeftRail() {
     <aside
       className={cn(
         "hidden md:flex h-screen shrink-0 flex-col border-r border-border-soft/80 bg-card/95 transition-[width] duration-300 ease-in-out",
-        railCollapsed ? "w-[72px]" : "w-[260px]"
+        railCollapsed ? "w-[84px]" : "w-[286px]"
       )}
     >
       {sidebarContent}

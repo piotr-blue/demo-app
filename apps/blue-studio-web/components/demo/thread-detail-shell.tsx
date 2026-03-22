@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, BotIcon, MessageSquareTextIcon } from "lucide-react";
+import { DemoPageHeader } from "@/components/demo/demo-page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import type { ThreadRecord } from "@/lib/demo/types";
@@ -37,23 +39,27 @@ export function ThreadDetailShell({
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
 
   return (
-    <section className="mx-auto max-w-5xl space-y-5">
-      <div className="demo-surface flex items-center justify-between gap-3 px-6 py-5">
-        <div>
-          <h1 className="text-page-title">{thread.title}</h1>
-          <div className="mt-1.5 flex items-center gap-2">
+    <section className="demo-page-shell max-w-6xl">
+      <DemoPageHeader
+        eyebrow="Thread detail"
+        icon={<MessageSquareTextIcon className="size-5" />}
+        title={thread.title}
+        description={thread.summary}
+        actions={
+          <Button variant="outline" size="sm" render={<Link href={backHref} />}>
+            <ArrowLeftIcon className="size-3.5" />
+            {backLabel}
+          </Button>
+        }
+        meta={
+          <>
             <Badge variant="secondary">thread</Badge>
             <Badge variant="outline">{thread.status}</Badge>
             <Badge variant="outline">{thread.progress}%</Badge>
-            <span className="text-caption">· {scopeName}</span>
-          </div>
-          <p className="mt-2 text-body">{thread.summary}</p>
-        </div>
-        <Button variant="outline" size="sm" render={<Link href={backHref} />}>
-          <ArrowLeftIcon className="size-3.5" />
-          {backLabel}
-        </Button>
-      </div>
+            <Badge variant="outline">{scopeName}</Badge>
+          </>
+        }
+      />
 
       <Tabs defaultValue="chat">
         <TabsList variant="line">
@@ -65,33 +71,48 @@ export function ThreadDetailShell({
 
         <TabsContent value="chat">
           <Card>
-            <CardContent className="space-y-3 pt-5">
-              <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
+            <div className="demo-section-header">
+              <div>
+                <p className="demo-page-eyebrow">Conversation</p>
+                <h2 className="mt-1 text-section-title">Thread chat</h2>
+              </div>
+              <Badge variant="secondary">{thread.messages.length} updates</Badge>
+            </div>
+            <CardContent className="space-y-4 pt-5">
+              <div className="max-h-[460px] space-y-3 overflow-auto pr-1">
                 {thread.messages.map((entry) => (
                   <div
                     key={entry.id}
-                    className={`rounded-xl border px-3 py-2.5 ${
+                    className={`rounded-[18px] border px-4 py-3 ${
                       entry.role === "assistant"
-                        ? "border-border-soft bg-bg-subtle"
+                        ? "border-border-soft bg-bg-subtle/80"
                         : entry.role === "user"
-                          ? "border-accent-base/20 bg-accent-soft/40"
+                          ? "border-accent-base/12 bg-accent-soft/55"
                           : "border-border-soft bg-card"
                     }`}
                   >
-                    <p className="text-xs uppercase tracking-[0.06em] text-text-muted">{entry.role}</p>
-                    <p className="mt-1 text-sm text-foreground">{entry.text}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex size-7 items-center justify-center rounded-2xl border border-border-soft bg-card text-accent-base">
+                        <BotIcon className="size-3.5" />
+                      </span>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
+                        {entry.role}
+                      </p>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-foreground">{entry.text}</p>
                   </div>
                 ))}
               </div>
-              <div className="flex gap-2">
-                <input
-                  className="h-10 flex-1 rounded-xl border border-border-soft bg-card px-3 text-sm shadow-[var(--shadow-subtle)]"
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  className="h-11 flex-1"
                   value={composerText}
                   onChange={(event) => setComposerText(event.target.value)}
                   placeholder="Add an update to this task…"
                 />
                 <Button
                   size="sm"
+                  className="h-11 px-4"
                   disabled={sending || composerText.trim().length === 0}
                   onClick={async () => {
                     const text = composerText.trim();
@@ -112,8 +133,13 @@ export function ThreadDetailShell({
         <TabsContent value="ui" className="space-y-4">
           {thread.uiCards.map((card) => (
             <Card key={card.id}>
-              <CardContent className="space-y-3 pt-5">
-                <h3 className="text-section-title">{card.title}</h3>
+              <div className="demo-section-header">
+                <div>
+                  <p className="demo-page-eyebrow">Action surface</p>
+                  <h3 className="mt-1 text-section-title">{card.title}</h3>
+                </div>
+              </div>
+              <CardContent className="space-y-4 pt-5">
                 <p className="text-body">{card.body}</p>
                 <div className="flex flex-wrap gap-2">
                   {card.actions?.map((entry) => (
@@ -142,16 +168,16 @@ export function ThreadDetailShell({
           <div className="grid gap-4 md:grid-cols-2">
             {thread.settingsBlocks.map((block) => (
               <Card key={block.id}>
-                <CardContent className="space-y-2.5 pt-5">
+                <CardContent className="space-y-4 pt-5">
                   <h3 className="text-section-title">{block.title}</h3>
-                  <div className="overflow-hidden rounded-xl border border-border-soft">
+                  <div className="overflow-hidden rounded-[18px] border border-border-soft">
                     {block.items.map((item) => (
                       <div
                         key={`${block.id}_${item.label}`}
-                        className="grid grid-cols-[140px_1fr] gap-2 border-b border-border-soft/70 bg-card px-3 py-2 text-sm last:border-b-0"
+                        className="grid grid-cols-[140px_1fr] gap-2 border-b border-border-soft/70 bg-bg-subtle/45 px-4 py-3 text-sm last:border-b-0"
                       >
                         <span className="text-text-muted">{item.label}</span>
-                        <span className="text-foreground">{item.value}</span>
+                        <span className="text-right font-medium text-foreground">{item.value}</span>
                       </div>
                     ))}
                   </div>
@@ -159,15 +185,21 @@ export function ThreadDetailShell({
               </Card>
             ))}
             <Card>
-              <CardContent className="space-y-2.5 pt-5">
+              <CardContent className="space-y-4 pt-5">
                 <h3 className="text-section-title">Thread metadata</h3>
-                <div className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-                  <span className="text-text-muted">Owner</span>
-                  <span className="text-foreground">{thread.owner}</span>
-                  <span className="text-text-muted">Linked scope</span>
-                  <span className="text-foreground">{scopeName}</span>
-                  <span className="text-text-muted">Updated</span>
-                  <span className="text-foreground">{formatDate(thread.updatedAt)}</span>
+                <div className="space-y-2">
+                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+                    <span className="text-text-muted">Owner</span>
+                    <span className="font-medium text-foreground">{thread.owner}</span>
+                  </div>
+                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+                    <span className="text-text-muted">Linked scope</span>
+                    <span className="font-medium text-foreground">{scopeName}</span>
+                  </div>
+                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
+                    <span className="text-text-muted">Updated</span>
+                    <span className="font-medium text-foreground">{formatDate(thread.updatedAt)}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -176,12 +208,24 @@ export function ThreadDetailShell({
 
         <TabsContent value="activity">
           <Card>
-            <CardContent className="space-y-2.5 pt-5">
+            <div className="demo-section-header">
+              <div>
+                <p className="demo-page-eyebrow">Timeline</p>
+                <h2 className="mt-1 text-section-title">Thread activity</h2>
+              </div>
+            </div>
+            <CardContent className="space-y-3 pt-5">
               {thread.activity.length === 0 ? (
-                <p className="text-body py-8 text-center">No activity recorded yet.</p>
+                <div className="demo-empty-state">
+                  <p className="text-section-title">No activity recorded yet</p>
+                  <p className="mt-1 text-body">Changes to this thread will appear here as the task evolves.</p>
+                </div>
               ) : (
                 thread.activity.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-border-soft bg-card px-4 py-3">
+                  <div
+                    key={entry.id}
+                    className="rounded-[18px] border border-border-soft bg-card px-4 py-4 shadow-[var(--shadow-subtle)]"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-sm text-foreground">{entry.title}</p>
                       <Badge variant="secondary">{entry.kind}</Badge>

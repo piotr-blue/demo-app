@@ -3,13 +3,24 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { DemoPageHeader } from "@/components/demo/demo-page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import type { DemoSearchFilter } from "@/lib/demo/search";
 import { searchSnapshot } from "@/lib/demo/search";
+import {
+  BlocksIcon,
+  Building2Icon,
+  FileTextIcon,
+  FilterIcon,
+  MessagesSquareIcon,
+  SearchIcon,
+  SparklesIcon,
+  WorkflowIcon,
+} from "lucide-react";
 
 const FILTERS: Array<{ key: DemoSearchFilter; label: string }> = [
   { key: "all", label: "All" },
@@ -27,6 +38,19 @@ function badgeVariant(type: "workspace" | "thread" | "document" | "service") {
     return "outline";
   }
   return "secondary";
+}
+
+function resultIcon(type: "workspace" | "thread" | "document" | "service") {
+  switch (type) {
+    case "workspace":
+      return <Building2Icon className="size-4" />;
+    case "thread":
+      return <MessagesSquareIcon className="size-4" />;
+    case "service":
+      return <WorkflowIcon className="size-4" />;
+    default:
+      return <FileTextIcon className="size-4" />;
+  }
 }
 
 export default function SearchPage() {
@@ -55,26 +79,45 @@ export default function SearchPage() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl space-y-5">
-      <div className="demo-surface px-6 py-5">
-        <h1 className="text-page-title">Search</h1>
-        <p className="mt-1.5 text-body">Search across workspaces, documents, threads, and services.</p>
+    <section className="demo-page-shell">
+      <DemoPageHeader
+        eyebrow="Global search"
+        icon={<SearchIcon className="size-5" />}
+        title="Search"
+        description="Search across workspaces, documents, threads, and services without changing the MyOS object model."
+        actions={
+          <Badge variant="outline" className="h-9 gap-1.5 rounded-[12px] px-3">
+            <SparklesIcon className="size-3.5" />
+            {results.length} results
+          </Badge>
+        }
+      />
+
+      <div className="demo-control-bar">
         <form
-          className="mt-4 flex items-center gap-2"
+          className="flex min-w-0 flex-1 items-center gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             router.push(`/search?q=${encodeURIComponent(draftQuery.trim())}`);
           }}
         >
-          <Input
-            value={draftQuery}
-            onChange={(event) => setDraftQuery(event.target.value)}
-            placeholder="Search alice, order, sms, northwind, review, supplier…"
-          />
-          <Button type="submit" size="sm">
+          <div className="relative min-w-0 flex-1">
+            <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-text-muted" />
+            <Input
+              value={draftQuery}
+              onChange={(event) => setDraftQuery(event.target.value)}
+              placeholder="Search alice, order, sms, northwind, review, supplier…"
+              className="h-11 rounded-[14px] bg-card pl-10"
+            />
+          </div>
+          <Button type="submit" size="sm" className="h-11 px-4">
             Search
           </Button>
         </form>
+        <div className="inline-flex items-center gap-2 rounded-[14px] border border-border-soft bg-card px-3 py-2 text-sm text-text-secondary">
+          <FilterIcon className="size-4 text-text-muted" />
+          Filter by object type
+        </div>
       </div>
 
       <div className="demo-muted-surface flex flex-wrap gap-2 p-2">
@@ -85,43 +128,71 @@ export default function SearchPage() {
             variant={filter === entry.key ? "default" : "outline"}
             onClick={() => setFilter(entry.key)}
           >
+            {entry.key === "all" ? <BlocksIcon className="size-3.5" /> : null}
             {entry.label}
           </Button>
         ))}
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Results {query ? `for “${query}”` : ""}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2.5">
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <div className="demo-section-header border-b-0">
+            <div>
+              <p className="demo-page-eyebrow">Search results</p>
+              <h2 className="mt-1 text-section-title">
+                {query ? `Results for “${query}”` : "Browse all indexed demo objects"}
+              </h2>
+              <p className="mt-1 text-body">
+                Workspaces, documents, threads, and services remain grouped by their original MyOS object meaning.
+              </p>
+            </div>
+            <Badge variant="outline" className="h-9 rounded-[12px] px-3">
+              {filter}
+            </Badge>
+          </div>
           {results.length === 0 ? (
-            <p className="text-body py-8 text-center">No results found. Try a broader query.</p>
-          ) : (
-            results.map((result) => (
-              <Link
-                key={`${result.type}_${result.id}`}
-                href={result.href}
-                className="flex items-start gap-3 rounded-xl border border-border-soft bg-card px-4 py-3 shadow-[var(--shadow-subtle)] transition-colors hover:border-accent-base/25 hover:bg-accent-soft/25"
-              >
-                <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-lg bg-bg-subtle text-base">
-                  {result.icon}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-sm text-foreground">{result.title}</p>
-                    <Badge variant={badgeVariant(result.type)}>{result.type}</Badge>
-                    <span className="text-caption">· {result.scope}</span>
+            <div className="p-5">
+              <div className="demo-empty-state">
+                <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+                  <span className="inline-flex size-12 items-center justify-center rounded-2xl border border-border-soft bg-card text-accent-base shadow-[var(--shadow-subtle)]">
+                    <SearchIcon className="size-5" />
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-section-title">No results found</p>
+                    <p className="text-body">
+                      Try a broader query or switch filters to inspect other MyOS object types.
+                    </p>
                   </div>
-                  <p className="mt-1 text-body line-clamp-2">{result.subtitle}</p>
                 </div>
-                {result.status ? (
-                  <Badge variant="secondary" className="shrink-0">
-                    {result.status}
-                  </Badge>
-                ) : null}
-              </Link>
-            ))
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 p-5">
+              {results.map((result) => (
+                <Link
+                  key={`${result.type}_${result.id}`}
+                  href={result.href}
+                  className="demo-list-card flex items-start gap-4"
+                >
+                  <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border-soft bg-bg-subtle text-accent-base">
+                    {resultIcon(result.type)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{result.title}</p>
+                      <Badge variant={badgeVariant(result.type)}>{result.type}</Badge>
+                      <span className="text-caption">in {result.scope}</span>
+                    </div>
+                    <p className="mt-1.5 text-body line-clamp-2">{result.subtitle}</p>
+                  </div>
+                  {result.status ? (
+                    <Badge variant="outline" className="shrink-0">
+                      {result.status}
+                    </Badge>
+                  ) : null}
+                </Link>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
