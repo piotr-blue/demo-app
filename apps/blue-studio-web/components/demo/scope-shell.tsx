@@ -5,13 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { DemoPageHeader } from "@/components/demo/demo-page-header";
+import { AssistantConversationPanel } from "@/components/demo/assistant-conversation-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import {
+  getScopeAssistantPlaybook,
   getRootDocuments,
   getScopeActivity,
   getScopeAttention,
@@ -23,7 +24,6 @@ import {
 import type { ScopeRecord } from "@/lib/demo/types";
 import {
   ActivityIcon,
-  BotIcon,
   FileTextIcon,
   Layers3Icon,
   ListTodoIcon,
@@ -41,7 +41,39 @@ function formatDate(value: string) {
   });
 }
 
-function ScopeSettingsView({ scope }: { scope: ScopeRecord }) {
+function ScopeSettingsView({
+  scope,
+  playbook,
+  onSavePlaybook,
+}: {
+  scope: ScopeRecord;
+  playbook: ReturnType<typeof getScopeAssistantPlaybook>;
+  onSavePlaybook: (patch: {
+    identityMarkdown: string;
+    defaultsMarkdown: string;
+    contextMarkdown: string;
+    overridesMarkdown: string;
+  }) => Promise<void>;
+}) {
+  const [identityMarkdown, setIdentityMarkdown] = useState(playbook?.identityMarkdown ?? "");
+  const [defaultsMarkdown, setDefaultsMarkdown] = useState(playbook?.defaultsMarkdown ?? "");
+  const [contextMarkdown, setContextMarkdown] = useState(playbook?.contextMarkdown ?? "");
+  const [overridesMarkdown, setOverridesMarkdown] = useState(playbook?.overridesMarkdown ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setIdentityMarkdown(playbook?.identityMarkdown ?? "");
+    setDefaultsMarkdown(playbook?.defaultsMarkdown ?? "");
+    setContextMarkdown(playbook?.contextMarkdown ?? "");
+    setOverridesMarkdown(playbook?.overridesMarkdown ?? "");
+  }, [
+    playbook?.id,
+    playbook?.identityMarkdown,
+    playbook?.defaultsMarkdown,
+    playbook?.contextMarkdown,
+    playbook?.overridesMarkdown,
+  ]);
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {scope.settingsBlocks.map((block) => (
@@ -82,6 +114,73 @@ function ScopeSettingsView({ scope }: { scope: ScopeRecord }) {
           </div>
         </CardContent>
       </Card>
+      <Card className="md:col-span-2">
+        <CardContent className="space-y-4 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-section-title">Assistant playbook</h3>
+            {playbook?.inheritsFromScopeId ? (
+              <Badge variant="outline">Inherits from {playbook.inheritsFromScopeId}</Badge>
+            ) : (
+              <Badge variant="secondary">Root playbook</Badge>
+            )}
+          </div>
+          <p className="text-body">
+            Best-effort guidance for language, tone, priorities, summarization, and what can stay in digest mode.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-foreground">Identity</span>
+              <textarea
+                className="min-h-28 w-full rounded-xl border border-border-soft bg-card px-3 py-2 text-sm"
+                value={identityMarkdown}
+                onChange={(event) => setIdentityMarkdown(event.target.value)}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-foreground">Defaults</span>
+              <textarea
+                className="min-h-28 w-full rounded-xl border border-border-soft bg-card px-3 py-2 text-sm"
+                value={defaultsMarkdown}
+                onChange={(event) => setDefaultsMarkdown(event.target.value)}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-foreground">Context</span>
+              <textarea
+                className="min-h-28 w-full rounded-xl border border-border-soft bg-card px-3 py-2 text-sm"
+                value={contextMarkdown}
+                onChange={(event) => setContextMarkdown(event.target.value)}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-foreground">Overrides</span>
+              <textarea
+                className="min-h-28 w-full rounded-xl border border-border-soft bg-card px-3 py-2 text-sm"
+                value={overridesMarkdown}
+                onChange={(event) => setOverridesMarkdown(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                await onSavePlaybook({
+                  identityMarkdown,
+                  defaultsMarkdown,
+                  contextMarkdown,
+                  overridesMarkdown,
+                });
+                setSaving(false);
+              }}
+            >
+              {saving ? "Saving…" : "Save playbook"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -96,13 +195,11 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
     createScopeDocument,
     createThread,
     retryWorkspaceBootstrap,
-    sendScopeMessage,
+    updateAssistantPlaybook,
     getScope,
   } = useDemoApp();
 
   const scope = getScope(scopeId);
-  const [composerText, setComposerText] = useState("");
-  const [sending, setSending] = useState(false);
 
   const threads = useMemo(
     () => (snapshot ? getScopeThreads(snapshot, scopeId) : []),
@@ -123,6 +220,10 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
   );
   const activity = useMemo(
     () => (snapshot ? getScopeActivity(snapshot, scopeId) : []),
+    [scopeId, snapshot]
+  );
+  const assistantPlaybook = useMemo(
+    () => (snapshot ? getScopeAssistantPlaybook(snapshot, scopeId) : null),
     [scopeId, snapshot]
   );
   const services = useMemo(
@@ -336,64 +437,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <div className="demo-section-header">
-                      <div>
-                        <p className="demo-page-eyebrow">Assistant panel</p>
-                        <h2 className="mt-1 text-section-title">{scope.assistant.name} conversation</h2>
-                      </div>
-                      <Badge variant="secondary">{scope.messages.length} messages</Badge>
-                    </div>
-                    <CardContent className="space-y-4 pt-5">
-                      <div className="max-h-[420px] space-y-3 overflow-auto pr-1">
-                        {scope.messages.map((entry) => (
-                          <div
-                            key={entry.id}
-                            className={`rounded-[18px] border px-4 py-3 ${
-                              entry.role === "assistant"
-                                ? "border-border-soft bg-bg-subtle/80"
-                                : entry.role === "user"
-                                  ? "border-accent-base/10 bg-accent-soft/55"
-                                  : "border-border-soft bg-card"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex size-7 items-center justify-center rounded-2xl border border-border-soft bg-card text-accent-base">
-                                <BotIcon className="size-3.5" />
-                              </span>
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
-                                {entry.role}
-                              </p>
-                            </div>
-                            <p className="mt-3 text-sm leading-6 text-foreground">{entry.text}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        <Input
-                          value={composerText}
-                          onChange={(event) => setComposerText(event.target.value)}
-                          placeholder={`Message ${scope.assistant.name}…`}
-                          className="h-11 flex-1"
-                        />
-                        <Button
-                          size="sm"
-                          className="h-11 px-4"
-                          disabled={sending || composerText.trim().length === 0}
-                          onClick={async () => {
-                            const text = composerText.trim();
-                            if (!text) return;
-                            setSending(true);
-                            await sendScopeMessage(scope.id, text);
-                            setComposerText("");
-                            setSending(false);
-                          }}
-                        >
-                          {sending ? "Sending…" : "Send"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <AssistantConversationPanel scope={scope} />
                 </div>
 
                 <div className="space-y-5">
@@ -703,7 +747,15 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
               </Card>
             ) : null}
 
-            {section.kind === "settings" ? <ScopeSettingsView scope={scope} /> : null}
+            {section.kind === "settings" ? (
+              <ScopeSettingsView
+                scope={scope}
+                playbook={assistantPlaybook}
+                onSavePlaybook={async (patch) => {
+                  await updateAssistantPlaybook(scope.id, patch);
+                }}
+              />
+            ) : null}
           </TabsContent>
         ))}
       </Tabs>

@@ -14,13 +14,17 @@ import {
   appendThreadMessage,
   applyDocumentAction,
   applyThreadAction,
-  appendScopeMessage,
   createRootDocument,
   createThreadInScope,
   createWorkspaceFromTemplate,
   loadDemoSnapshot,
+  replyToAssistantExchange as replyToAssistantExchangeAction,
+  resolveAssistantExchange as resolveAssistantExchangeAction,
   resetDemoSnapshot,
   retryWorkspaceBootstrap,
+  startAssistantDemoDiscussion as startAssistantDemoDiscussionAction,
+  startUserDiscussion as startUserDiscussionAction,
+  updateAssistantPlaybook as updateAssistantPlaybookAction,
 } from "@/lib/demo/scope-actions";
 import {
   emptyDemoCredentials,
@@ -30,11 +34,9 @@ import {
 import {
   getBlinkScope,
   getScopeById,
-  getScopeDocuments,
-  getScopeThreads,
-  getWorkspaceScopes,
 } from "@/lib/demo/selectors";
 import type {
+  AssistantPlaybookRecord,
   DemoCredentials,
   DemoSnapshot,
   ScopeRecord,
@@ -59,7 +61,19 @@ interface DemoContextValue {
     title: string,
     summary: string
   ) => Promise<string | null>;
-  sendScopeMessage: (scopeId: string, text: string) => Promise<void>;
+  startAssistantDemoDiscussion: (scopeId: string) => Promise<string | null>;
+  startScopeDiscussion: (scopeId: string, text: string) => Promise<string | null>;
+  replyToAssistantExchange: (exchangeId: string, text: string) => Promise<void>;
+  resolveAssistantExchange: (exchangeId: string) => Promise<void>;
+  updateAssistantPlaybook: (
+    scopeId: string,
+    patch: Partial<
+      Pick<
+        AssistantPlaybookRecord,
+        "identityMarkdown" | "defaultsMarkdown" | "contextMarkdown" | "overridesMarkdown"
+      >
+    >
+  ) => Promise<void>;
   sendThreadMessage: (threadId: string, text: string) => Promise<void>;
   runDocumentAction: (documentId: string, actionId: string) => Promise<void>;
   runThreadAction: (threadId: string, actionId: string) => Promise<void>;
@@ -68,10 +82,6 @@ interface DemoContextValue {
 }
 
 const DemoContext = createContext<DemoContextValue | null>(null);
-
-function fallbackAssistantReply(scopeName: string): string {
-  return `I can help inside ${scopeName}. For repeated or long-running work, create a thread. For a concrete artifact, create a document.`;
-}
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<DemoSnapshot | null>(null);
@@ -160,83 +170,48 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const sendScopeMessage = useCallback(
-    async (scopeId: string, text: string): Promise<void> => {
-      const afterUser = await appendScopeMessage(scopeId, "user", text);
-      setSnapshot(afterUser);
-      const scope = getScopeById(afterUser, scopeId);
-      if (!scope) {
-        return;
-      }
-
-      const threadSummaries = getScopeThreads(afterUser, scopeId).map((thread) => ({
-        id: thread.id,
-        title: thread.title,
-        summary: thread.summary,
-        status: thread.status,
-      }));
-      const documentSummaries = getScopeDocuments(afterUser, scopeId).map((document) => ({
-        id: document.id,
-        title: document.title,
-        kind: document.kind,
-        status: document.status,
-      }));
-      const workspaceSummaries =
-        scope.type === "blink"
-          ? getWorkspaceScopes(afterUser).map((entry) => ({
-              id: entry.id,
-              name: entry.name,
-              bootstrapStatus: entry.bootstrapStatus,
-            }))
-          : [];
-      const rootDocuments =
-        scope.type === "blink"
-          ? afterUser.documents
-              .filter((document) => document.scopeId === null)
-              .map((document) => ({
-                id: document.id,
-                title: document.title,
-                kind: document.kind,
-                status: document.status,
-              }))
-          : [];
-
-      let assistantReply = "";
-      try {
-        const response = await fetch("/api/demo/assistant/chat", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            credentials,
-            scope: {
-              id: scope.id,
-              type: scope.type,
-              name: scope.name,
-              templateKey: scope.templateKey ?? null,
-              anchors: scope.anchors,
-              threadSummaries,
-              documentSummaries,
-              workspaceSummaries,
-              rootDocuments,
-            },
-            messages: [...scope.messages, { role: "user", text }],
-          }),
-        });
-        const payload = (await response.json()) as
-          | { ok: true; message: string }
-          | { ok: false; error?: string };
-        assistantReply =
-          payload.ok && payload.message.trim().length > 0
-            ? payload.message
-            : fallbackAssistantReply(scope.name);
-      } catch {
-        assistantReply = fallbackAssistantReply(scope.name);
-      }
-
-      const afterAssistant = await appendScopeMessage(scopeId, "assistant", assistantReply);
-      setSnapshot(afterAssistant);
+  const startAssistantDemoDiscussion = useCallback(
+    async (scopeId: string): Promise<string | null> => {
+      const result = await startAssistantDemoDiscussionAction(scopeId);
+      setSnapshot(result.snapshot);
+      return result.exchangeId || null;
     },
-    [credentials]
+    []
+  );
+
+  const startScopeDiscussion = useCallback(
+    async (scopeId: string, text: string): Promise<string | null> => {
+      const result = await startUserDiscussionAction(scopeId, text);
+      setSnapshot(result.snapshot);
+      return result.exchangeId || null;
+    },
+    []
+  );
+
+  const replyToAssistantExchange = useCallback(async (exchangeId: string, text: string): Promise<void> => {
+    const next = await replyToAssistantExchangeAction(exchangeId, text);
+    setSnapshot(next);
+  }, []);
+
+  const resolveAssistantExchange = useCallback(async (exchangeId: string): Promise<void> => {
+    const next = await resolveAssistantExchangeAction(exchangeId);
+    setSnapshot(next);
+  }, []);
+
+  const updateAssistantPlaybook = useCallback(
+    async (
+      scopeId: string,
+      patch: Partial<
+        Pick<
+          AssistantPlaybookRecord,
+          "identityMarkdown" | "defaultsMarkdown" | "contextMarkdown" | "overridesMarkdown"
+        >
+      >
+    ): Promise<void> => {
+      const next = await updateAssistantPlaybookAction(scopeId, patch);
+      setSnapshot(next);
+    },
+    []
   );
 
   const retryWorkspaceBootstrapAction = useCallback(
@@ -285,7 +260,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       createThread: createThreadAction,
       createRootDocument: createRootDocumentAction,
       createScopeDocument: createScopeDocumentAction,
-      sendScopeMessage,
+      startAssistantDemoDiscussion,
+      startScopeDiscussion,
+      replyToAssistantExchange,
+      resolveAssistantExchange,
+      updateAssistantPlaybook,
       sendThreadMessage: sendThreadMessageAction,
       runDocumentAction: runDocumentActionHandler,
       runThreadAction: runThreadActionHandler,
@@ -300,14 +279,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       credentials,
       loading,
       refresh,
+      replyToAssistantExchange,
       retryWorkspaceBootstrapAction,
+      resolveAssistantExchange,
       resetDemoDataAction,
       runDocumentActionHandler,
       runThreadActionHandler,
-      sendScopeMessage,
       sendThreadMessageAction,
       setCredentials,
       snapshot,
+      startAssistantDemoDiscussion,
+      startScopeDiscussion,
+      updateAssistantPlaybook,
     ]
   );
 
