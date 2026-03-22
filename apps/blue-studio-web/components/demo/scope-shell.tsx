@@ -27,7 +27,6 @@ import {
   FileTextIcon,
   Layers3Icon,
   ListTodoIcon,
-  SparklesIcon,
   WorkflowIcon,
 } from "lucide-react";
 
@@ -396,46 +395,6 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                       </div>
                     ))}
                   </div>
-
-                  <Card>
-                    <CardContent className="space-y-5 pt-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="demo-page-eyebrow">Overview</p>
-                          <h2 className="mt-1 text-section-title">{scope.recap.headline}</h2>
-                        </div>
-                        <Badge variant="outline">{scope.type === "blink" ? "Root scope" : "Scoped workspace"}</Badge>
-                      </div>
-                      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-                        <ul className="space-y-3">
-                          {scope.recap.updates.map((item) => (
-                            <li
-                              key={item}
-                              className="flex gap-3 rounded-[18px] border border-border-soft bg-bg-subtle/55 px-4 py-3"
-                            >
-                              <span className="mt-0.5 inline-flex size-6 items-center justify-center rounded-full bg-accent-soft text-accent-base">
-                                <SparklesIcon className="size-3" />
-                              </span>
-                              <span className="text-body">{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="rounded-[20px] border border-accent-base/12 bg-accent-soft/65 p-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent-base">
-                            Needs attention
-                          </p>
-                          <ul className="mt-3 space-y-2 text-sm text-foreground">
-                            {scope.recap.asks.map((ask) => (
-                              <li key={ask} className="flex gap-2">
-                                <span className="text-accent-base">•</span>
-                                <span>{ask}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
 
                   <AssistantConversationPanel scope={scope} />
                 </div>
