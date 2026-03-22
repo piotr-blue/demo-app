@@ -66,21 +66,21 @@
 
 :root {
   /* ── design tokens ── */
-  --bg-app: #f1f5f9;
+  --bg-app: #f5f7fb;
   --bg-panel: #ffffff;
-  --bg-subtle: #f8fafc;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --border-soft: #e2e8f0;
-  --border-default: #dbe2ea;
+  --bg-subtle: #f8faff;
+  --text-primary: #1c2434;
+  --text-secondary: #667085;
+  --text-muted: #98a2b3;
+  --border-soft: #e6ecf5;
+  --border-default: #dfe7f1;
 
   /* brand blues – "accent-base" is the raw vivid blue; shadcn's
      --accent (hover bg) and --primary (filled bg) reference it via
      different tints so they never shadow each other. */
-  --accent-base: #4f46e5;
-  --accent-soft: #eef2ff;
-  --accent-strong: #4338ca;
+  --accent-base: #465fff;
+  --accent-soft: #eff4ff;
+  --accent-strong: #3641f5;
 
   /* ── semantic tokens (shadcn / Tailwind) ── */
   --background: var(--bg-app);
@@ -106,7 +106,7 @@
   --chart-3: oklch(0.546 0.245 262.881);
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.9rem;
+  --radius: 0.85rem;
 
   /* sidebar */
   --sidebar: var(--bg-panel);
@@ -119,9 +119,9 @@
   --sidebar-ring: var(--ring);
 
   /* shadows */
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05), 0 8px 20px rgba(15, 23, 42, 0.04);
-  --shadow-elevated: 0 14px 36px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.06), 0 12px 24px rgba(16, 24, 40, 0.04);
+  --shadow-elevated: 0 18px 40px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.06);
+  --shadow-subtle: 0 1px 2px rgba(16, 24, 40, 0.05);
 }
 
 .dark {
@@ -175,7 +175,12 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: radial-gradient(circle at 0 0, rgba(79, 70, 229, 0.08), transparent 42%);
+    background-image: linear-gradient(
+      180deg,
+      rgba(239, 244, 255, 0.7) 0,
+      rgba(245, 247, 251, 0.96) 220px,
+      rgba(245, 247, 251, 1) 100%
+    );
     letter-spacing: -0.01em;
     line-height: 1.6;
   }
@@ -216,22 +221,70 @@
   }
 
   .demo-surface {
-    @apply rounded-2xl border border-border-soft bg-card shadow-[var(--shadow-card)];
+    @apply rounded-[22px] border border-border-soft bg-card shadow-[var(--shadow-card)];
   }
 
   .demo-muted-surface {
-    @apply rounded-2xl border border-border-soft/70 bg-bg-subtle/70;
+    @apply rounded-[20px] border border-border-soft/80 bg-bg-subtle/80;
   }
 
   .demo-table-head {
-    @apply grid gap-2 border-b border-border-soft bg-bg-subtle/70 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted;
+    @apply grid gap-2 border-b border-border-soft bg-bg-subtle/80 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted;
   }
 
   .demo-table-row {
-    @apply grid gap-2 border-b border-border-soft/70 px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-accent-soft/35;
+    @apply grid gap-3 border-b border-border-soft/80 px-5 py-3.5 text-sm transition-colors last:border-b-0 hover:bg-accent-soft/50;
   }
 
   .demo-kpi {
-    @apply rounded-xl border border-border-soft bg-bg-subtle/70 p-3 shadow-[var(--shadow-subtle)];
+    @apply rounded-2xl border border-border-soft bg-card p-4 shadow-[var(--shadow-subtle)];
+  }
+
+  .demo-page-shell {
+    @apply mx-auto max-w-7xl space-y-6;
+  }
+
+  .demo-page-header {
+    @apply demo-surface px-6 py-5;
+  }
+
+  .demo-page-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-base;
+  }
+
+  .demo-control-bar {
+    @apply demo-muted-surface flex flex-wrap items-center gap-2.5 p-2.5;
+  }
+
+  .demo-section-card {
+    @apply rounded-[22px] border border-border-soft bg-card shadow-[var(--shadow-card)];
+  }
+
+  .demo-section-header {
+    @apply flex items-start justify-between gap-3 border-b border-border-soft px-5 py-4;
+  }
+
+  .demo-list-card {
+    @apply rounded-2xl border border-border-soft bg-card px-4 py-3 shadow-[var(--shadow-subtle)] transition-all hover:border-accent-base/25 hover:bg-accent-soft/35;
+  }
+
+  .demo-empty-state {
+    @apply rounded-[20px] border border-dashed border-border-soft bg-bg-subtle/75 px-6 py-10 text-center;
+  }
+
+  .demo-meta-grid {
+    @apply grid gap-3 text-sm sm:grid-cols-2;
+  }
+
+  .demo-meta-row {
+    @apply flex items-start justify-between gap-4 rounded-xl border border-border-soft bg-bg-subtle/55 px-4 py-3;
+  }
+
+  .demo-kanban-column {
+    @apply overflow-hidden rounded-[22px] border border-border-soft bg-card shadow-[var(--shadow-card)];
+  }
+
+  .demo-kanban-card {
+    @apply rounded-2xl border border-border-soft bg-card px-4 py-3 shadow-[var(--shadow-subtle)] transition-all hover:border-accent-base/25 hover:bg-accent-soft/30;
   }
 }

@@ -6,16 +6,16 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-xl border border-transparent bg-clip-padding font-semibold tracking-[-0.01em] whitespace-nowrap transition-all duration-150 outline-none select-none focus-visible:border-primary/30 focus-visible:ring-3 focus-visible:ring-primary/15 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-[12px] border border-transparent bg-clip-padding font-semibold tracking-[-0.01em] whitespace-nowrap transition-all duration-150 outline-none select-none focus-visible:border-primary/20 focus-visible:ring-3 focus-visible:ring-primary/15 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[var(--shadow-subtle)] [a]:hover:bg-primary/90 hover:bg-primary/90 hover:shadow-[var(--shadow-card)] active:scale-[0.98]",
+          "border-primary/90 bg-primary text-primary-foreground shadow-[var(--shadow-subtle)] [a]:hover:bg-primary/95 hover:border-primary/95 hover:bg-primary/95 hover:shadow-[var(--shadow-card)] active:translate-y-px",
         outline:
-          "border-border-soft bg-card text-foreground shadow-[var(--shadow-subtle)] hover:border-primary/25 hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground",
+          "border-border-soft bg-card text-foreground shadow-[var(--shadow-subtle)] hover:border-primary/20 hover:bg-accent/70 hover:text-foreground aria-expanded:bg-accent/70 aria-expanded:text-foreground",
         secondary:
-          "border-border-soft bg-secondary text-secondary-foreground shadow-[var(--shadow-subtle)] hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "border-border-soft bg-secondary text-secondary-foreground shadow-[var(--shadow-subtle)] hover:border-border-soft hover:bg-secondary/85 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "text-secondary-foreground hover:bg-bg-subtle hover:text-foreground aria-expanded:bg-bg-subtle aria-expanded:text-foreground",
         destructive:
@@ -25,15 +25,15 @@ const buttonVariants = cva(
       size: {
         default:
           "h-9 gap-1.5 px-3.5 text-sm has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
-        xs: "h-7 gap-1 rounded-[min(var(--radius-md),11px)] px-2.5 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1 rounded-[min(var(--radius-md),12px)] px-3 text-[0.82rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
+        xs: "h-7 gap-1 rounded-[10px] px-2.5 text-xs in-data-[slot=button-group]:rounded-[10px] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-8 gap-1 rounded-[11px] px-3 text-[0.82rem] in-data-[slot=button-group]:rounded-[11px] has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-10 gap-1.5 px-5 text-[0.95rem] has-data-[icon=inline-end]:pr-3.5 has-data-[icon=inline-start]:pl-3.5",
-        icon: "size-9",
+        icon: "size-9 rounded-[12px]",
         "icon-xs":
-          "size-7 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+          "size-7 rounded-[10px] in-data-[slot=button-group]:rounded-[10px] [&_svg:not([class*='size-'])]:size-3",
         "icon-sm":
-          "size-8 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-10",
+          "size-8 rounded-[11px] in-data-[slot=button-group]:rounded-[11px]",
+        "icon-lg": "size-10 rounded-[14px]",
       },
     },
     defaultVariants: {
