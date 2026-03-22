@@ -77,8 +77,8 @@ function RailLink({
           ? "mx-auto h-10 w-10 justify-center"
           : "h-10 gap-2.5 px-3 text-sm",
         active
-          ? "border-accent-base/10 bg-accent-soft text-accent-base"
-          : "text-text-secondary hover:bg-bg-subtle hover:text-foreground"
+          ? "border-accent-base/25 bg-accent-soft text-accent-base shadow-[var(--shadow-subtle)]"
+          : "text-text-secondary hover:border-border-soft hover:bg-bg-subtle hover:text-foreground"
       )}
     >
       <span className="inline-flex size-5 items-center justify-center shrink-0">
@@ -141,12 +141,12 @@ export function GlobalLeftRail() {
       {/* Header */}
       <div
         className={cn(
-          "flex items-center border-b border-border-soft",
-          railCollapsed ? "justify-center px-2 py-3.5" : "justify-between px-4 py-3.5"
+          "flex items-center border-b border-border-soft/80",
+          railCollapsed ? "justify-center px-2 py-4" : "justify-between px-4 py-4"
         )}
       >
         <div className={cn("items-center gap-2.5", railCollapsed ? "hidden" : "flex")}>
-          <span className="inline-flex size-8 items-center justify-center rounded-xl bg-accent-soft text-accent-base">
+          <span className="inline-flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent-base shadow-[var(--shadow-subtle)]">
             <SparklesIcon className="size-4" />
           </span>
           <div>
@@ -183,7 +183,7 @@ export function GlobalLeftRail() {
 
       {/* Navigation */}
       <ScrollArea className="min-h-0 flex-1">
-        <div className={cn("space-y-1", railCollapsed ? "p-2" : "p-3")}>
+        <div className={cn("space-y-1.5", railCollapsed ? "p-2" : "p-3")}>
           {navItems
             .filter((item) => item.key !== "settings")
             .map((item) => (
@@ -201,7 +201,7 @@ export function GlobalLeftRail() {
           <Separator className={cn("my-3", railCollapsed ? "mx-1.5" : "mx-0.5")} />
 
           {!railCollapsed ? (
-            <p className="px-3 pb-1 text-xs text-text-muted uppercase tracking-[0.06em] font-medium">
+            <p className="px-3 pb-1 text-[11px] text-text-muted uppercase tracking-[0.08em] font-semibold">
               Workspaces
             </p>
           ) : null}
@@ -235,7 +235,7 @@ export function GlobalLeftRail() {
             )}
           </div>
 
-          <div className={cn("pt-1.5", railCollapsed ? "flex justify-center" : "")}>
+          <div className={cn("pt-2", railCollapsed ? "flex justify-center" : "")}>
             {railCollapsed ? (
               <WorkspaceTemplateDialog
                 compact
@@ -267,13 +267,13 @@ export function GlobalLeftRail() {
       {/* Footer user card */}
       <div
         className={cn(
-          "border-t border-border-soft",
-          railCollapsed ? "px-2 py-3" : "px-3 py-3"
+          "border-t border-border-soft/80",
+          railCollapsed ? "px-2 py-3.5" : "px-3 py-3.5"
         )}
       >
         <div
           className={cn(
-            "flex items-center rounded-xl bg-bg-subtle",
+            "flex items-center rounded-xl border border-border-soft/70 bg-bg-subtle/70",
             railCollapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2.5"
           )}
         >
@@ -317,7 +317,7 @@ export function GlobalLeftRail() {
         {/* Drawer */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-card shadow-[var(--shadow-elevated)] transition-transform duration-300 ease-in-out md:hidden",
+            "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-border-soft bg-card shadow-[var(--shadow-elevated)] transition-transform duration-300 ease-in-out md:hidden",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -331,7 +331,7 @@ export function GlobalLeftRail() {
   return (
     <aside
       className={cn(
-        "hidden md:flex h-screen shrink-0 flex-col border-r border-border-soft bg-card transition-[width] duration-300 ease-in-out",
+        "hidden md:flex h-screen shrink-0 flex-col border-r border-border-soft/80 bg-card/95 transition-[width] duration-300 ease-in-out",
         railCollapsed ? "w-[72px]" : "w-[260px]"
       )}
     >

@@ -40,7 +40,7 @@ export function DocumentDetailShell({
 
   return (
     <section className="mx-auto max-w-5xl space-y-5">
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
+      <div className="demo-surface flex items-center justify-between gap-3 px-6 py-5">
         <div>
           <h1 className="text-page-title">{document.title}</h1>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -57,7 +57,7 @@ export function DocumentDetailShell({
       </div>
 
       <Tabs defaultValue="ui">
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="ui">UI</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -85,6 +85,7 @@ export function DocumentDetailShell({
                           await runDocumentAction(document.id, action.id);
                           setBusyActionId(null);
                         }}
+                        className="h-9"
                       >
                         {busyActionId === action.id ? "Applying…" : action.label}
                       </Button>
@@ -110,12 +111,17 @@ export function DocumentDetailShell({
                 <CardContent className="space-y-2.5 pt-5">
                   <h3 className="text-section-title">{block.title}</h3>
                   {block.description ? <p className="text-body">{block.description}</p> : null}
-                  {block.items.map((item) => (
-                    <div key={`${block.id}_${item.label}`} className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-                      <span className="text-text-muted">{item.label}</span>
-                      <span className="text-foreground">{item.value}</span>
-                    </div>
-                  ))}
+                  <div className="overflow-hidden rounded-xl border border-border-soft">
+                    {block.items.map((item) => (
+                      <div
+                        key={`${block.id}_${item.label}`}
+                        className="grid grid-cols-[140px_1fr] gap-2 border-b border-border-soft/70 bg-card px-3 py-2 text-sm last:border-b-0"
+                      >
+                        <span className="text-text-muted">{item.label}</span>
+                        <span className="text-foreground">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -145,7 +151,7 @@ export function DocumentDetailShell({
                 <p className="text-body py-8 text-center">No activity recorded yet.</p>
               ) : (
                 document.activity.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-border-soft px-4 py-3">
+                  <div key={entry.id} className="rounded-xl border border-border-soft bg-card px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-sm text-foreground">{entry.title}</p>
                       <Badge variant="secondary">{entry.kind}</Badge>

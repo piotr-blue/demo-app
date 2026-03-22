@@ -56,7 +56,7 @@ export default function SearchPage() {
 
   return (
     <section className="mx-auto max-w-6xl space-y-5">
-      <div className="rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
+      <div className="demo-surface px-6 py-5">
         <h1 className="text-page-title">Search</h1>
         <p className="mt-1.5 text-body">Search across workspaces, documents, threads, and services.</p>
         <form
@@ -77,7 +77,7 @@ export default function SearchPage() {
         </form>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="demo-muted-surface flex flex-wrap gap-2 p-2">
         {FILTERS.map((entry) => (
           <Button
             key={entry.key}
@@ -102,7 +102,7 @@ export default function SearchPage() {
               <Link
                 key={`${result.type}_${result.id}`}
                 href={result.href}
-                className="flex items-start gap-3 rounded-xl border border-border-soft bg-card px-4 py-3 transition-colors hover:border-accent-base/20 hover:bg-accent-soft/30"
+                className="flex items-start gap-3 rounded-xl border border-border-soft bg-card px-4 py-3 shadow-[var(--shadow-subtle)] transition-colors hover:border-accent-base/25 hover:bg-accent-soft/25"
               >
                 <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-lg bg-bg-subtle text-base">
                   {result.icon}

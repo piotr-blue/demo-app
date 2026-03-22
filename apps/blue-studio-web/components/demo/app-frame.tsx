@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { writeDemoLastRoute } from "@/lib/demo/credentials";
-import { SearchIcon } from "lucide-react";
+import { BellIcon, SearchIcon } from "lucide-react";
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -35,10 +35,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background/90">
+    <div className="flex min-h-screen bg-background">
       <GlobalLeftRail />
       <main className="min-h-screen flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-30 border-b border-border-soft/90 bg-background/95 px-4 py-3 backdrop-blur md:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 border-b border-border-soft/70 bg-background/90 px-4 py-3 backdrop-blur-xl md:px-6 lg:px-8">
           <div className="mx-auto flex max-w-7xl items-center gap-3">
             <form onSubmit={onSearchSubmit} className="flex flex-1 items-center gap-2">
               <div className="relative flex-1">
@@ -47,18 +47,27 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
                   value={searchDraft}
                   onChange={(event) => setSearchDraft(event.target.value)}
                   placeholder="Search workspaces, documents, threads, services…"
-                  className="pl-9"
+                  className="h-11 rounded-2xl border-border-soft bg-card pl-9 shadow-[var(--shadow-subtle)]"
                 />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-border-soft bg-bg-subtle px-2 py-0.5 text-[11px] font-medium text-text-muted">
+                  ⌘K
+                </span>
               </div>
-              <Button type="submit" size="sm">
+              <Button type="submit" size="sm" className="h-11 px-4">
                 Search
               </Button>
             </form>
-            <Badge variant="outline" className="hidden md:inline-flex">
+            <Badge variant="outline" className="hidden h-8 md:inline-flex">
               Demo mode
             </Badge>
-            <div className="inline-flex size-9 items-center justify-center rounded-full border border-border-soft bg-card font-semibold text-sm">
-              PB
+            <Button variant="outline" size="icon-sm" className="hidden md:inline-flex">
+              <BellIcon className="size-4" />
+            </Button>
+            <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-border-soft bg-card px-2.5 shadow-[var(--shadow-subtle)]">
+              <span className="inline-flex size-7 items-center justify-center rounded-full bg-accent-soft text-accent-base text-xs font-bold">
+                PB
+              </span>
+              <span className="hidden text-sm font-semibold md:inline">piotr-blue</span>
             </div>
           </div>
         </header>

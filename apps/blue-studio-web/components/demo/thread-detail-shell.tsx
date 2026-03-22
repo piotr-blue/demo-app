@@ -38,7 +38,7 @@ export function ThreadDetailShell({
 
   return (
     <section className="mx-auto max-w-5xl space-y-5">
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
+      <div className="demo-surface flex items-center justify-between gap-3 px-6 py-5">
         <div>
           <h1 className="text-page-title">{thread.title}</h1>
           <div className="mt-1.5 flex items-center gap-2">
@@ -56,7 +56,7 @@ export function ThreadDetailShell({
       </div>
 
       <Tabs defaultValue="chat">
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="ui">UI</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -85,7 +85,7 @@ export function ThreadDetailShell({
               </div>
               <div className="flex gap-2">
                 <input
-                  className="h-10 flex-1 rounded-xl border border-border-soft bg-card px-3 text-sm"
+                  className="h-10 flex-1 rounded-xl border border-border-soft bg-card px-3 text-sm shadow-[var(--shadow-subtle)]"
                   value={composerText}
                   onChange={(event) => setComposerText(event.target.value)}
                   placeholder="Add an update to this task…"
@@ -127,6 +127,7 @@ export function ThreadDetailShell({
                         await runThreadAction(thread.id, entry.id);
                         setBusyActionId(null);
                       }}
+                      className="h-9"
                     >
                       {busyActionId === entry.id ? "Applying…" : entry.label}
                     </Button>
@@ -143,12 +144,17 @@ export function ThreadDetailShell({
               <Card key={block.id}>
                 <CardContent className="space-y-2.5 pt-5">
                   <h3 className="text-section-title">{block.title}</h3>
-                  {block.items.map((item) => (
-                    <div key={`${block.id}_${item.label}`} className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-                      <span className="text-text-muted">{item.label}</span>
-                      <span className="text-foreground">{item.value}</span>
-                    </div>
-                  ))}
+                  <div className="overflow-hidden rounded-xl border border-border-soft">
+                    {block.items.map((item) => (
+                      <div
+                        key={`${block.id}_${item.label}`}
+                        className="grid grid-cols-[140px_1fr] gap-2 border-b border-border-soft/70 bg-card px-3 py-2 text-sm last:border-b-0"
+                      >
+                        <span className="text-text-muted">{item.label}</span>
+                        <span className="text-foreground">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -175,7 +181,7 @@ export function ThreadDetailShell({
                 <p className="text-body py-8 text-center">No activity recorded yet.</p>
               ) : (
                 thread.activity.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-border-soft px-4 py-3">
+                  <div key={entry.id} className="rounded-xl border border-border-soft bg-card px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-sm text-foreground">{entry.title}</p>
                       <Badge variant="secondary">{entry.kind}</Badge>

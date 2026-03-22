@@ -136,6 +136,12 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
   const recentThreads = threads.slice(0, 4);
   const recentDocuments = documents.slice(0, 4);
   const recentActivity = activity.slice(0, 8);
+  const threadColumns: Array<{ key: string; label: string; tone: string }> = [
+    { key: "active", label: "In Progress", tone: "bg-indigo-100 text-indigo-700" },
+    { key: "paused", label: "Paused", tone: "bg-amber-100 text-amber-700" },
+    { key: "blocked", label: "Blocked", tone: "bg-rose-100 text-rose-700" },
+    { key: "completed", label: "Completed", tone: "bg-emerald-100 text-emerald-700" },
+  ];
 
   const renderDocumentsBySection = (sectionKey: string) => {
     const sectionDocuments =
@@ -144,25 +150,27 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
         : getScopeDocumentsBySection(snapshot, scope.id, sectionKey);
 
     return (
-      <div className="space-y-2.5">
+      <div className="overflow-hidden rounded-xl border border-border-soft">
         {sectionDocuments.length === 0 ? (
-          <p className="text-body py-8 text-center">No documents in this section yet.</p>
+          <p className="text-body bg-card py-8 text-center">No documents in this section yet.</p>
         ) : (
           sectionDocuments.map((document) => (
             <Link
               key={document.id}
               href={`/documents/${encodeURIComponent(document.id)}`}
-              className="flex items-start justify-between gap-3 rounded-xl border border-border-soft px-4 py-3 transition-colors hover:border-accent-base/20 hover:bg-accent-soft/30"
+              className="demo-table-row md:grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr]"
             >
               <div>
                 <p className="font-semibold text-sm text-foreground">{document.title}</p>
-                <p className="mt-1 text-body">{document.summary}</p>
-                <p className="mt-1 text-caption">Updated {formatDate(document.updatedAt)}</p>
+                <p className="mt-1 text-caption line-clamp-1">{document.summary}</p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
+              <div className="flex items-center">
                 <Badge variant="secondary">{document.kind}</Badge>
+              </div>
+              <div className="flex items-center">
                 <Badge variant="outline">{document.status}</Badge>
               </div>
+              <span className="flex items-center text-caption">{formatDate(document.updatedAt)}</span>
             </Link>
           ))
         )}
@@ -173,7 +181,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
   return (
     <section className="mx-auto max-w-6xl space-y-5">
       {/* Page header */}
-      <div className="rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
+      <div className="demo-surface px-6 py-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-page-title">
@@ -203,7 +211,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
 
       {/* Tab section */}
       <Tabs value={activeSection} onValueChange={setActiveSection}>
-        <TabsList className="flex-wrap">
+        <TabsList variant="line" className="flex-wrap">
           {scope.sectionDefinitions.map((section) => (
             <TabsTrigger key={section.key} value={section.key}>
               {section.label}
@@ -216,6 +224,26 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
             {section.kind === "overview" ? (
               <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
                 <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="demo-kpi">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+                        Open tasks
+                      </p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">{threads.length}</p>
+                    </div>
+                    <div className="demo-kpi">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+                        Documents
+                      </p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">{documents.length}</p>
+                    </div>
+                    <div className="demo-kpi">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+                        Attention
+                      </p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">{attention.length}</p>
+                    </div>
+                  </div>
                   <Card>
                     <CardContent className="space-y-3 pt-5">
                       <h2 className="text-section-title">{scope.recap.headline}</h2>
@@ -227,7 +255,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                           </li>
                         ))}
                       </ul>
-                      <div className="rounded-xl border border-accent-base/20 bg-accent-soft/50 p-3">
+                      <div className="rounded-xl border border-accent-base/20 bg-accent-soft/60 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-accent-base">
                           Needs attention
                         </p>
@@ -313,7 +341,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                           <Link
                             key={thread.id}
                             href={`/threads/${encodeURIComponent(thread.id)}`}
-                            className="block rounded-xl border border-border-soft px-3 py-2.5 hover:bg-accent-soft/30"
+                              className="block rounded-xl border border-border-soft bg-card px-3 py-2.5 hover:border-accent-base/30 hover:bg-accent-soft/30"
                           >
                             <p className="font-medium text-sm text-foreground">{thread.title}</p>
                             <p className="text-caption">{thread.status} · {thread.progress}%</p>
@@ -332,7 +360,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                           <Link
                             key={document.id}
                             href={`/documents/${encodeURIComponent(document.id)}`}
-                            className="block rounded-xl border border-border-soft px-3 py-2.5 hover:bg-accent-soft/30"
+                              className="block rounded-xl border border-border-soft bg-card px-3 py-2.5 hover:border-accent-base/30 hover:bg-accent-soft/30"
                           >
                             <p className="font-medium text-sm text-foreground">{document.title}</p>
                             <p className="text-caption">{document.status}</p>
@@ -366,45 +394,65 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
             ) : null}
 
             {section.kind === "tasks" ? (
-              <Card>
-                <CardContent className="space-y-3 pt-5">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-section-title">{section.label}</h2>
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        const threadId = await createThread(scope.id);
-                        if (threadId) {
-                          router.push(`/threads/${encodeURIComponent(threadId)}`);
-                        }
-                      }}
-                    >
-                      New task
-                    </Button>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-section-title">{section.label}</h2>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      const threadId = await createThread(scope.id);
+                      if (threadId) {
+                        router.push(`/threads/${encodeURIComponent(threadId)}`);
+                      }
+                    }}
+                  >
+                    New task
+                  </Button>
+                </div>
+                {threads.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-8 text-body text-center">No tasks in this scope yet.</CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 xl:grid-cols-4">
+                    {threadColumns.map((column) => {
+                      const grouped = threads.filter((thread) => thread.status === column.key);
+                      return (
+                        <Card key={column.key} className="overflow-hidden">
+                          <CardContent className="space-y-3 p-0">
+                            <div className="flex items-center justify-between border-b border-border-soft bg-bg-subtle/70 px-4 py-3">
+                              <p className="text-sm font-semibold text-foreground">{column.label}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${column.tone}`}>
+                                {grouped.length}
+                              </span>
+                            </div>
+                            <div className="space-y-3 p-4">
+                              {grouped.length === 0 ? (
+                                <p className="text-caption">No tasks in this column.</p>
+                              ) : (
+                                grouped.map((thread) => (
+                                  <Link
+                                    key={thread.id}
+                                    href={`/threads/${encodeURIComponent(thread.id)}`}
+                                    className="block rounded-xl border border-border-soft bg-card px-3 py-3 shadow-[var(--shadow-subtle)] hover:border-accent-base/25 hover:bg-accent-soft/25"
+                                  >
+                                    <p className="font-semibold text-sm text-foreground">{thread.title}</p>
+                                    <p className="mt-1.5 text-caption">{thread.summary}</p>
+                                    <div className="mt-2 flex items-center justify-between">
+                                      <Badge variant="outline">{thread.progress}%</Badge>
+                                      <span className="text-caption">{formatDate(thread.updatedAt)}</span>
+                                    </div>
+                                  </Link>
+                                ))
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
-                  {threads.length === 0 ? (
-                    <p className="text-body py-8 text-center">No tasks in this scope yet.</p>
-                  ) : (
-                    threads.map((thread) => (
-                      <Link
-                        key={thread.id}
-                        href={`/threads/${encodeURIComponent(thread.id)}`}
-                        className="grid gap-2 rounded-xl border border-border-soft px-4 py-3 hover:border-accent-base/20 hover:bg-accent-soft/20 md:grid-cols-[1.2fr_auto_auto_auto]"
-                      >
-                        <div>
-                          <p className="font-semibold text-sm text-foreground">{thread.title}</p>
-                          <p className="text-body">{thread.summary}</p>
-                        </div>
-                        <Badge variant="secondary" className="h-fit">
-                          {thread.status}
-                        </Badge>
-                        <span className="text-caption">{thread.progress}%</span>
-                        <span className="text-caption">{formatDate(thread.updatedAt)}</span>
-                      </Link>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
+                )}
+              </div>
             ) : null}
 
             {section.kind === "documents" || section.kind === "domain" ? (
@@ -436,6 +484,12 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                       New document
                     </Button>
                   </div>
+                  <div className="demo-table-head md:grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr]">
+                    <span>Title</span>
+                    <span>Type</span>
+                    <span>Status</span>
+                    <span>Updated</span>
+                  </div>
                   {renderDocumentsBySection(section.key)}
                 </CardContent>
               </Card>
@@ -452,7 +506,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                       <Link
                         key={service.id}
                         href={`/documents/${encodeURIComponent(service.id)}`}
-                        className="flex items-start justify-between gap-3 rounded-xl border border-border-soft px-4 py-3 hover:border-accent-base/20 hover:bg-accent-soft/30"
+                        className="flex items-start justify-between gap-3 rounded-xl border border-border-soft bg-card px-4 py-3 hover:border-accent-base/25 hover:bg-accent-soft/25"
                       >
                         <div>
                           <p className="font-semibold text-sm text-foreground">{service.title}</p>
