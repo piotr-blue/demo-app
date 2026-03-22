@@ -41,6 +41,42 @@ export function getRootDocuments(snapshot: DemoSnapshot): DocumentRecord[] {
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
+export function getScopeServices(snapshot: DemoSnapshot, scopeId: string): DocumentRecord[] {
+  if (scopeId === BLINK_SCOPE_ID) {
+    return snapshot.documents
+      .filter((document) => document.scopeId === null && document.isService)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
+  return snapshot.documents
+    .filter((document) => document.scopeId === scopeId && document.isService)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+export function getScopeDocumentsBySection(
+  snapshot: DemoSnapshot,
+  scopeId: string,
+  sectionKey: string
+): DocumentRecord[] {
+  if (scopeId === BLINK_SCOPE_ID) {
+    return snapshot.documents
+      .filter((document) => document.scopeId === null && document.sectionKey === sectionKey)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
+  return snapshot.documents
+    .filter((document) => document.scopeId === scopeId && document.sectionKey === sectionKey)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+export function getScopeThreadsBySection(
+  snapshot: DemoSnapshot,
+  scopeId: string,
+  sectionKey: string
+): ThreadRecord[] {
+  return snapshot.threads
+    .filter((thread) => thread.scopeId === scopeId && thread.sectionKey === sectionKey)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
 export function getScopeAttention(snapshot: DemoSnapshot, scopeId: string) {
   return snapshot.attentionItems
     .filter((item) => item.scopeId === scopeId && item.status === "pending")

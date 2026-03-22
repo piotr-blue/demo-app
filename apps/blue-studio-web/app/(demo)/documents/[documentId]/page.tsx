@@ -2,9 +2,10 @@
 
 import { useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { BlueDocumentShell } from "@/components/demo/blue-document-shell";
+import { DocumentDetailShell } from "@/components/demo/document-detail-shell";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import { getDocumentById, getScopeById } from "@/lib/demo/selectors";
+import { BLINK_SCOPE_ID } from "@/lib/demo/seed";
 
 export default function DocumentDetailsPage() {
   const { snapshot, loading } = useDemoApp();
@@ -31,30 +32,17 @@ export default function DocumentDetailsPage() {
   }
 
   const scope = document.scopeId ? getScopeById(snapshot, document.scopeId) : null;
-  const backHref = scope ? `/workspaces/${encodeURIComponent(scope.id)}` : "/documents";
-  const details = {
-    id: document.id,
-    scopeId: document.scopeId,
-    kind: document.kind,
-    status: document.status,
-    createdAt: document.createdAt,
-    updatedAt: document.updatedAt,
-    sessionId: document.sessionId ?? null,
-    myosDocumentId: document.myosDocumentId ?? null,
-    details: document.details,
-  };
+  const resolvedScope = scope ?? getScopeById(snapshot, BLINK_SCOPE_ID);
+  const scopeName = resolvedScope?.name ?? "Home";
+  const backHref = scope ? `/workspaces/${encodeURIComponent(scope.id)}` : "/home?section=documents";
+  const backLabel = scope ? "Back to workspace" : "Back to Home";
 
   return (
-    <BlueDocumentShell
-      title={document.title}
-      kind={document.kind}
-      summary={document.summary}
-      status={document.status}
-      uiCards={document.uiCards}
-      details={details}
-      activity={document.activity}
+    <DocumentDetailShell
+      document={document}
+      scopeName={scopeName}
       backHref={backHref}
-      backLabel={scope ? "Back to workspace" : "Back to documents"}
+      backLabel={backLabel}
     />
   );
 }

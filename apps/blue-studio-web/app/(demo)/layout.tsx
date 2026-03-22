@@ -1,6 +1,8 @@
 import { AppFrame } from "@/components/demo/app-frame";
 import { DemoProvider } from "@/components/demo/demo-provider";
 
+export const dynamic = "force-dynamic";
+
 export default function DemoLayout({
   children,
 }: Readonly<{

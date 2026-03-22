@@ -17,7 +17,6 @@ export function buildThreadUiCards(thread: ThreadRecord, scope: ScopeRecord | nu
       id: createActivityId(),
       title: "Scope",
       body: scope ? `Belongs to ${scope.name}.` : "Scope metadata unavailable.",
-      ctaLabel: "View scope",
     },
   ];
 }
@@ -33,7 +32,6 @@ export function buildGenericDocumentCards(title: string, status: string): Docume
       id: createActivityId(),
       title: "Suggested next action",
       body: "Review details and decide whether this should spawn a new thread.",
-      ctaLabel: "Review details",
     },
   ];
 }

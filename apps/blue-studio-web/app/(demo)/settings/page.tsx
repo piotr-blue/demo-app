@@ -12,9 +12,10 @@ import type { DemoCredentials } from "@/lib/demo/types";
 import { CheckIcon } from "lucide-react";
 
 export default function SettingsPage() {
-  const { credentials, setCredentials } = useDemoApp();
+  const { credentials, setCredentials, resetDemoData } = useDemoApp();
   const [draft, setDraft] = useState<DemoCredentials>(credentials);
   const [saved, setSaved] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     setDraft(credentials);
@@ -31,7 +32,7 @@ export default function SettingsPage() {
       <div className="rounded-2xl border border-border-soft bg-card px-6 py-5 shadow-[var(--shadow-card)]">
         <h1 className="text-page-title">Settings</h1>
         <p className="mt-1.5 text-body">
-          Local demo credentials and environment info.
+          Local demo credentials, reset controls, and compatibility links.
         </p>
       </div>
 
@@ -104,6 +105,29 @@ export default function SettingsPage() {
               Save credentials
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Demo state</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p className="text-body">
+            Demo data is stored locally (IndexedDB) so your interactions persist across refreshes.
+          </p>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={resetting}
+            onClick={async () => {
+              setResetting(true);
+              await resetDemoData();
+              setResetting(false);
+            }}
+          >
+            {resetting ? "Resetting…" : "Reset demo data"}
+          </Button>
         </CardContent>
       </Card>
 

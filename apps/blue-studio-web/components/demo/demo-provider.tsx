@@ -11,16 +11,16 @@ import {
 } from "react";
 import {
   addScopeDocument,
+  appendThreadMessage,
+  applyDocumentAction,
+  applyThreadAction,
   appendScopeMessage,
   createRootDocument,
   createThreadInScope,
   createWorkspaceFromTemplate,
   loadDemoSnapshot,
-  markWorkspaceBootstrapFailed,
-  markWorkspaceBootstrapRunning,
-  markWorkspaceBootstrapSuccess,
+  resetDemoSnapshot,
   retryWorkspaceBootstrap,
-  syncThreadDocumentSnapshot,
 } from "@/lib/demo/scope-actions";
 import {
   emptyDemoCredentials,
@@ -60,7 +60,11 @@ interface DemoContextValue {
     summary: string
   ) => Promise<string | null>;
   sendScopeMessage: (scopeId: string, text: string) => Promise<void>;
+  sendThreadMessage: (threadId: string, text: string) => Promise<void>;
+  runDocumentAction: (documentId: string, actionId: string) => Promise<void>;
+  runThreadAction: (threadId: string, actionId: string) => Promise<void>;
   retryWorkspaceBootstrap: (scopeId: string) => Promise<void>;
+  resetDemoData: () => Promise<void>;
 }
 
 const DemoContext = createContext<DemoContextValue | null>(null);
@@ -103,64 +107,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     writeDemoCredentials(nextCredentials);
   }, []);
 
-  const runWorkspaceBootstrap = useCallback(
-    async (params: {
-      workspaceId: string;
-      templateKey: WorkspaceTemplateKey;
-      workspaceName: string;
-    }) => {
-      const runningSnapshot = await markWorkspaceBootstrapRunning(params.workspaceId);
-      setSnapshot(runningSnapshot);
-
-      try {
-        const response = await fetch("/api/demo/workspaces/bootstrap", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            credentials,
-            templateKey: params.templateKey,
-            workspaceName: params.workspaceName,
-          }),
-        });
-        const payload = (await response.json()) as
-          | {
-              ok: true;
-              sessionId: string | null;
-              coreDocumentId: string | null;
-              myosDocumentId?: string | null;
-            }
-          | {
-              ok: false;
-              error: string;
-            };
-        if (!payload.ok) {
-          const failedSnapshot = await markWorkspaceBootstrapFailed(
-            params.workspaceId,
-            payload.error || "Workspace bootstrap failed."
-          );
-          setSnapshot(failedSnapshot);
-          return;
-        }
-        const successSnapshot = await markWorkspaceBootstrapSuccess({
-          scopeId: params.workspaceId,
-          sessionId: payload.sessionId,
-          coreDocumentId: payload.coreDocumentId,
-          myosDocumentId: payload.myosDocumentId ?? null,
-        });
-        setSnapshot(successSnapshot);
-      } catch (error) {
-        const failedSnapshot = await markWorkspaceBootstrapFailed(
-          params.workspaceId,
-          error instanceof Error ? error.message : "Workspace bootstrap failed."
-        );
-        setSnapshot(failedSnapshot);
-      }
-    },
-    [credentials]
-  );
-
   const createWorkspaceAction = useCallback(
     async (params: {
       templateKey: WorkspaceTemplateKey;
@@ -174,14 +120,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         return null;
       }
       setSnapshot(result.snapshot);
-      void runWorkspaceBootstrap({
-        workspaceId: result.workspaceId,
-        templateKey: params.templateKey,
-        workspaceName: params.workspaceName,
-      });
       return result.workspaceId;
     },
-    [runWorkspaceBootstrap]
+    []
   );
 
   const createThreadAction = useCallback(
@@ -193,8 +134,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (!created.threadId) {
         return null;
       }
-      const synced = await syncThreadDocumentSnapshot(created.threadId);
-      setSnapshot(synced);
+      setSnapshot(created.snapshot);
       return created.threadId;
     },
     []
@@ -303,18 +243,35 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     async (scopeId: string): Promise<void> => {
       const next = await retryWorkspaceBootstrap(scopeId);
       setSnapshot(next);
-      const scope = getScopeById(next, scopeId);
-      if (!scope || scope.type !== "workspace" || !scope.templateKey) {
-        return;
-      }
-      void runWorkspaceBootstrap({
-        workspaceId: scopeId,
-        templateKey: scope.templateKey,
-        workspaceName: scope.name,
-      });
     },
-    [runWorkspaceBootstrap]
+    []
   );
+
+  const sendThreadMessageAction = useCallback(async (threadId: string, text: string): Promise<void> => {
+    const afterUser = await appendThreadMessage(threadId, "user", text);
+    setSnapshot(afterUser);
+    const afterAssistant = await appendThreadMessage(
+      threadId,
+      "assistant",
+      "Acknowledged. I logged your update in this thread."
+    );
+    setSnapshot(afterAssistant);
+  }, []);
+
+  const runDocumentActionHandler = useCallback(async (documentId: string, actionId: string): Promise<void> => {
+    const next = await applyDocumentAction(documentId, actionId);
+    setSnapshot(next);
+  }, []);
+
+  const runThreadActionHandler = useCallback(async (threadId: string, actionId: string): Promise<void> => {
+    const next = await applyThreadAction(threadId, actionId);
+    setSnapshot(next);
+  }, []);
+
+  const resetDemoDataAction = useCallback(async (): Promise<void> => {
+    const next = await resetDemoSnapshot();
+    setSnapshot(next);
+  }, []);
 
   const value = useMemo<DemoContextValue>(
     () => ({
@@ -329,7 +286,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       createRootDocument: createRootDocumentAction,
       createScopeDocument: createScopeDocumentAction,
       sendScopeMessage,
+      sendThreadMessage: sendThreadMessageAction,
+      runDocumentAction: runDocumentActionHandler,
+      runThreadAction: runThreadActionHandler,
       retryWorkspaceBootstrap: retryWorkspaceBootstrapAction,
+      resetDemoData: resetDemoDataAction,
     }),
     [
       createRootDocumentAction,
@@ -340,7 +301,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       loading,
       refresh,
       retryWorkspaceBootstrapAction,
+      resetDemoDataAction,
+      runDocumentActionHandler,
+      runThreadActionHandler,
       sendScopeMessage,
+      sendThreadMessageAction,
       setCredentials,
       snapshot,
     ]

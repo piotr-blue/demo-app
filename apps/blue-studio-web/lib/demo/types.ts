@@ -1,6 +1,19 @@
 export type DemoScopeType = "blink" | "workspace";
 export type WorkspaceTemplateKey = "shop" | "restaurant" | "generic-business";
 
+export interface DemoSectionDefinition {
+  key: string;
+  label: string;
+  kind: "overview" | "tasks" | "documents" | "services" | "domain" | "activity" | "settings";
+  description?: string;
+}
+
+export interface ScopeRecap {
+  headline: string;
+  updates: string[];
+  asks: string[];
+}
+
 export interface BaseChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -21,6 +34,18 @@ export type ScopeBootstrapStatus =
   | "ready"
   | "failed";
 
+export interface DemoSettingsItem {
+  label: string;
+  value: string;
+}
+
+export interface DemoSettingsBlock {
+  id: string;
+  title: string;
+  description?: string;
+  items: DemoSettingsItem[];
+}
+
 export interface ScopeRecord {
   id: string;
   type: DemoScopeType;
@@ -36,6 +61,10 @@ export interface ScopeRecord {
   bootstrapError?: string | null;
   anchors: string[];
   assistant: ScopeAssistantProfile;
+  recap: ScopeRecap;
+  sectionDefinitions: DemoSectionDefinition[];
+  settingsBlocks: DemoSettingsBlock[];
+  searchKeywords: string[];
   threadIds: string[];
   documentIds: string[];
   activityIds: string[];
@@ -52,16 +81,31 @@ export interface ActivityRecord {
   kind:
     | "assistant-message"
     | "user-message"
+    | "thread-message"
     | "thread-created"
     | "document-created"
     | "workspace-created"
     | "bootstrap"
+    | "document-action"
+    | "thread-action"
     | "status"
     | "error"
     | "operation";
   title: string;
   detail?: string;
   createdAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DemoActionDefinition {
+  id: string;
+  label: string;
+  description?: string;
+  activityTitle: string;
+  activityDetail: string;
+  nextStatus?: string;
+  assistantNote?: string;
+  metadataPatch?: Record<string, unknown>;
 }
 
 export interface ThreadRecord {
@@ -69,11 +113,17 @@ export interface ThreadRecord {
   scopeId: string;
   title: string;
   summary: string;
-  status: "active" | "paused" | "completed";
+  status: "active" | "paused" | "blocked" | "completed";
+  owner: string;
+  progress: number;
+  tags: string[];
+  sectionKey: string | null;
   createdAt: string;
   updatedAt: string;
   coreDocumentId?: string | null;
   sessionId?: string | null;
+  settingsBlocks: DemoSettingsBlock[];
+  uiCards: DocumentUiCard[];
   messages: BaseChatMessage[];
   activity: ActivityRecord[];
 }
@@ -82,23 +132,52 @@ export interface DocumentUiCard {
   id: string;
   title: string;
   body: string;
+  metric?: string;
   ctaLabel?: string;
+  actions?: DemoActionDefinition[];
 }
 
 export interface DocumentRecord {
   id: string;
   scopeId: string | null;
-  kind: "workspace-core" | "thread" | "agreement" | "proposal" | "payment" | "generic";
+  kind:
+    | "workspace-core"
+    | "thread"
+    | "agreement"
+    | "proposal"
+    | "payment"
+    | "generic"
+    | "service"
+    | "shared-document"
+    | "draft-document"
+    | "access"
+    | "order"
+    | "product"
+    | "partnership"
+    | "manuscript"
+    | "review"
+    | "outreach"
+    | "reservation"
+    | "supplier"
+    | "hiring";
+  category: "service" | "task-artifact" | "relationship" | "operational" | "content";
+  sectionKey: string | null;
   title: string;
   summary: string;
   status: string;
+  owner: string;
+  participants: string[];
+  tags: string[];
+  isService: boolean;
   createdAt: string;
   updatedAt: string;
   sessionId?: string | null;
   myosDocumentId?: string | null;
+  settingsBlocks: DemoSettingsBlock[];
   details: Record<string, unknown>;
   uiCards: DocumentUiCard[];
   activity: ActivityRecord[];
+  searchKeywords: string[];
 }
 
 export interface AttentionItem {

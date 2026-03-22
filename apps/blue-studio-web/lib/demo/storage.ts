@@ -11,6 +11,7 @@ import type {
 
 const DB_NAME = "myos-demo-v1";
 const DB_VERSION = 1;
+const DEMO_SEED_VERSION = "seed-first-v2";
 
 const SCOPE_STORE = "scopes";
 const THREAD_STORE = "threads";
@@ -63,8 +64,25 @@ function sortByCreatedAt<T extends { createdAt: string }>(records: T[]): T[] {
 
 async function ensureSeeded(): Promise<void> {
   const db = await getDemoDb();
+  const seededVersion = (await db.get(META_STORE, "seedVersion")) as MetaRecord | undefined;
+  const needsReseed = seededVersion?.value !== DEMO_SEED_VERSION;
+
+  if (needsReseed) {
+    const resetTx = db.transaction(
+      [SCOPE_STORE, THREAD_STORE, DOCUMENT_STORE, ATTENTION_STORE, ACTIVITY_STORE, META_STORE],
+      "readwrite"
+    );
+    await resetTx.objectStore(SCOPE_STORE).clear();
+    await resetTx.objectStore(THREAD_STORE).clear();
+    await resetTx.objectStore(DOCUMENT_STORE).clear();
+    await resetTx.objectStore(ATTENTION_STORE).clear();
+    await resetTx.objectStore(ACTIVITY_STORE).clear();
+    await resetTx.objectStore(META_STORE).clear();
+    await resetTx.done;
+  }
+
   const scopeCount = await db.count(SCOPE_STORE);
-  if (scopeCount > 0) {
+  if (scopeCount > 0 && !needsReseed) {
     return;
   }
 
@@ -92,6 +110,10 @@ async function ensureSeeded(): Promise<void> {
   await tx.objectStore(META_STORE).put({
     key: "seededAt",
     value: new Date().toISOString(),
+  } satisfies MetaRecord);
+  await tx.objectStore(META_STORE).put({
+    key: "seedVersion",
+    value: DEMO_SEED_VERSION,
   } satisfies MetaRecord);
   await tx.done;
 }

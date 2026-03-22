@@ -11,8 +11,10 @@ describe("demo storage", () => {
     const snapshot = await getDemoSnapshot();
     expect(snapshot.scopes.length).toBeGreaterThan(0);
     expect(snapshot.scopes.some((scope) => scope.type === "blink")).toBe(true);
-    expect(snapshot.threads.length).toBeGreaterThan(0);
-    expect(snapshot.documents.some((document) => document.scopeId === null)).toBe(true);
+    expect(snapshot.scopes.filter((scope) => scope.type === "workspace")).toHaveLength(3);
+    expect(snapshot.threads.length).toBeGreaterThanOrEqual(9);
+    expect(snapshot.documents.filter((document) => document.scopeId === null)).toHaveLength(4);
+    expect(snapshot.documents.some((document) => document.isService)).toBe(true);
     expect(snapshot.attentionItems.length).toBeGreaterThan(0);
   });
 });

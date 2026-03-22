@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,11 @@ import {
 } from "@/lib/demo/credentials";
 import { cn } from "@/lib/utils";
 import {
+  HomeIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  FileTextIcon,
   MenuIcon,
+  SearchIcon,
   Settings2Icon,
   SparklesIcon,
   XIcon,
@@ -27,19 +28,18 @@ import {
 
 const TOP_LEVEL_NAV_ITEMS = [
   {
-    key: "blink",
-    href: "/blink",
-    label: "Blink",
-    icon: SparklesIcon,
-    isActive: (pathname: string) => pathname === "/blink",
+    key: "home",
+    href: "/home",
+    label: "Home",
+    icon: HomeIcon,
+    isActive: (pathname: string) => pathname === "/home",
   },
   {
-    key: "documents",
-    href: "/documents",
-    label: "Documents",
-    icon: FileTextIcon,
-    isActive: (pathname: string) =>
-      pathname === "/documents" || pathname.startsWith("/documents/"),
+    key: "search",
+    href: "/search",
+    label: "Search",
+    icon: SearchIcon,
+    isActive: (pathname: string) => pathname === "/search",
   },
   {
     key: "settings",
@@ -107,21 +107,15 @@ export function GlobalLeftRail() {
   const pathname = usePathname();
   const { snapshot } = useDemoApp();
   const workspaces = snapshot ? getWorkspaceScopes(snapshot) : [];
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => readDemoLeftRailCollapsed());
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCollapsed(readDemoLeftRailCollapsed());
-  }, []);
 
   /* track mobile breakpoint */
   useEffect(() => {
     const mql = window.matchMedia("(min-width: 768px)");
     const handler = (e: MediaQueryListEvent | MediaQueryList) => {
       const isDesktop = "matches" in e ? e.matches : (e as MediaQueryListEvent).matches;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsMobile(!isDesktop);
       if (!isDesktop) {
         setMobileOpen(false);
@@ -132,9 +126,9 @@ export function GlobalLeftRail() {
     return () => mql.removeEventListener("change", handler as (e: MediaQueryListEvent) => void);
   }, []);
 
-  const closeMobileDrawer = useCallback(() => {
+  const closeMobileDrawer = () => {
     setMobileOpen(false);
-  }, []);
+  };
 
   const railCollapsed = isMobile ? false : collapsed;
   const navItems = useMemo(() => TOP_LEVEL_NAV_ITEMS, []);
@@ -233,7 +227,7 @@ export function GlobalLeftRail() {
                       {workspace.icon ?? workspace.name.slice(0, 1).toUpperCase()}
                     </span>
                   }
-                  active={pathname === `/workspaces/${workspace.id}`}
+                  active={pathname.startsWith(`/workspaces/${workspace.id}`)}
                   compactIconLabel={workspace.name}
                   onClick={isMobile ? closeMobileDrawer : undefined}
                 />

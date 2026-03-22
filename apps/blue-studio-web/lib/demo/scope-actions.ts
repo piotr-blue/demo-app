@@ -1,18 +1,29 @@
 import {
-  createActivityId,
-  createAttentionId,
   createDocumentId,
   createMessageId,
   createScopeId,
   createThreadId,
 } from "@/lib/demo/ids";
-import { getDemoSnapshot, getScope, saveActivity, saveAttentionItem, saveDocument, saveScope, saveThread } from "@/lib/demo/storage";
+import {
+  clearDemoPersistence,
+  getDemoSnapshot,
+  getDocument,
+  getScope,
+  getThread,
+  saveActivity,
+  saveDocument,
+  saveScope,
+  saveThread,
+} from "@/lib/demo/storage";
 import { getWorkspaceTemplate } from "@/lib/demo/workspace-templates";
 import { buildGenericDocumentCards, buildThreadUiCards } from "@/lib/demo/document-ui";
+import { BLINK_SCOPE_ID } from "@/lib/demo/seed";
 import type {
   ActivityRecord,
-  AttentionItem,
   BaseChatMessage,
+  DemoActionDefinition,
+  DemoSectionDefinition,
+  DemoSettingsBlock,
   DemoSnapshot,
   DocumentRecord,
   ScopeRecord,
@@ -32,6 +43,7 @@ function appendUnique(items: string[], value: string): string[] {
 }
 
 function createScopeActivity(params: {
+  id?: string;
   scopeId: string;
   scopeType: "blink" | "workspace";
   kind: ActivityRecord["kind"];
@@ -41,7 +53,7 @@ function createScopeActivity(params: {
   documentId?: string | null;
 }): ActivityRecord {
   return {
-    id: createActivityId(),
+    id: params.id ?? `act_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     scopeId: params.scopeId,
     scopeType: params.scopeType,
     kind: params.kind,
@@ -58,6 +70,91 @@ function touchScope(scope: ScopeRecord): ScopeRecord {
     ...scope,
     updatedAt: nowIso(),
   };
+}
+
+function defaultScopeSettings(scopeName: string): DemoSettingsBlock[] {
+  return [
+    {
+      id: "playbook",
+      title: "Playbook",
+      items: [
+        { label: "Primary mode", value: `Operate ${scopeName} via recap + task follow-up` },
+        { label: "Assistant behavior", value: "Concise suggestions with explicit next actions" },
+      ],
+    },
+  ];
+}
+
+function defaultThreadSettings(scopeName: string): DemoSettingsBlock[] {
+  return [
+    {
+      id: "permissions",
+      title: "Permissions summary",
+      items: [
+        { label: "Visibility", value: `${scopeName} operators` },
+        { label: "Escalation mode", value: "Escalate when blocked > 24h" },
+      ],
+    },
+    {
+      id: "reporting",
+      title: "Reporting preferences",
+      items: [
+        { label: "Digest inclusion", value: "Include in daily recap" },
+        { label: "Status update mode", value: "Manual + assistant notes" },
+      ],
+    },
+  ];
+}
+
+function defaultThreadUiCards(threadId: string): ThreadRecord["uiCards"] {
+  const makeAction = (
+    idSuffix: string,
+    label: string,
+    activityTitle: string,
+    activityDetail: string,
+    nextStatus?: string,
+    assistantNote?: string
+  ): DemoActionDefinition => ({
+    id: `${threadId}_${idSuffix}`,
+    label,
+    activityTitle,
+    activityDetail,
+    nextStatus,
+    assistantNote,
+  });
+
+  return [
+    {
+      id: `${threadId}_controls`,
+      title: "Task controls",
+      body: "Use these controls to move the task through execution states.",
+      actions: [
+        makeAction(
+          "advance",
+          "Advance progress",
+          "Progress advanced",
+          "Progress advanced with latest task updates.",
+          "active",
+          "I logged progress and updated your recap queue."
+        ),
+        makeAction(
+          "pause",
+          "Pause task",
+          "Task paused",
+          "Task paused pending external dependency.",
+          "paused"
+        ),
+        makeAction(
+          "complete",
+          "Mark complete",
+          "Task completed",
+          "Task marked complete and removed from urgent queue.",
+          "completed",
+          "Marked complete. I will include this in the digest."
+        ),
+      ],
+    },
+  ];
 }
 
 export async function loadDemoSnapshot(): Promise<DemoSnapshot> {
@@ -121,6 +218,10 @@ export async function createThreadInScope(params: {
     title,
     summary,
     status: "active",
+    owner: scope.assistant.name,
+    progress: 12,
+    tags: ["task"],
+    sectionKey: "tasks",
     createdAt,
     updatedAt: createdAt,
     messages: [
@@ -131,6 +232,8 @@ export async function createThreadInScope(params: {
         createdAt,
       },
     ],
+    settingsBlocks: defaultThreadSettings(scope.name),
+    uiCards: defaultThreadUiCards(threadId),
     activity: [],
   };
 
@@ -172,17 +275,34 @@ export async function createRootDocument(params?: {
     id: documentId,
     scopeId: null,
     kind,
+    category: kind === "service" ? "service" : "task-artifact",
+    sectionKey: kind === "service" ? "services" : "documents",
     title,
     summary,
     status: "draft",
+    owner: "Blink",
+    participants: ["Blink"],
+    tags: ["root", "document"],
+    isService: kind === "service",
     createdAt,
     updatedAt: createdAt,
+    settingsBlocks: [
+      {
+        id: "document-settings",
+        title: "Document settings",
+        items: [
+          { label: "Linked scope", value: "Home" },
+          { label: "Document type", value: kind },
+        ],
+      },
+    ],
     details: {
       source: "documents-app",
       createdVia: "manual-action",
     },
     uiCards: buildGenericDocumentCards(title, "draft"),
     activity: [],
+    searchKeywords: ["root", "document", title.toLowerCase()],
   };
 
   const activity = createScopeActivity({
@@ -213,6 +333,36 @@ export async function createWorkspaceFromTemplate(params: {
 
   const createdAt = nowIso();
   const workspaceId = createScopeId();
+  const sectionDefinitionsByTemplate: Record<WorkspaceTemplateKey, DemoSectionDefinition[]> = {
+    shop: [
+      { key: "overview", label: "Overview", kind: "overview" },
+      { key: "tasks", label: "Tasks", kind: "tasks" },
+      { key: "orders", label: "Orders", kind: "domain" },
+      { key: "products", label: "Products", kind: "domain" },
+      { key: "partnerships", label: "Partnerships", kind: "domain" },
+      { key: "activity", label: "Activity", kind: "activity" },
+      { key: "settings", label: "Settings", kind: "settings" },
+    ],
+    restaurant: [
+      { key: "overview", label: "Overview", kind: "overview" },
+      { key: "tasks", label: "Tasks", kind: "tasks" },
+      { key: "reservations", label: "Reservations", kind: "domain" },
+      { key: "suppliers", label: "Suppliers", kind: "domain" },
+      { key: "hiring", label: "Hiring", kind: "domain" },
+      { key: "activity", label: "Activity", kind: "activity" },
+      { key: "settings", label: "Settings", kind: "settings" },
+    ],
+    "generic-business": [
+      { key: "overview", label: "Overview", kind: "overview" },
+      { key: "tasks", label: "Tasks", kind: "tasks" },
+      { key: "manuscript", label: "Manuscript", kind: "domain" },
+      { key: "reviews", label: "Reviews", kind: "domain" },
+      { key: "outreach", label: "Outreach", kind: "domain" },
+      { key: "activity", label: "Activity", kind: "activity" },
+      { key: "settings", label: "Settings", kind: "settings" },
+    ],
+  };
+
   const workspace: ScopeRecord = {
     id: workspaceId,
     type: "workspace",
@@ -224,7 +374,7 @@ export async function createWorkspaceFromTemplate(params: {
     updatedAt: createdAt,
     coreDocumentId: null,
     coreSessionId: null,
-    bootstrapStatus: "pending",
+    bootstrapStatus: "ready",
     bootstrapError: null,
     anchors: [...template.anchors],
     assistant: {
@@ -232,6 +382,17 @@ export async function createWorkspaceFromTemplate(params: {
       tone: template.defaultTone,
       avatar: null,
     },
+    recap: {
+      headline: `${params.workspaceName.trim() || template.name} recap`,
+      updates: ["Workspace created from template and ready for seeded operations."],
+      asks: ["Add tasks and documents to shape this workspace."],
+    },
+    sectionDefinitions: sectionDefinitionsByTemplate[template.key],
+    settingsBlocks: defaultScopeSettings(params.workspaceName.trim() || template.name),
+    searchKeywords: [
+      template.name.toLowerCase(),
+      ...(params.workspaceName.trim() ? [params.workspaceName.trim().toLowerCase()] : []),
+    ],
     threadIds: [],
     documentIds: [],
     activityIds: [],
@@ -253,29 +414,13 @@ export async function createWorkspaceFromTemplate(params: {
     title: "Workspace created",
     detail: `Template: ${template.name}`,
   });
-  const attentionItem: AttentionItem = {
-    id: createAttentionId(),
-    scopeId: workspaceId,
-    scopeType: "workspace",
-    status: "pending",
-    title: "Workspace bootstrap started",
-    body: "Core document bootstrap is running in background.",
-    priority: "low",
-    createdAt,
-    resolvedAt: null,
-    delivery: {
-      inApp: true,
-      external: "not-sent",
-    },
-  };
-
   const nextWorkspace = touchScope({
     ...workspace,
     activityIds: [activity.id],
-    attentionItemIds: [attentionItem.id],
+    attentionItemIds: [],
   });
 
-  await Promise.all([saveScope(nextWorkspace), saveActivity(activity), saveAttentionItem(attentionItem)]);
+  await Promise.all([saveScope(nextWorkspace), saveActivity(activity)]);
   return { snapshot: await getDemoSnapshot(), workspaceId };
 }
 
@@ -319,13 +464,29 @@ export async function markWorkspaceBootstrapSuccess(params: {
     id: workspaceCoreDocumentId,
     scopeId: scope.id,
     kind: "workspace-core",
+    category: "task-artifact",
+    sectionKey: "documents",
     title: `${scope.name} core document`,
     summary: "Underlying workspace core MyOS document.",
     status: "ready",
+    owner: "Blink",
+    participants: [scope.name],
+    tags: [scope.name.toLowerCase(), "core"],
+    isService: false,
     createdAt,
     updatedAt: createdAt,
     sessionId: params.sessionId,
     myosDocumentId: params.myosDocumentId ?? null,
+    settingsBlocks: [
+      {
+        id: "workspace-core-settings",
+        title: "Workspace core settings",
+        items: [
+          { label: "Linked scope", value: scope.name },
+          { label: "Template", value: scope.templateKey ?? "none" },
+        ],
+      },
+    ],
     details: {
       workspaceId: scope.id,
       templateKey: scope.templateKey ?? null,
@@ -334,6 +495,7 @@ export async function markWorkspaceBootstrapSuccess(params: {
     },
     uiCards: buildGenericDocumentCards(`${scope.name} core document`, "ready"),
     activity: [],
+    searchKeywords: [scope.name.toLowerCase(), "core", "workspace"],
   };
 
   const activity = createScopeActivity({
@@ -373,35 +535,15 @@ export async function markWorkspaceBootstrapFailed(scopeId: string, errorMessage
     detail: errorMessage,
   });
 
-  const attentionItem: AttentionItem = {
-    id: createAttentionId(),
-    scopeId,
-    scopeType: "workspace",
-    status: "pending",
-    title: "Workspace bootstrap failed",
-    body: "Workspace remains available. Retry bootstrap from the scope page.",
-    priority: "high",
-    createdAt: nowIso(),
-    resolvedAt: null,
-    delivery: {
-      inApp: true,
-      external: "not-sent",
-    },
-  };
-
   const nextScope = touchScope({
     ...scope,
     bootstrapStatus: "failed",
     bootstrapError: errorMessage,
     activityIds: appendUnique(scope.activityIds, activity.id),
-    attentionItemIds: appendUnique(scope.attentionItemIds, attentionItem.id),
+    attentionItemIds: scope.attentionItemIds,
   });
 
-  await Promise.all([
-    saveScope(nextScope),
-    saveActivity(activity),
-    saveAttentionItem(attentionItem),
-  ]);
+  await Promise.all([saveScope(nextScope), saveActivity(activity)]);
   return getDemoSnapshot();
 }
 
@@ -420,19 +562,38 @@ export async function syncThreadDocumentSnapshot(threadId: string): Promise<Demo
     id: documentId,
     scopeId: thread.scopeId,
     kind: "thread",
+    category: "task-artifact",
+    sectionKey: "tasks",
     title: thread.title,
     summary: thread.summary,
     status: thread.status,
+    owner: thread.owner,
+    participants: [thread.owner],
+    tags: [...thread.tags],
+    isService: false,
     createdAt: existing?.createdAt ?? createdAt,
     updatedAt: createdAt,
     sessionId: thread.sessionId ?? null,
     myosDocumentId: existing?.myosDocumentId ?? null,
+    settingsBlocks:
+      existing?.settingsBlocks ??
+      [
+        {
+          id: "thread-mirror-settings",
+          title: "Thread mirror settings",
+          items: [
+            { label: "Linked thread", value: thread.id },
+            { label: "Scope", value: scope?.name ?? "Unknown scope" },
+          ],
+        },
+      ],
     details: {
       threadId: thread.id,
       scopeId: thread.scopeId,
     },
-    uiCards: buildThreadUiCards(thread, scope),
+    uiCards: existing?.uiCards ?? buildThreadUiCards(thread, scope),
     activity: existing?.activity ?? [],
+    searchKeywords: [...thread.tags, thread.title.toLowerCase()],
   };
 
   const nextThread: ThreadRecord = {
@@ -462,16 +623,33 @@ export async function addScopeDocument(params: {
     id: documentId,
     scopeId: params.scopeId,
     kind: params.kind ?? "generic",
+    category: "task-artifact",
+    sectionKey: "documents",
     title: params.title,
     summary: params.summary,
     status: "draft",
+    owner: scope.assistant.name,
+    participants: [scope.assistant.name],
+    tags: [scope.name.toLowerCase(), "document"],
+    isService: false,
     createdAt,
     updatedAt: createdAt,
+    settingsBlocks: [
+      {
+        id: "scope-document-settings",
+        title: "Scope document settings",
+        items: [
+          { label: "Linked scope", value: scope.name },
+          { label: "Document type", value: params.kind ?? "generic" },
+        ],
+      },
+    ],
     details: {
       scopeId: params.scopeId,
     },
     uiCards: buildGenericDocumentCards(params.title, "draft"),
     activity: [],
+    searchKeywords: [scope.name.toLowerCase(), params.title.toLowerCase()],
   };
   const activity = createScopeActivity({
     scopeId: params.scopeId,
@@ -504,10 +682,193 @@ export async function retryWorkspaceBootstrap(scopeId: string): Promise<DemoSnap
   });
   const nextScope = touchScope({
     ...scope,
-    bootstrapStatus: "pending",
+    bootstrapStatus: "ready",
     bootstrapError: null,
     activityIds: appendUnique(scope.activityIds, activity.id),
   });
   await Promise.all([saveScope(nextScope), saveActivity(activity)]);
+  return getDemoSnapshot();
+}
+
+export async function appendThreadMessage(
+  threadId: string,
+  role: BaseChatMessage["role"],
+  text: string
+): Promise<DemoSnapshot> {
+  const thread = await getThread(threadId);
+  if (!thread) {
+    return getDemoSnapshot();
+  }
+
+  const scope = await getScope(thread.scopeId);
+  if (!scope) {
+    return getDemoSnapshot();
+  }
+
+  const message: BaseChatMessage = {
+    id: createMessageId(),
+    role,
+    text,
+    createdAt: nowIso(),
+  };
+
+  const threadActivity = createScopeActivity({
+    scopeId: scope.id,
+    scopeType: scope.type,
+    kind: "thread-message",
+    title: role === "assistant" ? "Assistant message added" : "Message sent",
+    detail: text,
+    threadId: thread.id,
+  });
+
+  const updatedThread: ThreadRecord = {
+    ...thread,
+    messages: [...thread.messages, message],
+    updatedAt: nowIso(),
+    activity: [threadActivity, ...thread.activity],
+  };
+
+  const updatedScope = touchScope({
+    ...scope,
+    activityIds: appendUnique(scope.activityIds, threadActivity.id),
+  });
+
+  await Promise.all([saveThread(updatedThread), saveScope(updatedScope), saveActivity(threadActivity)]);
+  return getDemoSnapshot();
+}
+
+function findActionFromCards(cards: DocumentRecord["uiCards"], actionId: string): DemoActionDefinition | null {
+  for (const card of cards) {
+    const found = card.actions?.find((entry) => entry.id === actionId);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
+export async function applyDocumentAction(documentId: string, actionId: string): Promise<DemoSnapshot> {
+  const document = await getDocument(documentId);
+  if (!document) {
+    return getDemoSnapshot();
+  }
+  const scopeId = document.scopeId ?? BLINK_SCOPE_ID;
+  const scope = await getScope(scopeId);
+  if (!scope) {
+    return getDemoSnapshot();
+  }
+
+  const selectedAction = findActionFromCards(document.uiCards, actionId);
+  if (!selectedAction) {
+    return getDemoSnapshot();
+  }
+
+  const entry = createScopeActivity({
+    scopeId: scope.id,
+    scopeType: scope.type,
+    kind: "document-action",
+    title: selectedAction.activityTitle,
+    detail: selectedAction.activityDetail,
+    documentId: document.id,
+  });
+
+  const updatedDocument: DocumentRecord = {
+    ...document,
+    status: selectedAction.nextStatus ?? document.status,
+    details: {
+      ...document.details,
+      ...(selectedAction.metadataPatch ?? {}),
+      lastAction: selectedAction.label,
+      lastActionAt: entry.createdAt,
+    },
+    updatedAt: nowIso(),
+    activity: [entry, ...document.activity],
+  };
+
+  let updatedScope: ScopeRecord = touchScope({
+    ...scope,
+    activityIds: appendUnique(scope.activityIds, entry.id),
+  });
+
+  if (selectedAction.assistantNote) {
+    const assistantMessage: BaseChatMessage = {
+      id: createMessageId(),
+      role: "assistant",
+      text: selectedAction.assistantNote,
+      createdAt: nowIso(),
+    };
+    updatedScope = {
+      ...updatedScope,
+      messages: [...updatedScope.messages, assistantMessage],
+    };
+  }
+
+  await Promise.all([saveDocument(updatedDocument), saveScope(updatedScope), saveActivity(entry)]);
+  return getDemoSnapshot();
+}
+
+export async function applyThreadAction(threadId: string, actionId: string): Promise<DemoSnapshot> {
+  const thread = await getThread(threadId);
+  if (!thread) {
+    return getDemoSnapshot();
+  }
+  const scope = await getScope(thread.scopeId);
+  if (!scope) {
+    return getDemoSnapshot();
+  }
+
+  const selectedAction = findActionFromCards(thread.uiCards, actionId);
+  if (!selectedAction) {
+    return getDemoSnapshot();
+  }
+
+  const entry = createScopeActivity({
+    scopeId: scope.id,
+    scopeType: scope.type,
+    kind: "thread-action",
+    title: selectedAction.activityTitle,
+    detail: selectedAction.activityDetail,
+    threadId: thread.id,
+  });
+
+  const progressDelta = actionId.includes("advance") ? 12 : actionId.includes("complete") ? 100 : 0;
+  const nextProgress = actionId.includes("complete")
+    ? 100
+    : Math.min(100, Math.max(0, thread.progress + progressDelta));
+
+  const updatedThread: ThreadRecord = {
+    ...thread,
+    status: (selectedAction.nextStatus as ThreadRecord["status"] | undefined) ?? thread.status,
+    progress: nextProgress,
+    updatedAt: nowIso(),
+    activity: [entry, ...thread.activity],
+  };
+
+  let updatedScope: ScopeRecord = touchScope({
+    ...scope,
+    activityIds: appendUnique(scope.activityIds, entry.id),
+  });
+
+  if (selectedAction.assistantNote) {
+    updatedScope = {
+      ...updatedScope,
+      messages: [
+        ...updatedScope.messages,
+        {
+          id: createMessageId(),
+          role: "assistant",
+          text: selectedAction.assistantNote,
+          createdAt: nowIso(),
+        },
+      ],
+    };
+  }
+
+  await Promise.all([saveThread(updatedThread), saveScope(updatedScope), saveActivity(entry)]);
+  return getDemoSnapshot();
+}
+
+export async function resetDemoSnapshot(): Promise<DemoSnapshot> {
+  await clearDemoPersistence();
   return getDemoSnapshot();
 }
