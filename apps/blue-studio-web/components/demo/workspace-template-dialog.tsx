@@ -25,10 +25,14 @@ export function WorkspaceTemplateDialog({
   buttonClassName,
   compact = false,
   tooltipLabel,
+  triggerLabel = "New workspace",
+  triggerVariant,
 }: {
   buttonClassName?: string;
   compact?: boolean;
   tooltipLabel?: string;
+  triggerLabel?: string;
+  triggerVariant?: "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
 }) {
   const router = useRouter();
   const { createWorkspace } = useDemoApp();
@@ -41,10 +45,10 @@ export function WorkspaceTemplateDialog({
     <Button
       className={buttonClassName}
       size={compact ? "icon" : "default"}
-      variant={compact ? "outline" : "default"}
+      variant={triggerVariant ?? (compact ? "outline" : "default")}
     >
       <PlusIcon />
-      <span className={compact ? "sr-only" : ""}>New workspace</span>
+      <span className={compact ? "sr-only" : ""}>{triggerLabel}</span>
     </Button>
   );
 

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeftIcon, FileTextIcon } from "lucide-react";
-import { DemoPageHeader } from "@/components/demo/demo-page-header";
+import { ArrowLeftIcon, BellRingIcon, FileTextIcon, ListTodoIcon, MessageSquareIcon, StarIcon, WorkflowIcon, HomeIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StudioEmptyState, StudioPageHeader, StudioSectionCard } from "@/components/studio/studio-primitives";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import type { DocumentRecord } from "@/lib/demo/types";
 
@@ -24,11 +24,21 @@ function formatDate(value: string) {
 export function DocumentDetailShell({
   document,
   scopeName,
+  scopeId,
+  scopeType,
+  scopeIcon,
+  scopeAssistantName,
+  activeSection,
   backHref,
   backLabel,
 }: {
   document: DocumentRecord;
   scopeName: string;
+  scopeId: string;
+  scopeType: "blink" | "workspace";
+  scopeIcon?: string | null;
+  scopeAssistantName: string;
+  activeSection: "chat" | "tasks" | "all-documents" | "starred" | "services" | "subscriptions";
   backHref: string;
   backLabel: string;
 }) {
@@ -39,48 +49,93 @@ export function DocumentDetailShell({
     [document.uiCards]
   );
 
-  return (
-    <section className="demo-page-shell max-w-6xl">
-      <DemoPageHeader
-        eyebrow="Document detail"
-        icon={<FileTextIcon className="size-5" />}
-        title={document.title}
-        description={document.summary}
-        actions={
-          <Button variant="outline" size="sm" render={<Link href={backHref} />}>
-            <ArrowLeftIcon className="size-3.5" />
-            {backLabel}
-          </Button>
-        }
-        meta={
-          <>
-            <Badge variant="secondary">{document.kind}</Badge>
-            <Badge variant={document.isService ? "default" : "outline"}>{document.status}</Badge>
-            <Badge variant="outline">{scopeName}</Badge>
-          </>
-        }
-      />
+  const scopeHref =
+    scopeType === "workspace" ? `/workspaces/${encodeURIComponent(scopeId)}` : "/home";
+  const scopeSections: Array<{
+    key: "chat" | "tasks" | "all-documents" | "starred" | "services" | "subscriptions";
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }> = [
+    { key: "chat", label: "Chat", icon: MessageSquareIcon },
+    { key: "tasks", label: "Tasks", icon: ListTodoIcon },
+    { key: "all-documents", label: "All Documents", icon: FileTextIcon },
+    { key: "starred", label: "Starred", icon: StarIcon },
+    { key: "services", label: "Services", icon: WorkflowIcon },
+    { key: "subscriptions", label: "Subscriptions", icon: BellRingIcon },
+  ];
 
-      <Tabs defaultValue="ui">
-        <TabsList variant="line">
-          <TabsTrigger value="ui">UI</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-        </TabsList>
+  return (
+    <section className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <aside>
+        <Card className="h-[calc(100vh-140px)]">
+          <CardContent className="space-y-4 pt-4">
+            <div className="rounded-lg border bg-muted/20 px-3 py-4 text-center">
+              <span className="inline-flex size-12 items-center justify-center rounded-full border bg-background text-xl">
+                {scopeIcon ?? <HomeIcon className="size-5" />}
+              </span>
+              <p className="mt-3 text-sm font-semibold">{scopeName}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{scopeType === "blink" ? "Home Space" : "Workspace"}</p>
+            </div>
+            <div className="rounded-lg border px-3 py-2 text-sm">
+              <p className="text-xs text-muted-foreground">Assistant:</p>
+              <p className="font-medium">{scopeAssistantName}</p>
+            </div>
+            <nav className="space-y-1">
+              {scopeSections.map((entry) => (
+                <Link
+                  key={entry.key}
+                  href={`${scopeHref}?section=${entry.key}`}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                    activeSection === entry.key
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <entry.icon className="size-4" />
+                  <span>{entry.label}</span>
+                </Link>
+              ))}
+            </nav>
+          </CardContent>
+        </Card>
+      </aside>
+
+      <div>
+        <StudioPageHeader
+          eyebrow="Document Detail"
+          title={document.title}
+          description={document.summary}
+          actions={
+            <Button variant="outline" size="sm" render={<Link href={backHref} />}>
+              <ArrowLeftIcon className="size-3.5" />
+              {backLabel}
+            </Button>
+          }
+          meta={
+            <>
+              <Badge variant="secondary">{document.kind}</Badge>
+              <Badge variant={document.isService ? "default" : "outline"}>{document.status}</Badge>
+              <Badge variant="outline">{scopeName}</Badge>
+            </>
+          }
+        />
+
+        <Tabs defaultValue="ui">
+          <TabsList variant="line">
+            <TabsTrigger value="ui">UI</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+          </TabsList>
 
         <TabsContent value="ui" className="space-y-4">
           {document.uiCards.map((card) => (
-            <Card key={card.id}>
-              <div className="demo-section-header">
-                <div>
-                  <p className="demo-page-eyebrow">Action surface</p>
-                  <h2 className="mt-1 text-section-title">{card.title}</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  {card.metric ? <Badge variant="outline">{card.metric}</Badge> : null}
-                </div>
-              </div>
-              <CardContent className="space-y-4 pt-5">
+            <StudioSectionCard
+              key={card.id}
+              title={card.title}
+              subtitle="Action surface"
+              action={card.metric ? <Badge variant="outline">{card.metric}</Badge> : undefined}
+            >
+              <div className="space-y-4">
                 <p className="text-body">{card.body}</p>
                 {card.actions?.length ? (
                   <div className="flex flex-wrap gap-2">
@@ -102,18 +157,14 @@ export function DocumentDetailShell({
                     ))}
                   </div>
                 ) : null}
-              </CardContent>
-            </Card>
+              </div>
+            </StudioSectionCard>
           ))}
           {actionCount === 0 ? (
-            <Card>
-              <CardContent className="pt-5">
-                <div className="demo-empty-state">
-                  <p className="text-section-title">No UI actions configured</p>
-                  <p className="mt-1 text-body">This document does not expose interactive controls yet.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <StudioEmptyState
+              title="No UI actions configured"
+              body="This document does not expose interactive controls yet."
+            />
           ) : null}
         </TabsContent>
 
@@ -164,19 +215,13 @@ export function DocumentDetailShell({
         </TabsContent>
 
         <TabsContent value="activity">
-          <Card>
-            <div className="demo-section-header">
-              <div>
-                <p className="demo-page-eyebrow">Timeline</p>
-                <h2 className="mt-1 text-section-title">Document activity</h2>
-              </div>
-            </div>
-            <CardContent className="space-y-3 pt-5">
+          <StudioSectionCard title="Document activity" subtitle="Timeline">
+            <div className="space-y-3">
               {document.activity.length === 0 ? (
-                <div className="demo-empty-state">
-                  <p className="text-section-title">No activity recorded yet</p>
-                  <p className="mt-1 text-body">Document actions, updates, and timeline entries will appear here.</p>
-                </div>
+                <StudioEmptyState
+                  title="No activity recorded yet"
+                  body="Document actions, updates, and timeline entries will appear here."
+                />
               ) : (
                 document.activity.map((entry) => (
                   <div
@@ -192,10 +237,11 @@ export function DocumentDetailShell({
                   </div>
                 ))
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </StudioSectionCard>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      </div>
     </section>
   );
 }

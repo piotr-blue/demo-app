@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { AssistantConversationPanel } from "@/components/demo/assistant-conversation-panel";
 import type {

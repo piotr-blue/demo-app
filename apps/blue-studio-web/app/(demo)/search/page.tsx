@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { DemoPageHeader } from "@/components/demo/demo-page-header";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  StudioEmptyState,
+  StudioPageHeader,
+  StudioSectionCard,
+  StudioToolbar,
+} from "@/components/studio/studio-primitives";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import type { DemoSearchFilter } from "@/lib/demo/search";
 import { searchSnapshot } from "@/lib/demo/search";
@@ -55,22 +60,17 @@ function resultIcon(type: "workspace" | "thread" | "document" | "service") {
 
 export default function SearchPage() {
   const { snapshot, loading } = useDemoApp();
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const query = searchParams.get("q") ?? "";
-  const [draftQuery, setDraftQuery] = useState(query);
+  const [draftQuery, setDraftQuery] = useState("");
   const [filter, setFilter] = useState<DemoSearchFilter>("all");
-
-  useEffect(() => {
-    setDraftQuery(query);
-  }, [query]);
+  const effectiveQuery = "";
 
   const results = useMemo(() => {
     if (!snapshot) {
       return [];
     }
-    return searchSnapshot(snapshot, query, filter);
-  }, [filter, query, snapshot]);
+    return searchSnapshot(snapshot, effectiveQuery, filter);
+  }, [effectiveQuery, filter, snapshot]);
 
   if (loading || !snapshot) {
     return (
@@ -79,48 +79,47 @@ export default function SearchPage() {
   }
 
   return (
-    <section className="demo-page-shell">
-      <DemoPageHeader
-        eyebrow="Global search"
-        icon={<SearchIcon className="size-5" />}
+    <section>
+      <StudioPageHeader
+        eyebrow="Global Search"
         title="Search"
         description="Search across workspaces, documents, threads, and services without changing the MyOS object model."
         actions={
-          <Badge variant="outline" className="h-9 gap-1.5 rounded-[12px] px-3">
+          <Badge variant="outline" className="h-8 gap-1.5 rounded-md px-2.5">
             <SparklesIcon className="size-3.5" />
             {results.length} results
           </Badge>
         }
       />
 
-      <div className="demo-control-bar">
+      <StudioToolbar>
         <form
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex min-w-0 flex-1 items-center gap-2.5"
           onSubmit={(event) => {
             event.preventDefault();
-            router.push(`/search?q=${encodeURIComponent(draftQuery.trim())}`);
+            router.push("/search");
           }}
         >
           <div className="relative min-w-0 flex-1">
-            <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-text-muted" />
+            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={draftQuery}
               onChange={(event) => setDraftQuery(event.target.value)}
-              placeholder="Search alice, order, sms, northwind, review, supplier…"
-              className="h-11 rounded-[14px] bg-card pl-10"
+              placeholder="Search demo results..."
+              className="h-10 pl-9"
             />
           </div>
-          <Button type="submit" size="sm" className="h-11 px-4">
+          <Button type="submit" size="sm" className="h-10 px-4">
             Search
           </Button>
         </form>
-        <div className="inline-flex items-center gap-2 rounded-[14px] border border-border-soft bg-card px-3 py-2 text-sm text-text-secondary">
-          <FilterIcon className="size-4 text-text-muted" />
+        <div className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+          <FilterIcon className="size-4 text-muted-foreground" />
           Filter by object type
         </div>
-      </div>
+      </StudioToolbar>
 
-      <div className="demo-muted-surface flex flex-wrap gap-2 p-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         {FILTERS.map((entry) => (
           <Button
             key={entry.key}
@@ -134,59 +133,43 @@ export default function SearchPage() {
         ))}
       </div>
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          <div className="demo-section-header border-b-0">
-            <div>
-              <p className="demo-page-eyebrow">Search results</p>
-              <h2 className="mt-1 text-section-title">
-                {query ? `Results for “${query}”` : "Browse all indexed demo objects"}
-              </h2>
-              <p className="mt-1 text-body">
-                Workspaces, documents, threads, and services remain grouped by their original MyOS object meaning.
-              </p>
-            </div>
-            <Badge variant="outline" className="h-9 rounded-[12px] px-3">
-              {filter}
-            </Badge>
-          </div>
+      <StudioSectionCard
+        title="Browse all indexed demo objects"
+        subtitle="For demo mode, this page intentionally shows a stable result set regardless of the entered query."
+        action={
+          <Badge variant="outline" className="h-8 rounded-md px-2.5">
+            {filter}
+          </Badge>
+        }
+      >
+        <Card>
+          <CardContent className="p-4">
           {results.length === 0 ? (
-            <div className="p-5">
-              <div className="demo-empty-state">
-                <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
-                  <span className="inline-flex size-12 items-center justify-center rounded-2xl border border-border-soft bg-card text-accent-base shadow-[var(--shadow-subtle)]">
-                    <SearchIcon className="size-5" />
-                  </span>
-                  <div className="space-y-1">
-                    <p className="text-section-title">No results found</p>
-                    <p className="text-body">
-                      Try a broader query or switch filters to inspect other MyOS object types.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <StudioEmptyState
+              title="No results found"
+              body="Try a broader query or switch filters to inspect other MyOS object types."
+            />
           ) : (
-            <div className="space-y-3 p-5">
+            <div className="space-y-2">
               {results.map((result) => (
                 <Link
                   key={`${result.type}_${result.id}`}
                   href={result.href}
-                  className="demo-list-card flex items-start gap-4"
+                  className="flex items-start gap-3 rounded-lg border bg-card px-3.5 py-3 transition-colors hover:bg-muted/40"
                 >
-                  <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border-soft bg-bg-subtle text-accent-base">
+                  <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted text-primary">
                     {resultIcon(result.type)}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">{result.title}</p>
+                      <p className="text-sm font-medium">{result.title}</p>
                       <Badge variant={badgeVariant(result.type)}>{result.type}</Badge>
-                      <span className="text-caption">in {result.scope}</span>
+                      <span className="text-xs text-muted-foreground">in {result.scope}</span>
                     </div>
-                    <p className="mt-1.5 text-body line-clamp-2">{result.subtitle}</p>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{result.subtitle}</p>
                   </div>
                   {result.status ? (
-                    <Badge variant="outline" className="shrink-0">
+                    <Badge variant="outline" className="shrink-0 rounded-md">
                       {result.status}
                     </Badge>
                   ) : null}
@@ -194,8 +177,9 @@ export default function SearchPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </StudioSectionCard>
     </section>
   );
 }

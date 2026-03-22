@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -289,8 +290,8 @@ export function GlobalLeftRail() {
             railCollapsed ? "justify-center p-2.5" : "gap-3 px-3.5 py-3"
           )}
         >
-          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-base text-xs font-bold">
-            PB
+          <span className="relative inline-flex size-9 shrink-0 overflow-hidden rounded-2xl border border-border-soft bg-card">
+            <Image src="/user-avatar.png" alt="piotr-blue avatar" fill sizes="36px" className="object-cover" />
           </span>
           {!railCollapsed ? (
             <div className="min-w-0">

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import {
+  type AssistantTimelineItem,
   getAssistantTimelineItems,
   getExchangeMessages,
   getOpenAssistantExchanges,
@@ -49,7 +51,13 @@ function roleLabel(role: "assistant" | "user" | "system"): string {
   return "System";
 }
 
-export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
+export function AssistantConversationPanel({
+  scope,
+  fullHeight = false,
+}: {
+  scope: ScopeRecord;
+  fullHeight?: boolean;
+}) {
   const {
     snapshot,
     startAssistantDemoDiscussion,
@@ -64,6 +72,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [busyExchangeId, setBusyExchangeId] = useState<string | null>(null);
   const anchorRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
 
   const conversation = useMemo(
     () => (snapshot ? getScopeAssistantConversation(snapshot, scope.id) : null),
@@ -96,23 +105,6 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
     );
   }, [snapshot]);
 
-  const resolutionBodyByExchangeId = useMemo(() => {
-    if (!snapshot) {
-      return new Map<string, string>();
-    }
-    const messageById = new Map(
-      snapshot.assistantExchangeMessages.map((message) => [message.id, message])
-    );
-    return new Map(
-      exchanges
-        .filter((exchange) => !!exchange.resolutionMessageId)
-        .map((exchange) => [
-          exchange.id,
-          messageById.get(exchange.resolutionMessageId ?? "")?.body ?? "",
-        ])
-    );
-  }, [exchanges, snapshot]);
-
   const activeExpandedAnchorId = useMemo(() => {
     if (!expandedExchangeId) {
       return null;
@@ -134,6 +126,42 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
     return timelineItems.find((item) => item.exchangeId === expandedExchangeId)?.id ?? null;
   }, [expandedAnchorId, expandedExchangeId, timelineItems]);
 
+  const timelineItemsForHistory = useMemo(() => {
+    const resolutionByExchange = new Map(
+      timelineItems
+        .filter((item) => item.kind === "resolution")
+        .map((item) => [item.exchangeId, item])
+    );
+    const baseItems = timelineItems.filter((item) => {
+      const hasResolution = resolutionByExchange.has(item.exchangeId);
+      if (!hasResolution) {
+        return item.kind === "opener";
+      }
+      return item.kind === "resolution";
+    });
+    const representedExchangeIds = new Set(baseItems.map((item) => item.exchangeId));
+    const synthesizedOpenAskItems: AssistantTimelineItem[] = openAskExchanges
+      .filter((exchange) => !representedExchangeIds.has(exchange.id))
+      .map((exchange) => ({
+        id: `${exchange.id}_synthetic_opener`,
+        exchangeId: exchange.id,
+        messageId: exchange.openerMessageId,
+        kind: "opener",
+        role: "assistant",
+        body: attentionByExchangeId.get(exchange.id) ?? exchange.title,
+        createdAt: exchange.openedAt,
+        exchangeStatus: exchange.status,
+        exchangeType: exchange.type,
+        exchangeTitle: exchange.title,
+        replyCount: exchange.replyCount,
+        requiresUserAction: exchange.requiresUserAction,
+      }));
+
+    return [...baseItems, ...synthesizedOpenAskItems].sort((left, right) =>
+      left.createdAt.localeCompare(right.createdAt)
+    );
+  }, [attentionByExchangeId, openAskExchanges, timelineItems]);
+
   useEffect(() => {
     if (!expandedExchangeId) {
       return;
@@ -144,6 +172,17 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
       setExpandedAnchorId(null);
     }
   }, [expandedExchangeId, exchanges]);
+
+  useEffect(() => {
+    const node = scrollViewportRef.current;
+    if (!node) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      node.scrollTop = node.scrollHeight;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scope.id, timelineItemsForHistory.length, openAskExchanges.length]);
 
   const focusExchange = (exchangeId: string) => {
     const opener = timelineItems.find(
@@ -162,6 +201,20 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
     }
   };
 
+  const sendTopLevelMessage = async () => {
+    const text = topLevelText.trim();
+    if (!text || busyTopLevel) {
+      return;
+    }
+    setBusyTopLevel(true);
+    const exchangeId = await startScopeDiscussion(scope.id, text);
+    if (exchangeId) {
+      focusExchange(exchangeId);
+    }
+    setTopLevelText("");
+    setBusyTopLevel(false);
+  };
+
   if (!snapshot || !conversation) {
     return (
       <Card>
@@ -176,8 +229,8 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
   let lastDay: string | null = null;
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border-soft px-4 py-3">
+    <Card className={fullHeight ? "flex h-full flex-col overflow-hidden" : "overflow-hidden"}>
+      <div className="flex items-center justify-between border-b px-4 py-3">
         <div>
           <p className="text-sm font-semibold text-foreground">🤖 {scope.assistant.name} · Active</p>
           <p className="text-caption">Canonical conversation · {scope.name}</p>
@@ -199,9 +252,12 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
         </Button>
       </div>
 
-      <CardContent className="max-h-[620px] space-y-3 overflow-y-auto px-4 py-4">
+      <CardContent
+        ref={scrollViewportRef}
+        className={`space-y-3 overflow-y-auto px-4 py-4 ${fullHeight ? "min-h-0 flex-1" : "max-h-[460px]"}`}
+      >
         {openAskExchanges.length > 0 ? (
-          <div className="sticky top-0 z-10 rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-2.5 shadow-sm">
+          <div className="sticky top-0 z-10 rounded-lg border border-destructive/25 bg-background px-3 py-2.5 shadow-xs">
             <p className="text-sm font-medium text-foreground">
               🔴 {openAskExchanges.length} item{openAskExchanges.length > 1 ? "s" : ""} need you
             </p>
@@ -209,7 +265,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
               {openAskExchanges.map((exchange) => (
                 <div
                   key={exchange.id}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-card/90 px-2.5 py-1.5"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-card px-2.5 py-1.5"
                 >
                   <p className="line-clamp-1 text-sm text-foreground">
                     {attentionByExchangeId.get(exchange.id) ?? exchange.title}
@@ -238,7 +294,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                 </p>
                 <div className="flex justify-start">
                   <div className="max-w-[85%] rounded-2xl bg-bg-subtle px-4 py-3">
-                    <p className="text-sm text-foreground">🤖 Here's what happened while you were away:</p>
+                    <p className="text-sm text-foreground">🤖 Here&apos;s what happened while you were away:</p>
                     <ul className="mt-2 space-y-1 text-sm text-foreground">
                       {scope.recap.updates.map((entry) => (
                         <li key={entry} className="leading-6">
@@ -267,22 +323,20 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
             );
           })()}
 
-          {timelineItems.length === 0 ? (
+          {timelineItemsForHistory.length === 0 ? (
             <p className="py-8 text-center text-sm text-text-muted">Start a message to begin the conversation.</p>
           ) : (
-            timelineItems.map((item) => {
+            timelineItemsForHistory.map((item) => {
               const dayLabel = formatDayLabel(item.createdAt);
               const dayBreak = dayLabel !== lastDay;
               lastDay = dayLabel;
               const exchange = exchanges.find((entry) => entry.id === item.exchangeId);
               const messages = getExchangeMessages(snapshot, item.exchangeId);
-              const isExpanded = item.id === activeExpandedAnchorId;
               const isOpen = exchange?.status === "open" || exchange?.status === "in-progress";
-              const isAskWaiting = item.kind === "opener" && exchange?.type === "ask" && isOpen;
+              const isAskWaiting = exchange?.type === "ask" && isOpen;
               const isResolved = exchange?.status === "resolved";
-              const resolutionPreview =
-                item.kind === "opener" ? resolutionBodyByExchangeId.get(item.exchangeId) : null;
               const alignRight = item.role === "user";
+              const isExpanded = item.id === activeExpandedAnchorId;
 
               return (
                 <div
@@ -300,7 +354,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                     <div className="max-w-[85%] space-y-2">
                       <button
                         type="button"
-                        className={`w-full rounded-2xl px-4 py-3 text-left transition ${
+                  className={`w-full rounded-lg px-4 py-3 text-left transition ${
                           alignRight ? "bg-accent-soft/65" : "bg-bg-subtle"
                         } ${isAskWaiting ? "border border-destructive/30" : "border border-transparent"} ${
                           isResolved ? "opacity-85" : ""
@@ -312,12 +366,12 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                       >
                         <p className="text-sm leading-6 text-foreground">
                           {isAskWaiting ? "🔴 " : ""}
-                          {item.kind === "resolution" ? "Final: " : ""}
+                          {item.kind === "resolution" || isResolved ? "Final: " : ""}
                           {alignRight ? "You: " : `${roleLabel(item.role)} `}
                           {item.body}
                           {item.kind === "resolution" || isResolved ? " ✅" : ""}
                         </p>
-                        {item.kind === "opener" ? (
+                        {item.kind === "opener" && !isResolved ? (
                           <p className="mt-1 text-xs text-text-muted">
                             {isAskWaiting
                               ? "waiting for you"
@@ -325,9 +379,6 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                                 ? `resolved · ${item.replyCount} ${item.replyCount === 1 ? "reply" : "replies"}`
                                 : `${item.replyCount} ${item.replyCount === 1 ? "reply" : "replies"}`}
                           </p>
-                        ) : null}
-                        {resolutionPreview && item.kind === "opener" ? (
-                          <p className="mt-1 text-xs text-text-muted">Final: {resolutionPreview} ✅</p>
                         ) : null}
                         <p className="mt-2 text-right text-xs text-text-muted">{formatTimestamp(item.createdAt)}</p>
                       </button>
@@ -350,9 +401,14 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                       ) : null}
 
                       {isExpanded && exchange ? (
-                        <div className="ml-3 border-l border-border-soft/90 pl-3">
+                        <div className="ml-3 rounded-lg border border-border-soft/90 bg-card/70 p-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Conversation history
+                          </p>
                           <div className="space-y-2">
-                            {messages.map((message) => (
+                            {messages.map((message, idx) => {
+                              const isLastMessage = idx === messages.length - 1;
+                              return (
                               <div key={message.id} className="py-0.5">
                                 <p className="text-sm leading-6 text-foreground">
                                   {message.role === "assistant"
@@ -364,9 +420,16 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                                   {message.body}
                                   {message.kind === "resolution" ? " ✅" : ""}
                                 </p>
-                                <p className="text-xs text-text-muted">{formatTimestamp(message.createdAt)}</p>
+                                <div className="flex items-center gap-2 text-xs text-text-muted">
+                                  <span>{formatTimestamp(message.createdAt)}</span>
+                                  {isLastMessage ? (
+                                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                                      latest
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
-                            ))}
+                            )})}
                           </div>
 
                           {isOpen ? (
@@ -381,6 +444,22 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                                 }
                                 placeholder="Type a reply..."
                                 className="h-10 flex-1"
+                                onKeyDown={(event) => {
+                                  if (event.key !== "Enter") {
+                                    return;
+                                  }
+                                  event.preventDefault();
+                                  const text = (replyDrafts[exchange.id] ?? "").trim();
+                                  if (!text || busyExchangeId === exchange.id) {
+                                    return;
+                                  }
+                                  void (async () => {
+                                    setBusyExchangeId(exchange.id);
+                                    await replyToAssistantExchange(exchange.id, text);
+                                    setReplyDrafts((current) => ({ ...current, [exchange.id]: "" }));
+                                    setBusyExchangeId(null);
+                                  })();
+                                }}
                               />
                               <div className="flex gap-2">
                                 <Button
@@ -435,24 +514,19 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
             onChange={(event) => setTopLevelText(event.target.value)}
             placeholder={`Type a message to ${scope.assistant.name}...`}
             className="h-11 flex-1"
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") {
+                return;
+              }
+              event.preventDefault();
+              void sendTopLevelMessage();
+            }}
           />
           <Button
             size="sm"
             className="h-11 px-5"
             disabled={busyTopLevel || topLevelText.trim().length === 0}
-            onClick={async () => {
-              const text = topLevelText.trim();
-              if (!text) {
-                return;
-              }
-              setBusyTopLevel(true);
-              const exchangeId = await startScopeDiscussion(scope.id, text);
-              if (exchangeId) {
-                focusExchange(exchangeId);
-              }
-              setTopLevelText("");
-              setBusyTopLevel(false);
-            }}
+            onClick={() => void sendTopLevelMessage()}
           >
             Send
           </Button>
