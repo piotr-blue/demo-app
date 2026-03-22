@@ -2,21 +2,25 @@
 
 Blue Studio Web now includes two parallel experiences:
 
-1. **MyOS Demo (default)**: Blink/workspaces/threads/documents demo app
+1. **MyOS Demo (default)**: Home-first, seeded local-first demo app
 2. **Legacy Blue Studio**: existing blueprint → DSL → bootstrap flow at `/t/[threadId]`
 
 ## MyOS Demo routes
 
-- `/` → redirects to `/blink`
-- `/blink`
-- `/documents`
-- `/documents/[documentId]`
+- `/` → redirects to `/home`
+- `/home`
+- `/search`
 - `/workspaces/[workspaceId]`
+- `/documents/[documentId]`
 - `/threads/[threadId]`
 - `/settings`
+- `/blink` → compatibility redirect to `/home`
+- `/documents` → compatibility redirect to `/home?section=documents`
 - `/t/[threadId]` (legacy)
 
 The MyOS demo uses a dedicated local-first state layer under `lib/demo/*` backed by IndexedDB.
+It ships with deterministic seeded data (Home + 3 workspaces + tasks/documents/activity) and
+includes a **Reset demo data** action in Settings.
 
 ## Legacy Blue Studio flow
 
