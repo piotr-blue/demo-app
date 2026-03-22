@@ -155,6 +155,7 @@ export interface AssistantTimelineItem {
   exchangeId: string;
   messageId: string;
   kind: Extract<AssistantExchangeMessageKind, "opener" | "resolution">;
+  role: "assistant" | "user" | "system";
   body: string;
   createdAt: string;
   exchangeStatus: AssistantExchangeRecord["status"];
@@ -182,6 +183,7 @@ export function getAssistantTimelineItems(
         exchangeId: exchange.id,
         messageId: opener.id,
         kind: "opener",
+        role: opener.role,
         body: opener.body,
         createdAt: opener.createdAt,
         exchangeStatus: exchange.status,
@@ -199,6 +201,7 @@ export function getAssistantTimelineItems(
           exchangeId: exchange.id,
           messageId: resolution.id,
           kind: "resolution",
+          role: resolution.role,
           body: resolution.body,
           createdAt: resolution.createdAt,
           exchangeStatus: exchange.status,

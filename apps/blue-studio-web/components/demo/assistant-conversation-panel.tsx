@@ -222,6 +222,7 @@ export function AssistantConversationPanel({ scope }: { scope: ScopeRecord }) {
                       }}
                     >
                       <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">{item.role}</Badge>
                         <Badge variant="outline">{item.exchangeType}</Badge>
                         <Badge variant={statusVariant(item.exchangeStatus)}>{item.exchangeStatus}</Badge>
                         <Badge variant="secondary">{item.kind}</Badge>
