@@ -29,3 +29,19 @@ export function createAttentionId(): string {
 export function createMessageId(): string {
   return makeId("msg");
 }
+
+export function createAssistantConversationId(): string {
+  return makeId("aconv");
+}
+
+export function createAssistantExchangeId(): string {
+  return makeId("aex");
+}
+
+export function createAssistantExchangeMessageId(): string {
+  return makeId("aemsg");
+}
+
+export function createAssistantPlaybookId(): string {
+  return makeId("aplay");
+}

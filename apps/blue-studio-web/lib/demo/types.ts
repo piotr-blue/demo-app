@@ -27,6 +27,108 @@ export interface ScopeAssistantProfile {
   avatar?: string | null;
 }
 
+export interface AssistantConversationRecord {
+  id: string;
+  scopeId: string;
+  assistantName: string;
+  createdAt: string;
+  updatedAt: string;
+  lastSeenAt?: string | null;
+  lastRecapAt?: string | null;
+}
+
+export type AssistantExchangeType =
+  | "ask"
+  | "alert"
+  | "question"
+  | "instruction"
+  | "notification";
+
+export type AssistantExchangeStatus =
+  | "open"
+  | "in-progress"
+  | "resolved"
+  | "dismissed";
+
+export interface AssistantExchangeRecord {
+  id: string;
+  conversationId: string;
+  scopeId: string;
+
+  type: AssistantExchangeType;
+  status: AssistantExchangeStatus;
+
+  title: string;
+  openerMessageId: string;
+  resolutionMessageId?: string | null;
+  latestMessageId: string;
+
+  replyCount: number;
+  requiresUserAction: boolean;
+  stickyUntilResolved: boolean;
+
+  linkedAttentionItemId?: string | null;
+
+  sourceType:
+    | "assistant-demo"
+    | "user-demo"
+    | "document"
+    | "thread"
+    | "task"
+    | "system";
+
+  sourceId?: string | null;
+
+  canDeliverExternally: boolean;
+  externalThreadKey?: string | null;
+
+  openedAt: string;
+  resolvedAt?: string | null;
+  updatedAt: string;
+}
+
+export type AssistantExchangeMessageKind =
+  | "opener"
+  | "reply"
+  | "resolution"
+  | "system";
+
+export type AssistantMessageSurface =
+  | "app"
+  | "slack"
+  | "telegram"
+  | "system";
+
+export interface AssistantExchangeMessageRecord {
+  id: string;
+  conversationId: string;
+  exchangeId: string;
+  scopeId: string;
+
+  role: "assistant" | "user" | "system";
+  kind: AssistantExchangeMessageKind;
+  body: string;
+
+  createdAt: string;
+
+  surface: AssistantMessageSurface;
+  externalMessageId?: string | null;
+  externalThreadMessageId?: string | null;
+}
+
+export interface AssistantPlaybookRecord {
+  id: string;
+  scopeId: string;
+  inheritsFromScopeId?: string | null;
+
+  identityMarkdown: string;
+  defaultsMarkdown: string;
+  contextMarkdown: string;
+  overridesMarkdown: string;
+
+  updatedAt: string;
+}
+
 export type ScopeBootstrapStatus =
   | "not-required"
   | "pending"
@@ -69,6 +171,8 @@ export interface ScopeRecord {
   documentIds: string[];
   activityIds: string[];
   attentionItemIds: string[];
+  assistantConversationId?: string | null;
+  assistantPlaybookId?: string | null;
   messages: BaseChatMessage[];
 }
 
@@ -81,6 +185,12 @@ export interface ActivityRecord {
   kind:
     | "assistant-message"
     | "user-message"
+    | "assistant-discussion-opened"
+    | "assistant-reply-appended"
+    | "assistant-discussion-resolved"
+    | "assistant-ask-created"
+    | "assistant-user-instruction"
+    | "assistant-playbook-updated"
     | "thread-message"
     | "thread-created"
     | "document-created"
@@ -190,6 +300,7 @@ export interface AttentionItem {
   priority: "low" | "medium" | "high";
   relatedThreadId?: string | null;
   relatedDocumentId?: string | null;
+  relatedExchangeId?: string | null;
   createdAt: string;
   resolvedAt?: string | null;
   delivery: {
@@ -223,6 +334,10 @@ export interface DemoSnapshot {
   documents: DocumentRecord[];
   attentionItems: AttentionItem[];
   activity: ActivityRecord[];
+  assistantConversations: AssistantConversationRecord[];
+  assistantExchanges: AssistantExchangeRecord[];
+  assistantExchangeMessages: AssistantExchangeMessageRecord[];
+  assistantPlaybooks: AssistantPlaybookRecord[];
 }
 
 export interface DemoCredentials {

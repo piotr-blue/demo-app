@@ -1,5 +1,9 @@
 import type {
   ActivityRecord,
+  AssistantConversationRecord,
+  AssistantExchangeMessageRecord,
+  AssistantExchangeRecord,
+  AssistantPlaybookRecord,
   AttentionItem,
   BaseChatMessage,
   DemoActionDefinition,
@@ -85,6 +89,40 @@ function action(
     activityDetail,
     nextStatus,
     assistantNote,
+  };
+}
+
+function createAssistantConversation(scope: ScopeRecord, minute: number): AssistantConversationRecord {
+  return {
+    id: `aconv_${scope.id}`,
+    scopeId: scope.id,
+    assistantName: scope.assistant.name,
+    createdAt: at(minute),
+    updatedAt: at(minute),
+    lastSeenAt: null,
+    lastRecapAt: null,
+  };
+}
+
+function createAssistantPlaybook(scope: ScopeRecord, minute: number): AssistantPlaybookRecord {
+  const isHome = scope.id === BLINK_SCOPE_ID;
+  return {
+    id: `aplay_${scope.id}`,
+    scopeId: scope.id,
+    inheritsFromScopeId: isHome ? null : BLINK_SCOPE_ID,
+    identityMarkdown: isHome
+      ? "You are Blink, my root operations assistant. Speak in Polish when possible and stay concise."
+      : `You are ${scope.assistant.name} for ${scope.name}. Keep replies concise, actionable, and scoped.`,
+    defaultsMarkdown: isHome
+      ? "- Prioritize exception-first updates.\n- Summarize daily only when risk changes.\n- Surface unresolved asks clearly."
+      : "- Prefer short updates.\n- Summarize only high-impact changes.\n- Escalate blockers and deadlines first.",
+    contextMarkdown: isHome
+      ? "- Home scope coordinates all workspaces.\n- Focus on counterparties like Alice and supplier renewals."
+      : `- Workspace context: ${scope.description}\n- Primary anchors: ${scope.anchors.join(", ")}`,
+    overridesMarkdown: isHome
+      ? "- Ignore low-signal chatter.\n- Keep recurring noise in digest unless exceptions occur."
+      : "- Local workspace priorities override Home when deadlines are near.\n- Keep non-critical updates in digest.",
+    updatedAt: at(minute),
   };
 }
 
@@ -1159,6 +1197,8 @@ export function createSeedSnapshot(): DemoSnapshot {
       documentIds: homeDocuments.map((entry) => entry.id),
       activityIds: globalActivity.filter((entry) => entry.scopeId === BLINK_SCOPE_ID).map((entry) => entry.id),
       attentionItemIds: ["attn_home_northwind", "attn_home_supplier"],
+      assistantConversationId: `aconv_${BLINK_SCOPE_ID}`,
+      assistantPlaybookId: `aplay_${BLINK_SCOPE_ID}`,
       messages: [
         message("msg_home_chat_1", "assistant", "Welcome back. I summarized updates across Home and your workspaces.", 10),
         message("msg_home_chat_2", "assistant", "Northwind and supplier renewals need attention today.", 11),
@@ -1215,6 +1255,8 @@ export function createSeedSnapshot(): DemoSnapshot {
       documentIds: workspaceDocuments.filter((entry) => entry.scopeId === SCOPE_ALICE).map((entry) => entry.id),
       activityIds: globalActivity.filter((entry) => entry.scopeId === SCOPE_ALICE).map((entry) => entry.id),
       attentionItemIds: ["attn_alice_partnership_review"],
+      assistantConversationId: `aconv_${SCOPE_ALICE}`,
+      assistantPlaybookId: `aplay_${SCOPE_ALICE}`,
       messages: [
         message("msg_alice_chat_1", "assistant", "Morning recap ready: orders are up and one partnership needs review.", 66),
         message("msg_alice_chat_2", "user", "Prioritize orders first, then partnership replies.", 67),
@@ -1270,6 +1312,8 @@ export function createSeedSnapshot(): DemoSnapshot {
       documentIds: workspaceDocuments.filter((entry) => entry.scopeId === SCOPE_LAKE).map((entry) => entry.id),
       activityIds: globalActivity.filter((entry) => entry.scopeId === SCOPE_LAKE).map((entry) => entry.id),
       attentionItemIds: ["attn_lake_editor_feedback"],
+      assistantConversationId: `aconv_${SCOPE_LAKE}`,
+      assistantPlaybookId: `aplay_${SCOPE_LAKE}`,
       messages: [
         message("msg_lake_chat_1", "assistant", "Editorial feedback and reviewer quotes are synced.", 80),
         message("msg_lake_chat_2", "assistant", "Chapter 7 flow is the biggest quality risk right now.", 81),
@@ -1323,6 +1367,8 @@ export function createSeedSnapshot(): DemoSnapshot {
       documentIds: workspaceDocuments.filter((entry) => entry.scopeId === SCOPE_SUNSET).map((entry) => entry.id),
       activityIds: globalActivity.filter((entry) => entry.scopeId === SCOPE_SUNSET).map((entry) => entry.id),
       attentionItemIds: ["attn_sunset_staffing"],
+      assistantConversationId: `aconv_${SCOPE_SUNSET}`,
+      assistantPlaybookId: `aplay_${SCOPE_SUNSET}`,
       messages: [
         message("msg_sunset_chat_1", "assistant", "Reservation load and supplier reorder are both time-sensitive today.", 90),
         message("msg_sunset_chat_2", "assistant", "I pinned weekend staffing checks in tasks.", 91),
@@ -1341,6 +1387,7 @@ export function createSeedSnapshot(): DemoSnapshot {
       priority: "high",
       relatedThreadId: "thread_home_daily_ops",
       relatedDocumentId: "doc_home_nda_northwind",
+      relatedExchangeId: "aex_home_open_ask",
       createdAt: at(140),
       resolvedAt: null,
       delivery: { inApp: true, external: "queued" },
@@ -1349,15 +1396,16 @@ export function createSeedSnapshot(): DemoSnapshot {
       id: "attn_home_supplier",
       scopeId: BLINK_SCOPE_ID,
       scopeType: "blink",
-      status: "pending",
+      status: "resolved",
       title: "Supplier renewal watchlist updated",
       body: "Two supplier agreements expire within 3 weeks.",
       priority: "medium",
       relatedThreadId: "thread_home_supplier_contracts",
       relatedDocumentId: "doc_home_supplier_access",
+      relatedExchangeId: "aex_home_resolved_ask",
       createdAt: at(142),
-      resolvedAt: null,
-      delivery: { inApp: true, external: "not-sent" },
+      resolvedAt: at(133),
+      delivery: { inApp: true, external: "responded" },
     },
     {
       id: "attn_alice_partnership_review",
@@ -1369,6 +1417,7 @@ export function createSeedSnapshot(): DemoSnapshot {
       priority: "medium",
       relatedThreadId: "thread_alice_partnerships",
       relatedDocumentId: "doc_alice_partner_northwind_campaign",
+      relatedExchangeId: "aex_alice_open_ask",
       createdAt: at(150),
       resolvedAt: null,
       delivery: { inApp: true, external: "not-sent" },
@@ -1476,11 +1525,245 @@ export function createSeedSnapshot(): DemoSnapshot {
     current.activityIds = (activityByScope.get(scope.id) ?? []).map((entry) => entry.id);
   }
 
+  const assistantConversations = scopes.map((scope, index) =>
+    createAssistantConversation(scope, 24 + index)
+  );
+  const assistantPlaybooks = scopes.map((scope, index) =>
+    createAssistantPlaybook(scope, 28 + index)
+  );
+  const assistantExchanges: AssistantExchangeRecord[] = [];
+  const assistantExchangeMessages: AssistantExchangeMessageRecord[] = [];
+  const conversationByScope = new Map(assistantConversations.map((entry) => [entry.scopeId, entry]));
+
+  const homeConversation = conversationByScope.get(BLINK_SCOPE_ID);
+  if (homeConversation) {
+    assistantExchangeMessages.push(
+      {
+        id: "aem_home_open_opener",
+        conversationId: homeConversation.id,
+        exchangeId: "aex_home_open_ask",
+        scopeId: BLINK_SCOPE_ID,
+        role: "assistant",
+        kind: "opener",
+        body: "Can you confirm whether we should prioritize Alice’s request today?",
+        createdAt: at(160),
+        surface: "app",
+      },
+      {
+        id: "aem_home_resolved_opener",
+        conversationId: homeConversation.id,
+        exchangeId: "aex_home_resolved_ask",
+        scopeId: BLINK_SCOPE_ID,
+        role: "assistant",
+        kind: "opener",
+        body: "Should I keep this thread in daily recap or only report exceptions?",
+        createdAt: at(130),
+        surface: "app",
+      },
+      {
+        id: "aem_home_resolved_user_reply",
+        conversationId: homeConversation.id,
+        exchangeId: "aex_home_resolved_ask",
+        scopeId: BLINK_SCOPE_ID,
+        role: "user",
+        kind: "reply",
+        body: "Only report exceptions unless risk spikes.",
+        createdAt: at(131),
+        surface: "app",
+      },
+      {
+        id: "aem_home_resolved_assistant_reply",
+        conversationId: homeConversation.id,
+        exchangeId: "aex_home_resolved_ask",
+        scopeId: BLINK_SCOPE_ID,
+        role: "assistant",
+        kind: "reply",
+        body: "Reply to: Only report exceptions unless risk spikes.",
+        createdAt: at(132),
+        surface: "app",
+      },
+      {
+        id: "aem_home_resolved_resolution",
+        conversationId: homeConversation.id,
+        exchangeId: "aex_home_resolved_ask",
+        scopeId: BLINK_SCOPE_ID,
+        role: "user",
+        kind: "resolution",
+        body: "Only report exceptions unless risk spikes.",
+        createdAt: at(133),
+        surface: "app",
+      }
+    );
+    assistantExchanges.push(
+      {
+        id: "aex_home_open_ask",
+        conversationId: homeConversation.id,
+        scopeId: BLINK_SCOPE_ID,
+        type: "ask",
+        status: "open",
+        title: "Prioritize Alice request today",
+        openerMessageId: "aem_home_open_opener",
+        resolutionMessageId: null,
+        latestMessageId: "aem_home_open_opener",
+        replyCount: 0,
+        requiresUserAction: true,
+        stickyUntilResolved: true,
+        linkedAttentionItemId: "attn_home_northwind",
+        sourceType: "assistant-demo",
+        sourceId: null,
+        canDeliverExternally: true,
+        externalThreadKey: null,
+        openedAt: at(160),
+        resolvedAt: null,
+        updatedAt: at(160),
+      },
+      {
+        id: "aex_home_resolved_ask",
+        conversationId: homeConversation.id,
+        scopeId: BLINK_SCOPE_ID,
+        type: "ask",
+        status: "resolved",
+        title: "Decide recap policy",
+        openerMessageId: "aem_home_resolved_opener",
+        resolutionMessageId: "aem_home_resolved_resolution",
+        latestMessageId: "aem_home_resolved_resolution",
+        replyCount: 1,
+        requiresUserAction: false,
+        stickyUntilResolved: true,
+        linkedAttentionItemId: "attn_home_supplier",
+        sourceType: "assistant-demo",
+        sourceId: null,
+        canDeliverExternally: true,
+        externalThreadKey: null,
+        openedAt: at(130),
+        resolvedAt: at(133),
+        updatedAt: at(133),
+      }
+    );
+  }
+
+  const aliceConversation = conversationByScope.get(SCOPE_ALICE);
+  if (aliceConversation) {
+    assistantExchangeMessages.push({
+      id: "aem_alice_open_opener",
+      conversationId: aliceConversation.id,
+      exchangeId: "aex_alice_open_ask",
+      scopeId: SCOPE_ALICE,
+      role: "assistant",
+      kind: "opener",
+      body: "Can you confirm whether this item should stay tracked?",
+      createdAt: at(166),
+      surface: "app",
+    });
+    assistantExchanges.push({
+      id: "aex_alice_open_ask",
+      conversationId: aliceConversation.id,
+      scopeId: SCOPE_ALICE,
+      type: "ask",
+      status: "open",
+      title: "Keep partnership item tracked",
+      openerMessageId: "aem_alice_open_opener",
+      resolutionMessageId: null,
+      latestMessageId: "aem_alice_open_opener",
+      replyCount: 0,
+      requiresUserAction: true,
+      stickyUntilResolved: true,
+      linkedAttentionItemId: "attn_alice_partnership_review",
+      sourceType: "assistant-demo",
+      sourceId: null,
+      canDeliverExternally: true,
+      externalThreadKey: null,
+      openedAt: at(166),
+      resolvedAt: null,
+      updatedAt: at(166),
+    });
+  }
+
+  const lakeConversation = conversationByScope.get(SCOPE_LAKE);
+  if (lakeConversation) {
+    assistantExchangeMessages.push(
+      {
+        id: "aem_lake_resolved_user_opener",
+        conversationId: lakeConversation.id,
+        exchangeId: "aex_lake_resolved_user",
+        scopeId: SCOPE_LAKE,
+        role: "user",
+        kind: "opener",
+        body: "What should I track this week for Chapter 7?",
+        createdAt: at(170),
+        surface: "app",
+      },
+      {
+        id: "aem_lake_resolved_assistant_reply",
+        conversationId: lakeConversation.id,
+        exchangeId: "aex_lake_resolved_user",
+        scopeId: SCOPE_LAKE,
+        role: "assistant",
+        kind: "reply",
+        body: "Reply to: What should I track this week for Chapter 7?",
+        createdAt: at(171),
+        surface: "app",
+      },
+      {
+        id: "aem_lake_resolved_assistant_resolution",
+        conversationId: lakeConversation.id,
+        exchangeId: "aex_lake_resolved_user",
+        scopeId: SCOPE_LAKE,
+        role: "assistant",
+        kind: "resolution",
+        body: "OK, so it's DONE",
+        createdAt: at(172),
+        surface: "app",
+      }
+    );
+    assistantExchanges.push({
+      id: "aex_lake_resolved_user",
+      conversationId: lakeConversation.id,
+      scopeId: SCOPE_LAKE,
+      type: "question",
+      status: "resolved",
+      title: "Chapter 7 tracking question",
+      openerMessageId: "aem_lake_resolved_user_opener",
+      resolutionMessageId: "aem_lake_resolved_assistant_resolution",
+      latestMessageId: "aem_lake_resolved_assistant_resolution",
+      replyCount: 1,
+      requiresUserAction: false,
+      stickyUntilResolved: false,
+      linkedAttentionItemId: null,
+      sourceType: "user-demo",
+      sourceId: null,
+      canDeliverExternally: true,
+      externalThreadKey: null,
+      openedAt: at(170),
+      resolvedAt: at(172),
+      updatedAt: at(172),
+    });
+  }
+
+  const playbookByScope = new Map(assistantPlaybooks.map((entry) => [entry.scopeId, entry.id]));
+  for (const scope of scopes) {
+    scope.assistantConversationId = conversationByScope.get(scope.id)?.id ?? null;
+    scope.assistantPlaybookId = playbookByScope.get(scope.id) ?? null;
+  }
+
+  for (const conversation of assistantConversations) {
+    const scopeMessages = assistantExchangeMessages
+      .filter((message) => message.conversationId === conversation.id)
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    if (scopeMessages.length > 0) {
+      conversation.updatedAt = scopeMessages.at(-1)?.createdAt ?? conversation.updatedAt;
+    }
+  }
+
   return {
     scopes,
     threads,
     documents,
     attentionItems,
     activity: globalActivity.sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
+    assistantConversations,
+    assistantExchanges,
+    assistantExchangeMessages,
+    assistantPlaybooks,
   };
 }
