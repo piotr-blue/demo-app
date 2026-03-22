@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { DemoPageHeader } from "@/components/demo/demo-page-header";
+import { StudioPageHeader } from "@/components/studio/studio-page-header";
+import {
+  StudioEmptyState,
+  StudioMessageBubble,
+  StudioMetaList,
+  StudioSectionCard,
+  StudioStatCard,
+  StudioTimelineItem,
+} from "@/components/studio/studio-surfaces";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +31,6 @@ import {
 import type { ScopeRecord } from "@/lib/demo/types";
 import {
   ActivityIcon,
-  BotIcon,
   FileTextIcon,
   Layers3Icon,
   ListTodoIcon,
@@ -45,43 +52,29 @@ function ScopeSettingsView({ scope }: { scope: ScopeRecord }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {scope.settingsBlocks.map((block) => (
-        <Card key={block.id}>
-          <CardContent className="space-y-4 pt-5">
-            <h3 className="text-section-title">{block.title}</h3>
-            {block.description ? <p className="text-body">{block.description}</p> : null}
-            <div className="space-y-2">
-              {block.items.map((item) => (
-                <div
-                  key={`${block.id}_${item.label}`}
-                  className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5"
-                >
-                  <span className="text-text-muted">{item.label}</span>
-                  <span className="text-right font-medium text-foreground">{item.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <StudioSectionCard
+          key={block.id}
+          eyebrow="Settings block"
+          title={block.title}
+          description={block.description}
+        >
+          <StudioMetaList
+            items={block.items.map((item) => ({
+              label: item.label,
+              value: item.value,
+            }))}
+          />
+        </StudioSectionCard>
       ))}
-      <Card>
-        <CardContent className="space-y-4 pt-5">
-          <h3 className="text-section-title">Assistant profile</h3>
-          <div className="space-y-2">
-            <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
-              <span className="text-text-muted">Name</span>
-              <span className="text-right font-medium text-foreground">{scope.assistant.name}</span>
-            </div>
-            <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
-              <span className="text-text-muted">Tone</span>
-              <span className="text-right font-medium text-foreground">{scope.assistant.tone}</span>
-            </div>
-            <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
-              <span className="text-text-muted">Anchors</span>
-              <span className="text-right font-medium text-foreground">{scope.anchors.join(", ")}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <StudioSectionCard eyebrow="Assistant" title="Assistant profile">
+        <StudioMetaList
+          items={[
+            { label: "Name", value: scope.assistant.name },
+            { label: "Tone", value: scope.assistant.tone },
+            { label: "Anchors", value: scope.anchors.join(", ") },
+          ]}
+        />
+      </StudioSectionCard>
     </div>
   );
 }
@@ -226,8 +219,8 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
   };
 
   return (
-    <section className="demo-page-shell">
-      <DemoPageHeader
+    <section className="studio-page-shell">
+      <StudioPageHeader
         eyebrow={scope.type === "blink" ? "Home scope" : "Workspace scope"}
         icon={<span>{scope.icon ?? "🧩"}</span>}
         title={scope.name}
@@ -263,7 +256,7 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
       ) : null}
 
       <Tabs value={activeSection} onValueChange={setActiveSection}>
-        <TabsList variant="line" className="flex-wrap">
+        <TabsList variant="line" className="w-full flex-wrap justify-start">
           {scope.sectionDefinitions.map((section) => (
             <TabsTrigger key={section.key} value={section.key}>
               {section.label}
@@ -278,95 +271,61 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                 <div className="space-y-6">
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {overviewMetrics.map((metric) => (
-                      <div key={metric.label} className="demo-kpi">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
-                              {metric.label}
-                            </p>
-                            <p className="mt-2 text-3xl font-bold tracking-[-0.03em] text-foreground">
-                              {metric.value}
-                            </p>
-                          </div>
-                          <span className="inline-flex size-10 items-center justify-center rounded-2xl border border-border-soft bg-bg-subtle text-accent-base">
-                            {metric.icon}
-                          </span>
-                        </div>
-                      </div>
+                      <StudioStatCard
+                        key={metric.label}
+                        label={metric.label}
+                        value={metric.value}
+                        detail={scope.type === "blink" ? "Account-level overview" : "Workspace-level overview"}
+                        icon={metric.icon}
+                      />
                     ))}
                   </div>
 
-                  <Card>
-                    <CardContent className="space-y-5 pt-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="demo-page-eyebrow">Overview</p>
-                          <h2 className="mt-1 text-section-title">{scope.recap.headline}</h2>
-                        </div>
-                        <Badge variant="outline">{scope.type === "blink" ? "Root scope" : "Scoped workspace"}</Badge>
-                      </div>
-                      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-                        <ul className="space-y-3">
-                          {scope.recap.updates.map((item) => (
-                            <li
-                              key={item}
-                              className="flex gap-3 rounded-[18px] border border-border-soft bg-bg-subtle/55 px-4 py-3"
-                            >
-                              <span className="mt-0.5 inline-flex size-6 items-center justify-center rounded-full bg-accent-soft text-accent-base">
-                                <SparklesIcon className="size-3" />
-                              </span>
-                              <span className="text-body">{item}</span>
+                  <StudioSectionCard
+                    eyebrow="Overview"
+                    title={scope.recap.headline}
+                    description="Recap and attention surfaces follow the donor dashboard composition while preserving MyOS content structure."
+                    action={<Badge variant="outline">{scope.type === "blink" ? "Root scope" : "Scoped workspace"}</Badge>}
+                  >
+                    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+                      <ul className="space-y-3">
+                        {scope.recap.updates.map((item) => (
+                          <li
+                            key={item}
+                            className="flex gap-3 rounded-lg border border-border-soft bg-muted/40 px-4 py-3"
+                          >
+                            <span className="mt-0.5 inline-flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <SparklesIcon className="size-3" />
+                            </span>
+                            <span className="text-body">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="rounded-lg border border-border-soft bg-muted/40 p-4">
+                        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                          Needs attention
+                        </p>
+                        <ul className="mt-3 space-y-2 text-sm text-foreground">
+                          {scope.recap.asks.map((ask) => (
+                            <li key={ask} className="flex gap-2">
+                              <span className="text-primary">•</span>
+                              <span>{ask}</span>
                             </li>
                           ))}
                         </ul>
-                        <div className="rounded-[20px] border border-accent-base/12 bg-accent-soft/65 p-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent-base">
-                            Needs attention
-                          </p>
-                          <ul className="mt-3 space-y-2 text-sm text-foreground">
-                            {scope.recap.asks.map((ask) => (
-                              <li key={ask} className="flex gap-2">
-                                <span className="text-accent-base">•</span>
-                                <span>{ask}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <div className="demo-section-header">
-                      <div>
-                        <p className="demo-page-eyebrow">Assistant panel</p>
-                        <h2 className="mt-1 text-section-title">{scope.assistant.name} conversation</h2>
-                      </div>
-                      <Badge variant="secondary">{scope.messages.length} messages</Badge>
                     </div>
-                    <CardContent className="space-y-4 pt-5">
+                  </StudioSectionCard>
+
+                  <StudioSectionCard
+                    eyebrow="Assistant panel"
+                    title={`${scope.assistant.name} conversation`}
+                    action={<Badge variant="secondary">{scope.messages.length} messages</Badge>}
+                  >
+                    <div className="space-y-4">
                       <div className="max-h-[420px] space-y-3 overflow-auto pr-1">
                         {scope.messages.map((entry) => (
-                          <div
-                            key={entry.id}
-                            className={`rounded-[18px] border px-4 py-3 ${
-                              entry.role === "assistant"
-                                ? "border-border-soft bg-bg-subtle/80"
-                                : entry.role === "user"
-                                  ? "border-accent-base/10 bg-accent-soft/55"
-                                  : "border-border-soft bg-card"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex size-7 items-center justify-center rounded-2xl border border-border-soft bg-card text-accent-base">
-                                <BotIcon className="size-3.5" />
-                              </span>
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">
-                                {entry.role}
-                              </p>
-                            </div>
-                            <p className="mt-3 text-sm leading-6 text-foreground">{entry.text}</p>
-                          </div>
+                          <StudioMessageBubble key={entry.id} role={entry.role} text={entry.text} />
                         ))}
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row">
@@ -374,11 +333,10 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                           value={composerText}
                           onChange={(event) => setComposerText(event.target.value)}
                           placeholder={`Message ${scope.assistant.name}…`}
-                          className="h-11 flex-1"
+                          className="flex-1"
                         />
                         <Button
                           size="sm"
-                          className="h-11 px-4"
                           disabled={sending || composerText.trim().length === 0}
                           onClick={async () => {
                             const text = composerText.trim();
@@ -392,17 +350,15 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                           {sending ? "Sending…" : "Send"}
                         </Button>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </StudioSectionCard>
                 </div>
 
                 <div className="space-y-5">
-                  <Card size="sm">
-                    <div className="demo-section-header border-b-0 px-4 py-4">
-                      <div>
-                        <p className="demo-page-eyebrow">Tasks</p>
-                        <h3 className="mt-1 text-section-title">Recent tasks</h3>
-                      </div>
+                  <StudioSectionCard
+                    eyebrow="Tasks"
+                    title="Recent tasks"
+                    action={
                       <Button
                         size="xs"
                         onClick={async () => {
@@ -414,12 +370,12 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                       >
                         New task
                       </Button>
-                    </div>
-                    <CardContent className="space-y-3 pt-1">
+                    }
+                    className="shadow-xs"
+                  >
+                    <div className="space-y-3">
                       {recentThreads.length === 0 ? (
-                        <div className="demo-empty-state px-4 py-8">
-                          <p className="text-body">No tasks yet.</p>
-                        </div>
+                        <StudioEmptyState title="No tasks yet." />
                       ) : (
                         recentThreads.map((thread) => (
                           <Link
@@ -437,21 +393,13 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                           </Link>
                         ))
                       )}
-                    </CardContent>
-                  </Card>
-
-                  <Card size="sm">
-                    <div className="demo-section-header border-b-0 px-4 py-4">
-                      <div>
-                        <p className="demo-page-eyebrow">Documents</p>
-                        <h3 className="mt-1 text-section-title">Recent documents</h3>
-                      </div>
                     </div>
-                    <CardContent className="space-y-3 pt-1">
+                  </StudioSectionCard>
+
+                  <StudioSectionCard eyebrow="Documents" title="Recent documents" className="shadow-xs">
+                    <div className="space-y-3">
                       {recentDocuments.length === 0 ? (
-                        <div className="demo-empty-state px-4 py-8">
-                          <p className="text-body">No documents yet.</p>
-                        </div>
+                        <StudioEmptyState title="No documents yet." />
                       ) : (
                         recentDocuments.map((document) => (
                           <Link
@@ -467,21 +415,13 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                           </Link>
                         ))
                       )}
-                    </CardContent>
-                  </Card>
-
-                  <Card size="sm">
-                    <div className="demo-section-header border-b-0 px-4 py-4">
-                      <div>
-                        <p className="demo-page-eyebrow">Alerts</p>
-                        <h3 className="mt-1 text-section-title">Attention</h3>
-                      </div>
                     </div>
-                    <CardContent className="space-y-3 pt-1">
+                  </StudioSectionCard>
+
+                  <StudioSectionCard eyebrow="Alerts" title="Attention" className="shadow-xs">
+                    <div className="space-y-3">
                       {attention.length === 0 ? (
-                        <div className="demo-empty-state px-4 py-8">
-                          <p className="text-body">No urgent asks.</p>
-                        </div>
+                        <StudioEmptyState title="No urgent asks." />
                       ) : (
                         attention.slice(0, 4).map((item) => (
                           <div key={item.id} className="demo-list-card">
@@ -495,8 +435,8 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
                           </div>
                         ))
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </StudioSectionCard>
                 </div>
               </div>
             ) : null}
@@ -670,37 +610,30 @@ export function ScopeShell({ scopeId }: { scopeId: string }) {
             ) : null}
 
             {section.kind === "activity" ? (
-              <Card>
-                <div className="demo-section-header">
-                  <div>
-                    <p className="demo-page-eyebrow">Timeline</p>
-                    <h2 className="mt-1 text-section-title">Activity timeline</h2>
-                  </div>
-                  <Badge variant="outline">{recentActivity.length} entries</Badge>
-                </div>
-                <CardContent className="space-y-3 pt-5">
+              <StudioSectionCard
+                eyebrow="Timeline"
+                title="Activity timeline"
+                action={<Badge variant="outline">{recentActivity.length} entries</Badge>}
+              >
+                <div className="space-y-3">
                   {recentActivity.length === 0 ? (
-                    <div className="demo-empty-state">
-                      <p className="text-section-title">No activity yet</p>
-                      <p className="mt-1 text-body">Timeline updates will appear here as actions occur inside this scope.</p>
-                    </div>
+                    <StudioEmptyState
+                      title="No activity yet"
+                      description="Timeline updates will appear here as actions occur inside this scope."
+                    />
                   ) : (
                     recentActivity.map((entry) => (
-                      <div
+                      <StudioTimelineItem
                         key={entry.id}
-                        className="rounded-[18px] border border-border-soft bg-card px-4 py-4 shadow-[var(--shadow-subtle)]"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-semibold text-foreground">{entry.title}</p>
-                          <Badge variant="secondary">{entry.kind}</Badge>
-                        </div>
-                        {entry.detail ? <p className="mt-2 text-body">{entry.detail}</p> : null}
-                        <p className="mt-2 text-caption">{formatDate(entry.createdAt)}</p>
-                      </div>
+                        title={entry.title}
+                        detail={entry.detail}
+                        badge={<Badge variant="secondary">{entry.kind}</Badge>}
+                        meta={formatDate(entry.createdAt)}
+                      />
                     ))
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </StudioSectionCard>
             ) : null}
 
             {section.kind === "settings" ? <ScopeSettingsView scope={scope} /> : null}

@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowLeftIcon, FileTextIcon } from "lucide-react";
-import { DemoPageHeader } from "@/components/demo/demo-page-header";
+import { StudioPageHeader } from "@/components/studio/studio-page-header";
+import {
+  StudioEmptyState,
+  StudioMetaList,
+  StudioSectionCard,
+  StudioTimelineItem,
+} from "@/components/studio/studio-surfaces";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import type { DocumentRecord } from "@/lib/demo/types";
@@ -40,8 +45,8 @@ export function DocumentDetailShell({
   );
 
   return (
-    <section className="demo-page-shell max-w-6xl">
-      <DemoPageHeader
+    <section className="studio-page-shell max-w-[1400px]">
+      <StudioPageHeader
         eyebrow="Document detail"
         icon={<FileTextIcon className="size-5" />}
         title={document.title}
@@ -62,7 +67,7 @@ export function DocumentDetailShell({
       />
 
       <Tabs defaultValue="ui">
-        <TabsList variant="line">
+        <TabsList variant="line" className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="ui">UI</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -70,17 +75,14 @@ export function DocumentDetailShell({
 
         <TabsContent value="ui" className="space-y-4">
           {document.uiCards.map((card) => (
-            <Card key={card.id}>
-              <div className="demo-section-header">
-                <div>
-                  <p className="demo-page-eyebrow">Action surface</p>
-                  <h2 className="mt-1 text-section-title">{card.title}</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  {card.metric ? <Badge variant="outline">{card.metric}</Badge> : null}
-                </div>
-              </div>
-              <CardContent className="space-y-4 pt-5">
+            <StudioSectionCard
+              key={card.id}
+              eyebrow="Action surface"
+              title={card.title}
+              description="Document controls are preserved while moving to the donor-style detail grammar."
+              action={card.metric ? <Badge variant="outline">{card.metric}</Badge> : undefined}
+            >
+              <div className="space-y-4">
                 <p className="text-body">{card.body}</p>
                 {card.actions?.length ? (
                   <div className="flex flex-wrap gap-2">
@@ -102,98 +104,74 @@ export function DocumentDetailShell({
                     ))}
                   </div>
                 ) : null}
-              </CardContent>
-            </Card>
+              </div>
+            </StudioSectionCard>
           ))}
           {actionCount === 0 ? (
-            <Card>
-              <CardContent className="pt-5">
-                <div className="demo-empty-state">
-                  <p className="text-section-title">No UI actions configured</p>
-                  <p className="mt-1 text-body">This document does not expose interactive controls yet.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <StudioSectionCard eyebrow="Action surface" title="No UI actions configured">
+              <StudioEmptyState
+                title="No UI actions configured"
+                description="This document does not expose interactive controls yet."
+              />
+            </StudioSectionCard>
           ) : null}
         </TabsContent>
 
         <TabsContent value="settings">
           <div className="grid gap-4 md:grid-cols-2">
             {document.settingsBlocks.map((block) => (
-              <Card key={block.id}>
-                <CardContent className="space-y-4 pt-5">
-                  <h3 className="text-section-title">{block.title}</h3>
-                  {block.description ? <p className="text-body">{block.description}</p> : null}
-                  <div className="overflow-hidden rounded-[18px] border border-border-soft">
-                    {block.items.map((item) => (
-                      <div
-                        key={`${block.id}_${item.label}`}
-                        className="grid grid-cols-[140px_1fr] gap-2 border-b border-border-soft/70 bg-bg-subtle/45 px-4 py-3 text-sm last:border-b-0"
-                      >
-                        <span className="text-text-muted">{item.label}</span>
-                        <span className="text-right font-medium text-foreground">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <StudioSectionCard
+                key={block.id}
+                eyebrow="Settings block"
+                title={block.title}
+                description={block.description}
+              >
+                <StudioMetaList
+                  items={block.items.map((item) => ({
+                    label: item.label,
+                    value: item.value,
+                  }))}
+                />
+              </StudioSectionCard>
             ))}
-            <Card>
-              <CardContent className="space-y-4 pt-5">
-                <h3 className="text-section-title">Document metadata</h3>
-                <div className="space-y-2">
-                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
-                    <span className="text-text-muted">Owner</span>
-                    <span className="font-medium text-foreground">{document.owner}</span>
-                  </div>
-                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
-                    <span className="text-text-muted">Participants</span>
-                    <span className="text-right font-medium text-foreground">{document.participants.join(", ")}</span>
-                  </div>
-                  <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
-                    <span className="text-text-muted">Updated</span>
-                    <span className="font-medium text-foreground">{formatDate(document.updatedAt)}</span>
-                  </div>
-                </div>
-                <pre className="overflow-auto rounded-[18px] border border-border-soft bg-bg-subtle/75 p-4 text-xs leading-6 text-text-secondary">
+            <StudioSectionCard eyebrow="Metadata" title="Document metadata">
+              <div className="space-y-4">
+                <StudioMetaList
+                  items={[
+                    { label: "Owner", value: document.owner },
+                    { label: "Participants", value: document.participants.join(", ") },
+                    { label: "Updated", value: formatDate(document.updatedAt) },
+                  ]}
+                />
+                <pre className="overflow-auto rounded-lg border border-border-soft bg-muted/45 p-4 text-xs leading-6 text-text-secondary">
                   {JSON.stringify(document.details, null, 2)}
                 </pre>
-              </CardContent>
-            </Card>
+              </div>
+            </StudioSectionCard>
           </div>
         </TabsContent>
 
         <TabsContent value="activity">
-          <Card>
-            <div className="demo-section-header">
-              <div>
-                <p className="demo-page-eyebrow">Timeline</p>
-                <h2 className="mt-1 text-section-title">Document activity</h2>
-              </div>
-            </div>
-            <CardContent className="space-y-3 pt-5">
+          <StudioSectionCard eyebrow="Timeline" title="Document activity">
+            <div className="space-y-3">
               {document.activity.length === 0 ? (
-                <div className="demo-empty-state">
-                  <p className="text-section-title">No activity recorded yet</p>
-                  <p className="mt-1 text-body">Document actions, updates, and timeline entries will appear here.</p>
-                </div>
+                <StudioEmptyState
+                  title="No activity recorded yet"
+                  description="Document actions, updates, and timeline entries will appear here."
+                />
               ) : (
                 document.activity.map((entry) => (
-                  <div
+                  <StudioTimelineItem
                     key={entry.id}
-                    className="rounded-[18px] border border-border-soft bg-card px-4 py-4 shadow-[var(--shadow-subtle)]"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-sm text-foreground">{entry.title}</p>
-                      <Badge variant="secondary">{entry.kind}</Badge>
-                    </div>
-                    {entry.detail ? <p className="mt-1 text-body">{entry.detail}</p> : null}
-                    <p className="mt-1 text-caption">{formatDate(entry.createdAt)}</p>
-                  </div>
+                    title={entry.title}
+                    detail={entry.detail}
+                    badge={<Badge variant="secondary">{entry.kind}</Badge>}
+                    meta={formatDate(entry.createdAt)}
+                  />
                 ))
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </StudioSectionCard>
         </TabsContent>
       </Tabs>
     </section>

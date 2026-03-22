@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { DemoPageHeader } from "@/components/demo/demo-page-header";
+import { StudioPageHeader } from "@/components/studio/studio-page-header";
+import { StudioMetaList, StudioSectionCard } from "@/components/studio/studio-surfaces";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -29,19 +29,20 @@ export default function SettingsPage() {
   }, [saved]);
 
   return (
-    <section className="demo-page-shell max-w-5xl">
-      <DemoPageHeader
+    <section className="studio-page-shell max-w-[1200px]">
+      <StudioPageHeader
         eyebrow="Demo controls"
         icon={<Settings2Icon className="size-5" />}
         title="Settings"
         description="Manage local demo credentials, reset seeded state, and keep the legacy route available for regression safety."
       />
 
-      <Card>
-        <CardHeader className="border-b border-border-soft pb-4">
-          <CardTitle>Credentials (localStorage)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
+      <StudioSectionCard
+        eyebrow="Credentials"
+        title="Credentials (localStorage)"
+        description="These values remain stored locally in the browser to preserve the current MyOS demo behavior."
+      >
+        <div className="grid gap-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="openai-key">OpenAI API key</Label>
@@ -89,9 +90,9 @@ export default function SettingsPage() {
               />
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border-soft bg-bg-subtle/70 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-soft bg-muted/35 px-4 py-3">
             <div className="flex items-center gap-3">
-              <span className="inline-flex size-10 items-center justify-center rounded-2xl border border-border-soft bg-card text-accent-base">
+              <span className="inline-flex size-10 items-center justify-center rounded-lg border border-border-soft bg-card text-primary">
                 <KeyRoundIcon className="size-4" />
               </span>
               <div>
@@ -121,20 +122,22 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </StudioSectionCard>
 
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_0.9fr]">
-        <Card>
-          <CardHeader className="border-b border-border-soft pb-4">
-            <CardTitle>Demo state</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="rounded-[18px] border border-border-soft bg-bg-subtle/75 p-4">
-              <p className="text-body">
-                Demo data is stored locally (IndexedDB) so your interactions persist across refreshes.
-              </p>
-            </div>
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.9fr]">
+        <StudioSectionCard
+          eyebrow="Persistence"
+          title="Demo state"
+          description="Demo data is stored locally (IndexedDB) so your interactions persist across refreshes."
+        >
+          <div className="space-y-4 text-sm">
+            <StudioMetaList
+              items={[
+                { label: "Storage", value: "IndexedDB + localStorage" },
+                { label: "Reset scope", value: "Seeded demo snapshot" },
+              ]}
+            />
             <Button
               variant="destructive"
               size="sm"
@@ -148,26 +151,21 @@ export default function SettingsPage() {
               <RotateCcwIcon className="size-3.5" />
               {resetting ? "Resetting…" : "Reset demo data"}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </StudioSectionCard>
 
-        <Card>
-          <CardHeader className="border-b border-border-soft pb-4">
-            <CardTitle>Legacy route</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <p className="text-body">
-              The legacy blueprint / DSL / bootstrap flow remains available for regression safety.
-            </p>
-            <div className="rounded-[18px] border border-border-soft bg-bg-subtle/75 p-4">
-              <p className="text-caption">Compatible route</p>
-              <p className="mt-1 font-medium text-foreground">/t/[threadId]</p>
-            </div>
+        <StudioSectionCard
+          eyebrow="Compatibility"
+          title="Legacy route"
+          description="The legacy blueprint / DSL / bootstrap flow remains available for regression safety."
+        >
+          <div className="space-y-4 text-sm">
+            <StudioMetaList items={[{ label: "Compatible route", value: "/t/[threadId]" }]} />
             <Button variant="outline" size="sm" render={<Link href="/t/thread_demo_legacy" />}>
               Open legacy /t/[threadId]
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </StudioSectionCard>
       </div>
     </section>
   );
