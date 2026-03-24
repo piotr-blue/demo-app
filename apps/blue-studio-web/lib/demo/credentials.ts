@@ -4,6 +4,7 @@ const DEMO_STORAGE_KEYS = {
   credentials: "myosDemo.credentials",
   lastRoute: "myosDemo.lastRoute",
   leftRailCollapsed: "myosDemo.leftRailCollapsed",
+  activeAccountId: "myosDemo.activeAccountId",
 } as const;
 
 const DEFAULT_MYOS_BASE_URL = "https://api.dev.myos.blue/";
@@ -88,4 +89,18 @@ export function writeDemoLeftRailCollapsed(collapsed: boolean): void {
     return;
   }
   window.localStorage.setItem(DEMO_STORAGE_KEYS.leftRailCollapsed, collapsed ? "true" : "false");
+}
+
+export function readActiveDemoAccountId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.localStorage.getItem(DEMO_STORAGE_KEYS.activeAccountId);
+}
+
+export function writeActiveDemoAccountId(accountId: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(DEMO_STORAGE_KEYS.activeAccountId, accountId);
 }

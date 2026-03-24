@@ -3,24 +3,22 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { CreditCardIcon, LogOutIcon, Settings2Icon } from "lucide-react";
+import { useDemoApp } from "@/components/demo/demo-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuLabel,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function StudioAccountMenu({
-  compact = false,
-  name = "piotr-blue",
-  subtitle = "MyOS operator",
-}: {
-  compact?: boolean;
-  name?: string;
-  subtitle?: string;
-}) {
+export function StudioAccountMenu({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
+  const { snapshot, activeAccount, setActiveAccountId } = useDemoApp();
+  const name = activeAccount?.name ?? "piotr-blue";
+  const subtitle = activeAccount?.subtitle ?? "MyOS operator";
+  const switchTargets = (snapshot?.accounts ?? []).filter((account) => account.id !== activeAccount?.id);
 
   return (
     <DropdownMenu>
@@ -42,13 +40,46 @@ export function StudioAccountMenu({
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent side={compact ? "bottom" : "top"} align={compact ? "end" : "start"}>
-        <DropdownMenuItem onClick={() => router.push("/settings")}>
-          <Settings2Icon className="size-4" />
-          Settings
-        </DropdownMenuItem>
+        <DropdownMenuLabel className="min-w-[220px]">
+          <div className="flex items-center gap-3">
+            <span className="relative inline-flex size-9 overflow-hidden rounded-md border border-border/80 bg-muted">
+              <Image src={activeAccount?.avatar ?? "/user-avatar.png"} alt={`${name} avatar`} fill sizes="36px" className="object-cover" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{name}</p>
+              <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+            </div>
+          </div>
+        </DropdownMenuLabel>
+        {switchTargets.length > 0 ? (
+          <>
+            {switchTargets.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  setActiveAccountId(account.id);
+                  router.push("/home");
+                }}
+              >
+                <span className="relative inline-flex size-7 overflow-hidden rounded-md border border-border/80 bg-muted">
+                  <Image src={account.avatar ?? "/user-avatar.png"} alt={`${account.name} avatar`} fill sizes="28px" className="object-cover" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm">Switch to {account.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{account.subtitle}</span>
+                </span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         <DropdownMenuItem onClick={() => router.push("/settings")}>
           <CreditCardIcon className="size-4" />
           Billing
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push("/settings")}>
+          <Settings2Icon className="size-4" />
+          Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={() => router.push("/home")}>

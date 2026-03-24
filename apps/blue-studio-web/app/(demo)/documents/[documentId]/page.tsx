@@ -1,16 +1,14 @@
 "use client";
 
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { DocumentDetailShell } from "@/components/demo/document-detail-shell";
 import { useDemoApp } from "@/components/demo/demo-provider";
-import { getDocumentById, getScopeById } from "@/lib/demo/selectors";
-import { BLINK_SCOPE_ID } from "@/lib/demo/seed";
+import { getDocumentById } from "@/lib/demo/selectors";
 
 export default function DocumentDetailsPage() {
   const { snapshot, loading } = useDemoApp();
   const params = useParams<{ documentId: string }>();
-  const searchParams = useSearchParams();
   const documentId = Array.isArray(params.documentId) ? params.documentId[0] : params.documentId;
 
   if (loading || !snapshot) {
@@ -32,41 +30,11 @@ export default function DocumentDetailsPage() {
     );
   }
 
-  const scope = document.scopeId ? getScopeById(snapshot, document.scopeId) : null;
-  const resolvedScope = scope ?? getScopeById(snapshot, BLINK_SCOPE_ID);
-  const scopeName = resolvedScope?.name ?? "Home";
-  const requestedSection = searchParams.get("section");
-  const allowedSections = new Set([
-    "chat",
-    "tasks",
-    "all-documents",
-    "starred",
-    "services",
-    "subscriptions",
-  ]);
-  const activeSection = allowedSections.has(requestedSection ?? "") ? (requestedSection as
-    | "chat"
-    | "tasks"
-    | "all-documents"
-    | "starred"
-    | "services"
-    | "subscriptions") : "all-documents";
-  const backHref = scope
-    ? `/workspaces/${encodeURIComponent(scope.id)}?section=${activeSection}`
-    : `/home?section=${activeSection}`;
-  const backLabel = scope ? "Back to workspace" : "Back to Home";
-
   return (
     <DocumentDetailShell
       document={document}
-      scopeName={scopeName}
-      scopeId={resolvedScope?.id ?? BLINK_SCOPE_ID}
-      scopeType={resolvedScope?.type ?? "blink"}
-      scopeIcon={resolvedScope?.icon}
-      scopeAssistantName={resolvedScope?.assistant.name ?? "Blink"}
-      activeSection={activeSection}
-      backHref={backHref}
-      backLabel={backLabel}
+      backHref="/home?section=documents"
+      backLabel="Back to Home"
     />
   );
 }

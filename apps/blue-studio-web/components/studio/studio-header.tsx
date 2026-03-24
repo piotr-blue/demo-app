@@ -27,7 +27,7 @@ export function StudioHeader({
             <Input
               value={searchValue}
               onChange={(event) => onSearchValueChange(event.target.value)}
-              placeholder="Search workspaces, documents, threads, services..."
+              placeholder="Search accounts, services, and documents..."
               className="h-9 pl-9 pr-20"
             />
             <span className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-md border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground md:inline-flex">

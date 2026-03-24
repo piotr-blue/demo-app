@@ -2,17 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import {
-  ArrowLeftIcon,
-  BellRingIcon,
-  BotIcon,
-  FileTextIcon,
-  HomeIcon,
-  ListTodoIcon,
-  MessageSquareIcon,
-  StarIcon,
-  WorkflowIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, BotIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,22 +24,10 @@ function formatDate(value: string) {
 
 export function ThreadDetailShell({
   thread,
-  scopeName,
-  scopeId,
-  scopeType,
-  scopeIcon,
-  scopeAssistantName,
-  activeSection,
   backHref,
   backLabel,
 }: {
   thread: ThreadRecord;
-  scopeName: string;
-  scopeId: string;
-  scopeType: "blink" | "workspace";
-  scopeIcon?: string | null;
-  scopeAssistantName: string;
-  activeSection: "chat" | "tasks" | "all-documents" | "starred" | "services" | "subscriptions";
   backHref: string;
   backLabel: string;
 }) {
@@ -57,60 +35,12 @@ export function ThreadDetailShell({
   const [composerText, setComposerText] = useState("");
   const [sending, setSending] = useState(false);
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
-  const scopeHref =
-    scopeType === "workspace" ? `/workspaces/${encodeURIComponent(scopeId)}` : "/home";
-  const scopeSections: Array<{
-    key: "chat" | "tasks" | "all-documents" | "starred" | "services" | "subscriptions";
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }> = [
-    { key: "chat", label: "Chat", icon: MessageSquareIcon },
-    { key: "tasks", label: "Tasks", icon: ListTodoIcon },
-    { key: "all-documents", label: "All Documents", icon: FileTextIcon },
-    { key: "starred", label: "Starred", icon: StarIcon },
-    { key: "services", label: "Services", icon: WorkflowIcon },
-    { key: "subscriptions", label: "Subscriptions", icon: BellRingIcon },
-  ];
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-      <aside>
-        <Card className="h-[calc(100vh-140px)]">
-          <CardContent className="space-y-4 pt-4">
-            <div className="rounded-lg border bg-muted/20 px-3 py-4 text-center">
-              <span className="inline-flex size-12 items-center justify-center rounded-full border bg-background text-xl">
-                {scopeIcon ?? <HomeIcon className="size-5" />}
-              </span>
-              <p className="mt-3 text-sm font-semibold">{scopeName}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{scopeType === "blink" ? "Home Space" : "Workspace"}</p>
-            </div>
-            <div className="rounded-lg border px-3 py-2 text-sm">
-              <p className="text-xs text-muted-foreground">Assistant:</p>
-              <p className="font-medium">{scopeAssistantName}</p>
-            </div>
-            <nav className="space-y-1">
-              {scopeSections.map((entry) => (
-                <Link
-                  key={entry.key}
-                  href={`${scopeHref}?section=${entry.key}`}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    activeSection === entry.key
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <entry.icon className="size-4" />
-                  <span>{entry.label}</span>
-                </Link>
-              ))}
-            </nav>
-          </CardContent>
-        </Card>
-      </aside>
-
+    <section>
       <div>
         <StudioPageHeader
-          eyebrow="Thread Detail"
+          eyebrow="Task"
           title={thread.title}
           description={thread.summary}
           actions={
@@ -121,10 +51,10 @@ export function ThreadDetailShell({
           }
           meta={
             <>
-              <Badge variant="secondary">thread</Badge>
+              <Badge variant="secondary">task</Badge>
               <Badge variant="outline">{thread.status}</Badge>
               <Badge variant="outline">{thread.progress}%</Badge>
-              <Badge variant="outline">{scopeName}</Badge>
+              {thread.responsibleSummary ? <Badge variant="outline">{thread.responsibleSummary}</Badge> : null}
             </>
           }
         />
@@ -258,8 +188,8 @@ export function ThreadDetailShell({
                     <span className="font-medium text-foreground">{thread.owner}</span>
                   </div>
                   <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
-                    <span className="text-text-muted">Linked scope</span>
-                    <span className="font-medium text-foreground">{scopeName}</span>
+                    <span className="text-text-muted">Parent document</span>
+                    <span className="font-medium text-foreground">{thread.parentDocumentId ?? "—"}</span>
                   </div>
                   <div className="demo-meta-row border-border-soft/80 bg-bg-subtle/60 py-2.5">
                     <span className="text-text-muted">Updated</span>

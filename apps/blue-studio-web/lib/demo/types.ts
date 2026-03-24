@@ -1,5 +1,8 @@
 export type DemoScopeType = "blink" | "workspace";
 export type WorkspaceTemplateKey = "shop" | "restaurant" | "generic-business";
+export type DemoConversationTargetType = "home" | "document";
+export type DemoSearchVisibility = "private" | "participants" | "public";
+export type DemoViewerAccessMode = "owner" | "participant" | "public" | "none";
 
 export interface DemoSectionDefinition {
   key: string;
@@ -27,9 +30,47 @@ export interface ScopeAssistantProfile {
   avatar?: string | null;
 }
 
+export interface DemoAccountRecord {
+  id: string;
+  accountId: string;
+  name: string;
+  email: string;
+  subtitle: string;
+  avatar?: string | null;
+  description: string;
+  isPrimary: boolean;
+  homeScopeId?: string | null;
+  profileDocumentId: string;
+  favoriteDocumentIds: string[];
+  publicDocumentIds: string[];
+  searchKeywords: string[];
+  website?: string | null;
+  location?: string | null;
+  phone?: string | null;
+}
+
+export interface DemoFieldRecord {
+  label: string;
+  value: string;
+  tone?: "default" | "muted" | "success" | "warning";
+}
+
+export interface DocumentAnchorRecord {
+  id: string;
+  documentId: string;
+  key: string;
+  label: string;
+  linkedDocumentIds: string[];
+  visibleToAccountIds?: string[];
+  searchKeywords?: string[];
+}
+
 export interface AssistantConversationRecord {
   id: string;
-  scopeId: string;
+  scopeId?: string | null;
+  targetType: DemoConversationTargetType;
+  targetId: string;
+  viewerAccountId: string;
   assistantName: string;
   createdAt: string;
   updatedAt: string;
@@ -53,7 +94,10 @@ export type AssistantExchangeStatus =
 export interface AssistantExchangeRecord {
   id: string;
   conversationId: string;
-  scopeId: string;
+  scopeId?: string | null;
+  targetType?: DemoConversationTargetType;
+  targetId?: string;
+  viewerAccountId?: string;
 
   type: AssistantExchangeType;
   status: AssistantExchangeStatus;
@@ -103,7 +147,7 @@ export interface AssistantExchangeMessageRecord {
   id: string;
   conversationId: string;
   exchangeId: string;
-  scopeId: string;
+  scopeId?: string | null;
 
   role: "assistant" | "user" | "system";
   kind: AssistantExchangeMessageKind;
@@ -118,7 +162,10 @@ export interface AssistantExchangeMessageRecord {
 
 export interface AssistantPlaybookRecord {
   id: string;
-  scopeId: string;
+  scopeId?: string | null;
+  targetType: DemoConversationTargetType;
+  targetId: string;
+  viewerAccountId: string;
   inheritsFromScopeId?: string | null;
 
   identityMarkdown: string;
@@ -178,29 +225,15 @@ export interface ScopeRecord {
 
 export interface ActivityRecord {
   id: string;
-  scopeId: string;
-  scopeType: DemoScopeType;
+  scopeId?: string | null;
+  scopeType?: DemoScopeType;
+  accountId?: string | null;
   threadId?: string | null;
   documentId?: string | null;
-  kind:
-    | "assistant-message"
-    | "user-message"
-    | "assistant-discussion-opened"
-    | "assistant-reply-appended"
-    | "assistant-discussion-resolved"
-    | "assistant-ask-created"
-    | "assistant-user-instruction"
-    | "assistant-playbook-updated"
-    | "thread-message"
-    | "thread-created"
-    | "document-created"
-    | "workspace-created"
-    | "bootstrap"
-    | "document-action"
-    | "thread-action"
-    | "status"
-    | "error"
-    | "operation";
+  targetType?: DemoConversationTargetType;
+  targetId?: string | null;
+  visibleToAccountIds?: string[];
+  kind: string;
   title: string;
   detail?: string;
   createdAt: string;
@@ -220,18 +253,24 @@ export interface DemoActionDefinition {
 
 export interface ThreadRecord {
   id: string;
-  scopeId: string;
+  scopeId?: string;
   title: string;
   summary: string;
   status: "active" | "paused" | "blocked" | "completed";
   owner: string;
+  ownerAccountId: string;
+  participantAccountIds: string[];
+  visibleToAccountIds: string[];
   progress: number;
   tags: string[];
   sectionKey: string | null;
   createdAt: string;
   updatedAt: string;
+  parentDocumentId?: string | null;
   coreDocumentId?: string | null;
   sessionId?: string | null;
+  responsibleSummary?: string;
+  activityLabel?: string;
   settingsBlocks: DemoSettingsBlock[];
   uiCards: DocumentUiCard[];
   messages: BaseChatMessage[];
@@ -250,27 +289,8 @@ export interface DocumentUiCard {
 export interface DocumentRecord {
   id: string;
   scopeId: string | null;
-  kind:
-    | "workspace-core"
-    | "thread"
-    | "agreement"
-    | "proposal"
-    | "payment"
-    | "generic"
-    | "service"
-    | "shared-document"
-    | "draft-document"
-    | "access"
-    | "order"
-    | "product"
-    | "partnership"
-    | "manuscript"
-    | "review"
-    | "outreach"
-    | "reservation"
-    | "supplier"
-    | "hiring";
-  category: "service" | "task-artifact" | "relationship" | "operational" | "content";
+  kind: string;
+  category: string;
   sectionKey: string | null;
   title: string;
   summary: string;
@@ -279,6 +299,21 @@ export interface DocumentRecord {
   participants: string[];
   tags: string[];
   isService: boolean;
+  ownerAccountId: string;
+  participantAccountIds: string[];
+  isPublic: boolean;
+  visibleToAccountIds: string[];
+  searchVisibility: DemoSearchVisibility;
+  starredByAccountIds: string[];
+  linkedDocumentIds: string[];
+  anchorIds: string[];
+  taskIds: string[];
+  parentDocumentId?: string | null;
+  typeLabel?: string;
+  oneLineSummary?: string;
+  visibilityLabel?: string;
+  coreFields: DemoFieldRecord[];
+  detailBlocks: DemoSettingsBlock[];
   createdAt: string;
   updatedAt: string;
   sessionId?: string | null;
@@ -292,8 +327,9 @@ export interface DocumentRecord {
 
 export interface AttentionItem {
   id: string;
-  scopeId: string;
-  scopeType: DemoScopeType;
+  scopeId?: string | null;
+  scopeType?: DemoScopeType;
+  accountId: string;
   status: "pending" | "resolved" | "dismissed";
   title: string;
   body: string;
@@ -301,6 +337,10 @@ export interface AttentionItem {
   relatedThreadId?: string | null;
   relatedDocumentId?: string | null;
   relatedExchangeId?: string | null;
+  availableActionLabels?: string[];
+  sourceLabel?: string | null;
+  sourceHref?: string | null;
+  visibleToAccountIds?: string[];
   createdAt: string;
   resolvedAt?: string | null;
   delivery: {
@@ -329,6 +369,8 @@ export interface WorkspaceTemplateDefinition {
 }
 
 export interface DemoSnapshot {
+  accounts: DemoAccountRecord[];
+  documentAnchors: DocumentAnchorRecord[];
   scopes: ScopeRecord[];
   threads: ThreadRecord[];
   documents: DocumentRecord[];

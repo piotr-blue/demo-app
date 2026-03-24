@@ -10,63 +10,56 @@ import {
   type ReactNode,
 } from "react";
 import {
-  addScopeDocument,
   appendThreadMessage,
   applyDocumentAction,
   applyThreadAction,
-  createRootDocument,
-  createThreadInScope,
-  createWorkspaceFromTemplate,
+  getOrCreateDocumentConversation,
+  getOrCreateHomeConversation,
   loadDemoSnapshot,
   replyToAssistantExchange as replyToAssistantExchangeAction,
   resolveAssistantExchange as resolveAssistantExchangeAction,
   resetDemoSnapshot,
-  retryWorkspaceBootstrap,
   startAssistantDemoDiscussion as startAssistantDemoDiscussionAction,
   startUserDiscussion as startUserDiscussionAction,
+  toggleDocumentFavorite,
   updateAssistantPlaybook as updateAssistantPlaybookAction,
 } from "@/lib/demo/scope-actions";
 import {
   emptyDemoCredentials,
+  readActiveDemoAccountId,
   readDemoCredentials,
+  writeActiveDemoAccountId,
   writeDemoCredentials,
 } from "@/lib/demo/credentials";
 import {
-  getBlinkScope,
-  getScopeById,
+  getAccountById,
+  getActiveAccount,
 } from "@/lib/demo/selectors";
 import type {
+  DemoAccountRecord,
   AssistantPlaybookRecord,
   DemoCredentials,
   DemoSnapshot,
-  ScopeRecord,
-  WorkspaceTemplateKey,
 } from "@/lib/demo/types";
 
 interface DemoContextValue {
   snapshot: DemoSnapshot | null;
   loading: boolean;
+  activeAccountId: string | null;
+  activeAccount: DemoAccountRecord | null;
+  setActiveAccountId: (accountId: string) => void;
   credentials: DemoCredentials;
   setCredentials: (credentials: DemoCredentials) => void;
   refresh: () => Promise<void>;
-  getScope: (scopeId: string) => ScopeRecord | null;
-  createWorkspace: (params: {
-    templateKey: WorkspaceTemplateKey;
-    workspaceName: string;
-  }) => Promise<string | null>;
-  createThread: (scopeId: string, title?: string) => Promise<string | null>;
-  createRootDocument: () => Promise<string | null>;
-  createScopeDocument: (
-    scopeId: string,
-    title: string,
-    summary: string
-  ) => Promise<string | null>;
-  startAssistantDemoDiscussion: (scopeId: string) => Promise<string | null>;
-  startScopeDiscussion: (scopeId: string, text: string) => Promise<string | null>;
+  getAccount: (accountId: string) => DemoAccountRecord | null;
+  getHomeConversationId: (accountId?: string) => Promise<string | null>;
+  getDocumentConversationId: (documentId: string, viewerAccountId?: string) => Promise<string | null>;
+  startAssistantDemoDiscussion: (conversationId: string) => Promise<string | null>;
+  startScopeDiscussion: (conversationId: string, text: string) => Promise<string | null>;
   replyToAssistantExchange: (exchangeId: string, text: string) => Promise<void>;
   resolveAssistantExchange: (exchangeId: string) => Promise<void>;
   updateAssistantPlaybook: (
-    scopeId: string,
+    playbookId: string,
     patch: Partial<
       Pick<
         AssistantPlaybookRecord,
@@ -77,7 +70,7 @@ interface DemoContextValue {
   sendThreadMessage: (threadId: string, text: string) => Promise<void>;
   runDocumentAction: (documentId: string, actionId: string) => Promise<void>;
   runThreadAction: (threadId: string, actionId: string) => Promise<void>;
-  retryWorkspaceBootstrap: (scopeId: string) => Promise<void>;
+  toggleFavorite: (documentId: string) => Promise<void>;
   resetDemoData: () => Promise<void>;
 }
 
@@ -87,6 +80,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<DemoSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [credentials, setCredentialsState] = useState<DemoCredentials>(emptyDemoCredentials());
+  const [activeAccountId, setActiveAccountIdState] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const next = await loadDemoSnapshot();
@@ -96,15 +90,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [seededSnapshot, storedCredentials] = await Promise.all([
+      const [seededSnapshot, storedCredentials, storedActiveAccountId] = await Promise.all([
         loadDemoSnapshot(),
         Promise.resolve(readDemoCredentials()),
+        Promise.resolve(readActiveDemoAccountId()),
       ]);
       if (cancelled) {
         return;
       }
       setSnapshot(seededSnapshot);
       setCredentialsState(storedCredentials ?? emptyDemoCredentials());
+      setActiveAccountIdState(
+        storedActiveAccountId ?? getActiveAccount(seededSnapshot)?.id ?? null
+      );
       setLoading(false);
     })();
     return () => {
@@ -117,57 +115,35 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     writeDemoCredentials(nextCredentials);
   }, []);
 
-  const createWorkspaceAction = useCallback(
-    async (params: {
-      templateKey: WorkspaceTemplateKey;
-      workspaceName: string;
-    }): Promise<string | null> => {
-      const result = await createWorkspaceFromTemplate({
-        templateKey: params.templateKey,
-        workspaceName: params.workspaceName,
-      });
-      if (!result.workspaceId) {
-        return null;
-      }
-      setSnapshot(result.snapshot);
-      return result.workspaceId;
-    },
-    []
-  );
-
-  const createThreadAction = useCallback(
-    async (scopeId: string, title?: string): Promise<string | null> => {
-      const created = await createThreadInScope({
-        scopeId,
-        title,
-      });
-      if (!created.threadId) {
-        return null;
-      }
-      setSnapshot(created.snapshot);
-      return created.threadId;
-    },
-    []
-  );
-
-  const createRootDocumentAction = useCallback(async (): Promise<string | null> => {
-    const created = await createRootDocument();
-    setSnapshot(created.snapshot);
-    return created.documentId || null;
+  const setActiveAccountId = useCallback((accountId: string) => {
+    setActiveAccountIdState(accountId);
+    writeActiveDemoAccountId(accountId);
   }, []);
 
-  const createScopeDocumentAction = useCallback(
-    async (scopeId: string, title: string, summary: string): Promise<string | null> => {
-      const created = await addScopeDocument({
-        scopeId,
-        title,
-        summary,
-        kind: "generic",
-      });
-      setSnapshot(created.snapshot);
-      return created.documentId || null;
+  const getHomeConversationId = useCallback(
+    async (accountId?: string): Promise<string | null> => {
+      const resolvedAccountId = accountId ?? activeAccountId;
+      if (!resolvedAccountId) {
+        return null;
+      }
+      const result = await getOrCreateHomeConversation(resolvedAccountId);
+      setSnapshot(result.snapshot);
+      return result.conversationId || null;
     },
-    []
+    [activeAccountId]
+  );
+
+  const getDocumentConversationId = useCallback(
+    async (documentId: string, viewerAccountId?: string): Promise<string | null> => {
+      const resolvedAccountId = viewerAccountId ?? activeAccountId;
+      if (!resolvedAccountId) {
+        return null;
+      }
+      const result = await getOrCreateDocumentConversation(documentId, resolvedAccountId);
+      setSnapshot(result.snapshot);
+      return result.conversationId || null;
+    },
+    [activeAccountId]
   );
 
   const startAssistantDemoDiscussion = useCallback(
@@ -200,7 +176,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const updateAssistantPlaybook = useCallback(
     async (
-      scopeId: string,
+      playbookId: string,
       patch: Partial<
         Pick<
           AssistantPlaybookRecord,
@@ -208,15 +184,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         >
       >
     ): Promise<void> => {
-      const next = await updateAssistantPlaybookAction(scopeId, patch);
-      setSnapshot(next);
-    },
-    []
-  );
-
-  const retryWorkspaceBootstrapAction = useCallback(
-    async (scopeId: string): Promise<void> => {
-      const next = await retryWorkspaceBootstrap(scopeId);
+      const next = await updateAssistantPlaybookAction(playbookId, patch);
       setSnapshot(next);
     },
     []
@@ -243,23 +211,45 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setSnapshot(next);
   }, []);
 
+  const toggleFavoriteHandler = useCallback(
+    async (documentId: string): Promise<void> => {
+      if (!activeAccountId) {
+        return;
+      }
+      const next = await toggleDocumentFavorite(activeAccountId, documentId);
+      setSnapshot(next);
+    },
+    [activeAccountId]
+  );
+
   const resetDemoDataAction = useCallback(async (): Promise<void> => {
     const next = await resetDemoSnapshot();
     setSnapshot(next);
+    const primaryAccount = getActiveAccount(next);
+    if (primaryAccount) {
+      setActiveAccountIdState(primaryAccount.id);
+      writeActiveDemoAccountId(primaryAccount.id);
+    }
   }, []);
+
+  const activeAccount = useMemo(
+    () => (snapshot ? getActiveAccount(snapshot, activeAccountId) : null),
+    [activeAccountId, snapshot]
+  );
 
   const value = useMemo<DemoContextValue>(
     () => ({
       snapshot,
       loading,
+      activeAccountId,
+      activeAccount,
+      setActiveAccountId,
       credentials,
       setCredentials,
       refresh,
-      getScope: (scopeId: string) => (snapshot ? getScopeById(snapshot, scopeId) : null),
-      createWorkspace: createWorkspaceAction,
-      createThread: createThreadAction,
-      createRootDocument: createRootDocumentAction,
-      createScopeDocument: createScopeDocumentAction,
+      getAccount: (accountId: string) => (snapshot ? getAccountById(snapshot, accountId) : null),
+      getHomeConversationId,
+      getDocumentConversationId,
       startAssistantDemoDiscussion,
       startScopeDiscussion,
       replyToAssistantExchange,
@@ -268,28 +258,29 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       sendThreadMessage: sendThreadMessageAction,
       runDocumentAction: runDocumentActionHandler,
       runThreadAction: runThreadActionHandler,
-      retryWorkspaceBootstrap: retryWorkspaceBootstrapAction,
+      toggleFavorite: toggleFavoriteHandler,
       resetDemoData: resetDemoDataAction,
     }),
     [
-      createRootDocumentAction,
-      createScopeDocumentAction,
-      createThreadAction,
-      createWorkspaceAction,
+      activeAccount,
+      activeAccountId,
       credentials,
+      getDocumentConversationId,
+      getHomeConversationId,
       loading,
       refresh,
       replyToAssistantExchange,
-      retryWorkspaceBootstrapAction,
       resolveAssistantExchange,
       resetDemoDataAction,
       runDocumentActionHandler,
       runThreadActionHandler,
       sendThreadMessageAction,
+      setActiveAccountId,
       setCredentials,
       snapshot,
       startAssistantDemoDiscussion,
       startScopeDiscussion,
+      toggleFavoriteHandler,
       updateAssistantPlaybook,
     ]
   );
@@ -303,12 +294,4 @@ export function useDemoApp(): DemoContextValue {
     throw new Error("useDemoApp must be used within DemoProvider.");
   }
   return value;
-}
-
-export function useBlinkScope(): ScopeRecord | null {
-  const { snapshot } = useDemoApp();
-  if (!snapshot) {
-    return null;
-  }
-  return getBlinkScope(snapshot);
 }

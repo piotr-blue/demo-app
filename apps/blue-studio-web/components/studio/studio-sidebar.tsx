@@ -11,25 +11,28 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Badge } from "@/components/ui/badge";
 import {
   HomeIcon,
+  StarIcon,
+  UserCircle2Icon,
   MenuIcon,
   XIcon,
 } from "lucide-react";
 import { StudioAccountMenu } from "@/components/studio/studio-account-menu";
 
 export type StudioTopNavItem = {
-  key: "home";
+  key: "home" | "profile";
   href: string;
   label: string;
-  icon: typeof HomeIcon;
+  icon: typeof HomeIcon | typeof UserCircle2Icon;
   isActive: (pathname: string) => boolean;
 };
 
-export type StudioWorkspaceNavItem = {
+export type StudioFavoriteNavItem = {
   id: string;
-  name: string;
-  icon?: string;
+  title: string;
+  subtitle: string;
   href: string;
   active: boolean;
+  starred?: boolean;
 };
 
 function SidebarLink({
@@ -80,14 +83,12 @@ function SidebarLink({
 
 export function StudioSidebar({
   topItems,
-  workspaceItems,
+  favoriteItems,
   collapsed,
-  addWorkspaceControl,
 }: {
   topItems: StudioTopNavItem[];
-  workspaceItems: StudioWorkspaceNavItem[];
+  favoriteItems: StudioFavoriteNavItem[];
   collapsed: boolean;
-  addWorkspaceControl?: ReactNode;
 }) {
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
@@ -108,7 +109,7 @@ export function StudioSidebar({
   }, []);
 
   const railCollapsed = isMobile ? false : collapsed;
-  const workspaceCount = workspaceItems.length;
+  const favoriteCount = favoriteItems.length;
   const content = (
     <>
       <div
@@ -150,37 +151,56 @@ export function StudioSidebar({
           {!railCollapsed ? (
             <div className="flex items-center justify-between px-2 pt-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/60">
-                Workspaces
+                Favourites
               </p>
-              <Badge variant="outline">{workspaceCount}</Badge>
+              <Badge variant="outline">{favoriteCount}</Badge>
             </div>
           ) : null}
 
           <div className={cn("space-y-1", railCollapsed ? "" : "max-h-[52vh] overflow-y-auto pr-1")}>
-            {addWorkspaceControl ? (
-              <div className={cn("pb-1", railCollapsed ? "flex justify-center" : "px-1")}>{addWorkspaceControl}</div>
-            ) : null}
-            {workspaceItems.length === 0 ? (
+            {favoriteItems.length === 0 ? (
               <p className={cn("text-xs text-sidebar-foreground/60", railCollapsed ? "text-center" : "px-2 py-1")}>
-                {railCollapsed ? "—" : "No workspaces yet"}
+                {railCollapsed ? "—" : "No favourites yet"}
               </p>
             ) : (
-              workspaceItems.map((item) => (
-                <SidebarLink
-                  key={item.id}
-                  collapsed={railCollapsed}
-                  href={item.href}
-                  label={item.name}
-                  compactLabel={item.name}
-                  active={item.active}
-                  onClick={isMobile ? () => setMobileOpen(false) : undefined}
-                  icon={
-                    <span className="inline-flex size-4 items-center justify-center rounded bg-sidebar-accent text-[10px] font-semibold text-sidebar-accent-foreground">
-                      {item.icon ?? item.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  }
-                />
-              ))
+              favoriteItems.map((item) =>
+                railCollapsed ? (
+                  <SidebarLink
+                    key={item.id}
+                    collapsed
+                    href={item.href}
+                    label={item.title}
+                    compactLabel={item.title}
+                    active={item.active}
+                    onClick={isMobile ? () => setMobileOpen(false) : undefined}
+                    icon={<StarIcon className="size-4" />}
+                  />
+                ) : (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    onClick={isMobile ? () => setMobileOpen(false) : undefined}
+                    className={cn(
+                      "block rounded-lg border px-3 py-2 transition-colors",
+                      item.active
+                        ? "border-sidebar-primary/30 bg-sidebar-primary/10"
+                        : "border-transparent hover:bg-sidebar-accent"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                          {item.subtitle}
+                        </p>
+                      </div>
+                      {item.starred !== false ? (
+                        <StarIcon className="mt-0.5 size-3.5 fill-current text-amber-500" />
+                      ) : null}
+                    </div>
+                  </Link>
+                )
+              )
             )}
           </div>
         </div>
@@ -243,5 +263,12 @@ export const STUDIO_TOP_NAV_ITEMS: StudioTopNavItem[] = [
     label: "Home",
     icon: HomeIcon,
     isActive: (pathname) => pathname === "/home",
+  },
+  {
+    key: "profile",
+    href: "/profile",
+    label: "My Profile",
+    icon: UserCircle2Icon,
+    isActive: (pathname) => pathname === "/profile",
   },
 ];
