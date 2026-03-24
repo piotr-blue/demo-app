@@ -13,6 +13,7 @@ import {
   appendThreadMessage,
   applyDocumentAction,
   applyThreadAction,
+  addDocumentShareEntry,
   getOrCreateDocumentConversation,
   getOrCreateHomeConversation,
   loadDemoSnapshot,
@@ -21,6 +22,9 @@ import {
   resetDemoSnapshot,
   startAssistantDemoDiscussion as startAssistantDemoDiscussionAction,
   startUserDiscussion as startUserDiscussionAction,
+  toggleDocumentPublicVisibility,
+  toggleDocumentServiceConnection,
+  toggleDocumentShareEnabled,
   toggleDocumentFavorite,
   updateAssistantPlaybook as updateAssistantPlaybookAction,
 } from "@/lib/demo/scope-actions";
@@ -39,6 +43,7 @@ import type {
   DemoAccountRecord,
   AssistantPlaybookRecord,
   DemoCredentials,
+  DemoShareRecord,
   DemoSnapshot,
 } from "@/lib/demo/types";
 
@@ -70,6 +75,14 @@ interface DemoContextValue {
   sendThreadMessage: (threadId: string, text: string) => Promise<void>;
   runDocumentAction: (documentId: string, actionId: string) => Promise<void>;
   runThreadAction: (threadId: string, actionId: string) => Promise<void>;
+  setDocumentShareEnabled: (documentId: string, enabled: boolean) => Promise<void>;
+  setDocumentPublicVisibility: (documentId: string, enabled: boolean) => Promise<void>;
+  addDocumentShareEntry: (
+    documentId: string,
+    type: DemoShareRecord["type"],
+    name: string
+  ) => Promise<void>;
+  toggleDocumentService: (documentId: string, serviceId: string) => Promise<void>;
   toggleFavorite: (documentId: string) => Promise<void>;
   resetDemoData: () => Promise<void>;
 }
@@ -211,6 +224,38 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setSnapshot(next);
   }, []);
 
+  const setDocumentShareEnabledHandler = useCallback(
+    async (documentId: string, enabled: boolean): Promise<void> => {
+      const next = await toggleDocumentShareEnabled(documentId, enabled);
+      setSnapshot(next);
+    },
+    []
+  );
+
+  const setDocumentPublicVisibilityHandler = useCallback(
+    async (documentId: string, enabled: boolean): Promise<void> => {
+      const next = await toggleDocumentPublicVisibility(documentId, enabled);
+      setSnapshot(next);
+    },
+    []
+  );
+
+  const addDocumentShareEntryHandler = useCallback(
+    async (documentId: string, type: DemoShareRecord["type"], name: string): Promise<void> => {
+      const next = await addDocumentShareEntry(documentId, type, name);
+      setSnapshot(next);
+    },
+    []
+  );
+
+  const toggleDocumentServiceHandler = useCallback(
+    async (documentId: string, serviceId: string): Promise<void> => {
+      const next = await toggleDocumentServiceConnection(documentId, serviceId);
+      setSnapshot(next);
+    },
+    []
+  );
+
   const toggleFavoriteHandler = useCallback(
     async (documentId: string): Promise<void> => {
       if (!activeAccountId) {
@@ -258,6 +303,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       sendThreadMessage: sendThreadMessageAction,
       runDocumentAction: runDocumentActionHandler,
       runThreadAction: runThreadActionHandler,
+      setDocumentShareEnabled: setDocumentShareEnabledHandler,
+      setDocumentPublicVisibility: setDocumentPublicVisibilityHandler,
+      addDocumentShareEntry: addDocumentShareEntryHandler,
+      toggleDocumentService: toggleDocumentServiceHandler,
       toggleFavorite: toggleFavoriteHandler,
       resetDemoData: resetDemoDataAction,
     }),
@@ -272,14 +321,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       replyToAssistantExchange,
       resolveAssistantExchange,
       resetDemoDataAction,
+      addDocumentShareEntryHandler,
       runDocumentActionHandler,
       runThreadActionHandler,
       sendThreadMessageAction,
+      setDocumentPublicVisibilityHandler,
+      setDocumentShareEnabledHandler,
       setActiveAccountId,
       setCredentials,
       snapshot,
       startAssistantDemoDiscussion,
       startScopeDiscussion,
+      toggleDocumentServiceHandler,
       toggleFavoriteHandler,
       updateAssistantPlaybook,
     ]

@@ -4,10 +4,20 @@ import {
   getAccessibleDocumentsForAccount,
   getAssistantTimelineItems,
   getConversationExchanges,
+  getDocumentActivity,
+  getDocumentAllOperations,
   getDocumentConversation,
+  getDocumentCurrentStateFields,
+  getDocumentDescription,
+  getDocumentEmbeddedDocuments,
+  getDocumentParticipants,
+  getDocumentPendingOperations,
+  getDocumentServices,
+  getDocumentShareSettings,
   getExchangeMessages,
   getFavoriteDocumentsForAccount,
   getHomeConversation,
+  getThreadActivity,
   getVisibleDocumentsForAnchor,
   getViewerSpecificCommentDocuments,
 } from "@/lib/demo/selectors";
@@ -114,5 +124,50 @@ describe("multi-account selectors", () => {
     expect(bobAccessible.some((document) => document.title === "Northwind BI Agreement — Bob")).toBe(
       true
     );
+  });
+
+  it("returns enriched document details for primary demo surfaces", () => {
+    const snapshot = createSeedSnapshot();
+
+    const description = getDocumentDescription(snapshot, "doc_partnership_engine_agreement_alice");
+    const participants = getDocumentParticipants(snapshot, "doc_partnership_engine_agreement_alice");
+    const allOperations = getDocumentAllOperations(snapshot, "doc_partnership_engine_agreement_alice");
+    const pendingOperations = getDocumentPendingOperations(
+      snapshot,
+      "doc_partnership_engine_agreement_alice",
+      "account_alice"
+    );
+    const embeddedDocuments = getDocumentEmbeddedDocuments(
+      snapshot,
+      "doc_partnership_engine_agreement_alice",
+      "account_alice"
+    );
+    const shareSettings = getDocumentShareSettings(snapshot, "doc_partnership_engine_agreement_alice");
+    const services = getDocumentServices(snapshot, "doc_partnership_engine_agreement_alice");
+    const currentStateFields = getDocumentCurrentStateFields(
+      snapshot,
+      "doc_partnership_engine_agreement_alice"
+    );
+
+    expect(description).toContain("onboarding answers");
+    expect(participants.length).toBeGreaterThanOrEqual(2);
+    expect(allOperations.length).toBeGreaterThanOrEqual(3);
+    expect(pendingOperations.length).toBeGreaterThanOrEqual(1);
+    expect(embeddedDocuments.length).toBeGreaterThanOrEqual(2);
+    expect(shareSettings?.entries.length).toBeGreaterThanOrEqual(2);
+    expect(services.length).toBeGreaterThanOrEqual(2);
+    expect(currentStateFields.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("builds document and thread activity feeds from seeded and runtime-aware records", () => {
+    const snapshot = createSeedSnapshot();
+
+    const documentActivity = getDocumentActivity(snapshot, "doc_fresh_bites", "account_alice");
+    const threadActivity = getThreadActivity(snapshot, "thread_find_customers_for_fresh_bites", "account_alice");
+
+    expect(documentActivity.length).toBeGreaterThanOrEqual(3);
+    expect(documentActivity.some((entry) => entry.actorType === "assistant")).toBe(true);
+    expect(threadActivity.length).toBeGreaterThanOrEqual(2);
+    expect(threadActivity.some((entry) => entry.tone === "operation")).toBe(true);
   });
 });

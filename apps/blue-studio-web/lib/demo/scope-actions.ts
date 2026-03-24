@@ -4,6 +4,7 @@ import type {
   AssistantExchangeMessageRecord,
   AssistantExchangeRecord,
   AssistantPlaybookRecord,
+  DemoShareRecord,
   DemoSnapshot,
 } from "@/lib/demo/types";
 import { getDocumentConversation, getHomeConversation } from "@/lib/demo/selectors";
@@ -67,6 +68,42 @@ function updateConversationUpdatedAt(
   }
 }
 
+function refreshDocumentVisibilityLabels(document: DemoSnapshot["documents"][number]) {
+  document.visibilityLabel = document.isPublic
+    ? "Public"
+    : document.visibleToAccountIds.length > 1 || (document.shareSettings?.entries.length ?? 0) > 0
+      ? "Shared"
+      : "Private";
+
+  if (document.isPublic) {
+    document.searchVisibility = "public";
+    if (document.shareSettings) {
+      document.shareSettings.makePublic = true;
+    }
+    return;
+  }
+
+  document.searchVisibility =
+    document.visibleToAccountIds.length > 1 || (document.shareSettings?.entries.length ?? 0) > 0
+      ? "participants"
+      : "private";
+
+  if (document.shareSettings) {
+    document.shareSettings.makePublic = false;
+  }
+}
+
+function ensureDocumentShareSettings(document: DemoSnapshot["documents"][number]) {
+  if (!document.shareSettings) {
+    document.shareSettings = {
+      shareWithOthers: document.visibleToAccountIds.length > 1 || document.isPublic,
+      makePublic: document.isPublic,
+      entries: [],
+    };
+  }
+  return document.shareSettings;
+}
+
 export async function toggleDocumentFavorite(
   accountId: string,
   documentId: string
@@ -88,6 +125,174 @@ export async function toggleDocumentFavorite(
     : [...new Set([...document.starredByAccountIds, accountId])];
   document.updatedAt = nowIso();
 
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+export async function toggleDocumentShareEnabled(
+  documentId: string,
+  enabled: boolean
+): Promise<DemoSnapshot> {
+  const base = await getDemoSnapshot();
+  const snapshot = cloneSnapshot(base);
+  const document = snapshot.documents.find((entry) => entry.id === documentId);
+  if (!document) {
+    return base;
+  }
+
+  const shareSettings = ensureDocumentShareSettings(document);
+  shareSettings.shareWithOthers = enabled;
+  if (!enabled) {
+    shareSettings.entries = shareSettings.entries.filter((entry) => entry.status === "owner");
+  }
+  document.updatedAt = nowIso();
+  refreshDocumentVisibilityLabels(document);
+  appendActivity(snapshot, {
+    kind: "document-share",
+    title: enabled ? "Sharing enabled" : "Sharing paused",
+    detail: enabled
+      ? `Sharing controls were enabled for ${document.title}.`
+      : `Sharing controls were disabled for ${document.title}.`,
+    documentId,
+  });
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+export async function toggleDocumentPublicVisibility(
+  documentId: string,
+  enabled: boolean
+): Promise<DemoSnapshot> {
+  const base = await getDemoSnapshot();
+  const snapshot = cloneSnapshot(base);
+  const document = snapshot.documents.find((entry) => entry.id === documentId);
+  if (!document) {
+    return base;
+  }
+
+  const shareSettings = ensureDocumentShareSettings(document);
+  document.isPublic = enabled;
+  shareSettings.makePublic = enabled;
+  document.updatedAt = nowIso();
+  refreshDocumentVisibilityLabels(document);
+  appendActivity(snapshot, {
+    kind: "document-visibility",
+    title: enabled ? "Document made public" : "Document made private",
+    detail: enabled
+      ? `${document.title} now allows read-only public access.`
+      : `${document.title} no longer allows public read-only access.`,
+    documentId,
+  });
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+export async function addDocumentShareEntry(
+  documentId: string,
+  type: DemoShareRecord["type"],
+  name: string
+): Promise<DemoSnapshot> {
+  const trimmed = name.trim();
+  const base = await getDemoSnapshot();
+  if (!trimmed) {
+    return base;
+  }
+  const snapshot = cloneSnapshot(base);
+  const document = snapshot.documents.find((entry) => entry.id === documentId);
+  if (!document) {
+    return base;
+  }
+
+  const shareSettings = ensureDocumentShareSettings(document);
+  shareSettings.shareWithOthers = true;
+
+  const existing = shareSettings.entries.find(
+    (entry) => entry.type === type && entry.name.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (existing) {
+    return snapshot;
+  }
+
+  const newEntry: DemoShareRecord = {
+    id: nextId("share"),
+    type,
+    name: trimmed,
+    subtitle: type === "account" ? "Demo account access" : "Linked document access",
+    agreement: document.title,
+    status: "read-only",
+  };
+
+  if (type === "account") {
+    const matchingAccount = snapshot.accounts.find(
+      (account) =>
+        account.name.toLowerCase() === trimmed.toLowerCase() ||
+        account.email.toLowerCase() === trimmed.toLowerCase() ||
+        account.accountId.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (matchingAccount) {
+      newEntry.name = matchingAccount.name;
+      newEntry.subtitle = matchingAccount.email;
+      if (!document.visibleToAccountIds.includes(matchingAccount.id)) {
+        document.visibleToAccountIds.push(matchingAccount.id);
+      }
+      if (
+        matchingAccount.id !== document.ownerAccountId &&
+        !document.participantAccountIds.includes(matchingAccount.id)
+      ) {
+        document.participantAccountIds.push(matchingAccount.id);
+      }
+      if (!document.participants.includes(matchingAccount.name)) {
+        document.participants.push(matchingAccount.name);
+      }
+    }
+  }
+
+  shareSettings.entries.unshift(newEntry);
+  document.updatedAt = nowIso();
+  refreshDocumentVisibilityLabels(document);
+  appendActivity(snapshot, {
+    kind: "document-share",
+    title: "Shared document access",
+    detail: `${document.title} was shared with ${newEntry.name}.`,
+    documentId,
+  });
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+export async function toggleDocumentServiceConnection(
+  documentId: string,
+  serviceId: string
+): Promise<DemoSnapshot> {
+  const base = await getDemoSnapshot();
+  const snapshot = cloneSnapshot(base);
+  const document = snapshot.documents.find((entry) => entry.id === documentId);
+  if (!document) {
+    return base;
+  }
+
+  const service = document.services?.find((entry) => entry.id === serviceId);
+  if (!service) {
+    return base;
+  }
+
+  service.status =
+    service.status === "connected"
+      ? "disconnected"
+      : service.status === "disconnected"
+        ? "connected"
+        : "connected";
+
+  document.updatedAt = nowIso();
+  appendActivity(snapshot, {
+    kind: "service-connection",
+    title: service.status === "connected" ? "Service connected" : "Service disconnected",
+    detail:
+      service.status === "connected"
+        ? `${service.name} is now connected to ${document.title}.`
+        : `${service.name} was disconnected from ${document.title}.`,
+    documentId,
+  });
   await saveDemoSnapshot(snapshot);
   return snapshot;
 }

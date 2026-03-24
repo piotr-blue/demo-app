@@ -3,11 +3,17 @@ import type {
   AssistantExchangeMessageKind,
   AssistantExchangeRecord,
   AssistantPlaybookRecord,
+  DemoEmbeddedDocumentRecord,
   DemoAccountRecord,
+  DemoOperationRecord,
+  DemoParticipantRecord,
   DemoSnapshot,
+  DemoShareSettings,
+  DemoServiceConnectionRecord,
   DemoViewerAccessMode,
   DocumentAnchorRecord,
   DocumentRecord,
+  ActivityRecord,
   ThreadRecord,
 } from "@/lib/demo/types";
 
@@ -16,6 +22,29 @@ export type ProfileSectionKey = "public-info" | "public-documents" | "settings";
 
 function normalize(text: string): string {
   return text.trim().toLowerCase();
+}
+
+function uniqueById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
+      return false;
+    }
+    seen.add(item.id);
+    return true;
+  });
+}
+
+function accountToParticipant(account: DemoAccountRecord): DemoParticipantRecord {
+  return {
+    id: account.id,
+    accountId: account.id,
+    name: account.name,
+    email: account.email,
+    subtitle: account.subtitle,
+    avatar: account.avatar ?? null,
+    roles: [],
+  };
 }
 
 export function getAccountById(snapshot: DemoSnapshot, accountId: string): DemoAccountRecord | null {
@@ -248,6 +277,280 @@ export function getViewerVisibleLinkedDocuments(
     .filter((item): item is DocumentRecord => !!item)
     .filter((item) => canViewerAccessDocument(snapshot, item.id, accountId))
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+export function getDocumentParticipants(
+  snapshot: DemoSnapshot,
+  documentId: string
+): DemoParticipantRecord[] {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return [];
+  }
+  if (document.participantsDetailed?.length) {
+    return document.participantsDetailed;
+  }
+
+  const accountParticipants = [
+    document.ownerAccountId,
+    ...document.participantAccountIds,
+  ]
+    .map((accountId) => getAccountById(snapshot, accountId))
+    .filter((account): account is DemoAccountRecord => !!account)
+    .map((account) => {
+      const participant = accountToParticipant(account);
+      participant.roles = [
+        account.id === document.ownerAccountId ? "Owner" : "Participant",
+      ];
+      return participant;
+    });
+
+  if (accountParticipants.length > 0) {
+    return uniqueById(accountParticipants);
+  }
+
+  return document.participants.map((name, index) => ({
+    id: `${document.id}_participant_${index}`,
+    name,
+    subtitle: index === 0 ? "Owner" : "Participant",
+    roles: [index === 0 ? "Owner" : "Participant"],
+  }));
+}
+
+export function getDocumentAllOperations(
+  snapshot: DemoSnapshot,
+  documentId: string
+): DemoOperationRecord[] {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return [];
+  }
+  if (document.allOperations?.length) {
+    return document.allOperations;
+  }
+
+  return document.uiCards.flatMap((card, cardIndex) =>
+    (card.actions ?? []).map((action, actionIndex) => ({
+      id: action.id,
+      title: action.label,
+      summary: action.description ?? action.activityDetail ?? card.body,
+      status: "available" as const,
+      kind: document.isService ? "service" : actionIndex === 0 && cardIndex === 0 ? "user" : "system",
+      actionLabel: action.label,
+    }))
+  );
+}
+
+export function getDocumentPendingOperations(
+  snapshot: DemoSnapshot,
+  documentId: string,
+  accountId: string
+): DemoOperationRecord[] {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return [];
+  }
+  if (document.pendingOperations?.length) {
+    return document.pendingOperations;
+  }
+
+  const fromAttention = getNeedsActionForDocument(snapshot, documentId, accountId).flatMap((item) =>
+    (item.availableActionLabels ?? []).map((label, index) => ({
+      id: `${item.id}_${index}`,
+      title: label,
+      summary: item.body,
+      status: "pending" as const,
+      kind: "user" as const,
+      actionLabel: label,
+    }))
+  );
+
+  if (fromAttention.length > 0) {
+    return uniqueById(fromAttention);
+  }
+
+  return getDocumentAllOperations(snapshot, documentId).slice(0, 2);
+}
+
+export function getDocumentEmbeddedDocuments(
+  snapshot: DemoSnapshot,
+  documentId: string,
+  accountId: string
+): DemoEmbeddedDocumentRecord[] {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return [];
+  }
+
+  if (document.embeddedDocuments?.length) {
+    return document.embeddedDocuments.filter((entry) =>
+      canViewerAccessDocument(snapshot, entry.documentId, accountId)
+    );
+  }
+
+  return getViewerVisibleLinkedDocuments(snapshot, documentId, accountId)
+    .slice(0, 6)
+    .map((entry) => ({
+      documentId: entry.id,
+      title: entry.title,
+      subtitle: entry.typeLabel ?? entry.kind,
+      summary: entry.summary,
+      status: entry.status,
+    }));
+}
+
+export function getDocumentDescription(snapshot: DemoSnapshot, documentId: string): string {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return "";
+  }
+  if (document.descriptionText?.trim()) {
+    return document.descriptionText;
+  }
+  return document.summary;
+}
+
+export function getDocumentInitialMessage(snapshot: DemoSnapshot, documentId: string): string {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return "";
+  }
+  if (document.initialMessage?.trim()) {
+    return document.initialMessage;
+  }
+  return `Open ${document.title} to review the current state, run the available operations, and coordinate the next step with Blink.`;
+}
+
+export function getDocumentCurrentStateText(snapshot: DemoSnapshot, documentId: string): string {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return "";
+  }
+  if (document.currentStateText?.trim()) {
+    return document.currentStateText;
+  }
+  return `${document.title} is currently ${document.status}. ${document.oneLineSummary ?? document.summary}`;
+}
+
+export function getDocumentCurrentStateFields(
+  snapshot: DemoSnapshot,
+  documentId: string
+) {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return [];
+  }
+  if (document.currentStateFields?.length) {
+    return document.currentStateFields;
+  }
+  return document.coreFields.slice(0, 4);
+}
+
+export function getDocumentSourceData(
+  snapshot: DemoSnapshot,
+  documentId: string
+): Record<string, unknown> | string {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return {};
+  }
+  if (document.sourceData) {
+    return document.sourceData;
+  }
+  return document.details;
+}
+
+export function getDocumentShareSettings(
+  snapshot: DemoSnapshot,
+  documentId: string
+): DemoShareSettings | null {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return null;
+  }
+
+  if (document.shareSettings) {
+    return document.shareSettings;
+  }
+
+  const participants = getDocumentParticipants(snapshot, documentId)
+    .filter((participant) => participant.accountId !== document.ownerAccountId)
+    .map((participant, index) => ({
+      id: `${document.id}_share_${index}`,
+      type: "account" as const,
+      name: participant.name,
+      subtitle: participant.email ?? participant.subtitle ?? "Account access",
+      agreement: document.title,
+      status: "read-only",
+    }));
+
+  return {
+    shareWithOthers: participants.length > 0 || document.isPublic,
+    makePublic: document.isPublic,
+    entries: participants,
+  };
+}
+
+export function getDocumentServices(
+  snapshot: DemoSnapshot,
+  documentId: string
+): DemoServiceConnectionRecord[] {
+  const document = getDocumentById(snapshot, documentId);
+  if (!document) {
+    return [];
+  }
+
+  if (document.services?.length) {
+    return document.services;
+  }
+
+  if (document.isService) {
+    return [
+      {
+        id: `${document.id}_service_self`,
+        name: document.title,
+        provider: document.owner,
+        status: "connected",
+        description: document.oneLineSummary ?? document.summary,
+      },
+    ];
+  }
+
+  return [];
+}
+
+export function getDocumentActivity(
+  snapshot: DemoSnapshot,
+  documentId: string,
+  accountId?: string
+): ActivityRecord[] {
+  const seeded = getDocumentById(snapshot, documentId)?.activity ?? [];
+  const runtime = snapshot.activity.filter(
+    (entry) =>
+      entry.documentId === documentId &&
+      (!accountId || !entry.visibleToAccountIds || entry.visibleToAccountIds.includes(accountId))
+  );
+
+  return uniqueById([...runtime, ...seeded]).sort((left, right) =>
+    left.createdAt.localeCompare(right.createdAt)
+  );
+}
+
+export function getThreadActivity(
+  snapshot: DemoSnapshot,
+  threadId: string,
+  accountId?: string
+): ActivityRecord[] {
+  const seeded = getThreadById(snapshot, threadId)?.activity ?? [];
+  const runtime = snapshot.activity.filter(
+    (entry) =>
+      entry.threadId === threadId &&
+      (!accountId || !entry.visibleToAccountIds || entry.visibleToAccountIds.includes(accountId))
+  );
+
+  return uniqueById([...runtime, ...seeded]).sort((left, right) =>
+    left.createdAt.localeCompare(right.createdAt)
+  );
 }
 
 export function getHomeConversation(

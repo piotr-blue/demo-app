@@ -4,6 +4,7 @@ import {
   appendThreadMessage,
   applyDocumentAction,
   applyThreadAction,
+  addDocumentShareEntry,
   getOrCreateDocumentConversation,
   getOrCreateHomeConversation,
   loadDemoSnapshot,
@@ -11,6 +12,9 @@ import {
   resetDemoSnapshot,
   startAssistantDemoDiscussion,
   startUserDiscussion,
+  toggleDocumentPublicVisibility,
+  toggleDocumentServiceConnection,
+  toggleDocumentShareEnabled,
   toggleDocumentFavorite,
   updateAssistantPlaybook,
 } from "@/lib/demo/scope-actions";
@@ -58,6 +62,31 @@ describe("demo scope actions", () => {
         .find((entry) => entry.id === "account_piotr_blue")
         ?.favoriteDocumentIds.includes("doc_fresh_bites")
     ).toBe(true);
+  });
+
+  it("updates share settings and service connections for documents", async () => {
+    const seeded = await loadDemoSnapshot();
+    const freshBites = getDocumentById(seeded, "doc_fresh_bites");
+    expect(freshBites?.shareSettings?.shareWithOthers).toBe(true);
+    expect(freshBites?.isPublic).toBe(true);
+    expect(freshBites?.services?.some((service) => service.status === "connected")).toBe(true);
+
+    const sharingOff = await toggleDocumentShareEnabled("doc_fresh_bites", false);
+    expect(getDocumentById(sharingOff, "doc_fresh_bites")?.shareSettings?.shareWithOthers).toBe(false);
+
+    const privateDoc = await toggleDocumentPublicVisibility("doc_fresh_bites", false);
+    expect(getDocumentById(privateDoc, "doc_fresh_bites")?.isPublic).toBe(false);
+
+    const sharedAgain = await addDocumentShareEntry("doc_fresh_bites", "account", "Bob Chen");
+    const sharedDocument = getDocumentById(sharedAgain, "doc_fresh_bites");
+    expect(sharedDocument?.shareSettings?.entries.some((entry) => entry.name === "Bob Chen")).toBe(true);
+    expect(sharedDocument?.participantAccountIds.includes("account_bob")).toBe(true);
+
+    const toggledService = await toggleDocumentServiceConnection("doc_fresh_bites", "svc_fresh_legal");
+    expect(
+      getDocumentById(toggledService, "doc_fresh_bites")?.services?.find((entry) => entry.id === "svc_fresh_legal")
+        ?.status
+    ).toBe("connected");
   });
 
   it("applies document and thread actions and appends thread chat", async () => {

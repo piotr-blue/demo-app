@@ -26,6 +26,15 @@ describe("demo storage", () => {
     expect(snapshot.assistantPlaybooks.length).toBe(snapshot.assistantConversations.length);
     expect(snapshot.assistantExchanges.length).toBeGreaterThanOrEqual(10);
     expect(snapshot.assistantExchangeMessages.length).toBeGreaterThanOrEqual(20);
+    expect(
+      snapshot.documents.some(
+        (document) =>
+          document.id === "doc_fresh_bites" &&
+          (document.participantsDetailed?.length ?? 0) > 1 &&
+          (document.allOperations?.length ?? 0) > 1 &&
+          (document.services?.length ?? 0) > 1
+      )
+    ).toBe(true);
     const sharedBiAgreement = snapshot.documents.filter(
       (document) => document.title === "Northwind BI Agreement — Bob"
     );

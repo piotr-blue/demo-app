@@ -195,6 +195,61 @@ export interface DemoSettingsBlock {
   items: DemoSettingsItem[];
 }
 
+export interface DemoParticipantRecord {
+  id: string;
+  accountId?: string | null;
+  name: string;
+  email?: string | null;
+  subtitle?: string | null;
+  avatar?: string | null;
+  roles?: string[];
+}
+
+export type DemoOperationStatus = "available" | "pending" | "completed" | "blocked";
+
+export interface DemoOperationRecord {
+  id: string;
+  title: string;
+  summary: string;
+  status: DemoOperationStatus;
+  kind?: "user" | "service" | "system";
+  actionLabel?: string | null;
+}
+
+export interface DemoEmbeddedDocumentRecord {
+  documentId: string;
+  title: string;
+  subtitle?: string | null;
+  summary: string;
+  status?: string | null;
+}
+
+export type DemoServiceStatus = "connected" | "available" | "disconnected";
+
+export interface DemoServiceConnectionRecord {
+  id: string;
+  name: string;
+  provider: string;
+  status: DemoServiceStatus;
+  description: string;
+}
+
+export interface DemoShareRecord {
+  id: string;
+  type: "account" | "document";
+  targetId?: string | null;
+  name: string;
+  subtitle?: string | null;
+  agreement?: string | null;
+  status?: string | null;
+}
+
+export interface DemoShareSettings {
+  shareWithOthers: boolean;
+  makePublic: boolean;
+  entries: DemoShareRecord[];
+}
+
 export interface ScopeRecord {
   id: string;
   type: DemoScopeType;
@@ -237,6 +292,13 @@ export interface ActivityRecord {
   title: string;
   detail?: string;
   createdAt: string;
+  actorName?: string | null;
+  actorEmail?: string | null;
+  actorAvatar?: string | null;
+  actorSide?: "left" | "right";
+  actorType?: "user" | "assistant" | "service" | "document" | "system";
+  tone?: "info" | "operation" | "event";
+  linkedLabel?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -271,6 +333,7 @@ export interface ThreadRecord {
   sessionId?: string | null;
   responsibleSummary?: string;
   activityLabel?: string;
+  participantsDetailed?: DemoParticipantRecord[];
   settingsBlocks: DemoSettingsBlock[];
   uiCards: DocumentUiCard[];
   messages: BaseChatMessage[];
@@ -314,11 +377,22 @@ export interface DocumentRecord {
   visibilityLabel?: string;
   coreFields: DemoFieldRecord[];
   detailBlocks: DemoSettingsBlock[];
+  descriptionText?: string;
+  initialMessage?: string;
+  currentStateText?: string;
+  currentStateFields?: DemoFieldRecord[];
+  participantsDetailed?: DemoParticipantRecord[];
+  allOperations?: DemoOperationRecord[];
+  pendingOperations?: DemoOperationRecord[];
+  embeddedDocuments?: DemoEmbeddedDocumentRecord[];
   createdAt: string;
   updatedAt: string;
   sessionId?: string | null;
   myosDocumentId?: string | null;
   settingsBlocks: DemoSettingsBlock[];
+  shareSettings?: DemoShareSettings;
+  services?: DemoServiceConnectionRecord[];
+  sourceData?: Record<string, unknown> | string;
   details: Record<string, unknown>;
   uiCards: DocumentUiCard[];
   activity: ActivityRecord[];
