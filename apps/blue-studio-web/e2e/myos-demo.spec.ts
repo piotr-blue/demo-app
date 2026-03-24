@@ -19,10 +19,11 @@ test("myos demo supports multi-account document-first stories", async ({ page })
   await expect(page.getByRole("link", { name: /Fresh Bites/i }).first()).toBeVisible();
 
   await page.goto("/documents/doc_fresh_bites");
-  await expect(page.getByRole("button", { name: "Chat / UI" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "UI" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Orders" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Products" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Partnerships" })).toBeVisible();
+  await expect(page.getByText("Needs You preview")).toBeVisible();
 
   await page.getByRole("button", { name: "Account switcher" }).first().click();
   await page.getByText("Switch to Bob Chen").click();
@@ -37,17 +38,23 @@ test("myos demo supports multi-account document-first stories", async ({ page })
 
   await page.getByRole("link", { name: /Fresh Bites order — Bob/i }).click();
   await expect(page.getByText("Awaiting delivery")).toBeVisible();
-  await expect(page.getByText("Chat history")).toBeVisible();
+  await expect(page.getByText("Conversation")).toBeVisible();
 
   await page.getByRole("button", { name: "Account switcher" }).first().click();
   await page.getByText("Switch to Alice Martinez").click();
   await expect(page.getByRole("heading", { name: "Alice Martinez" })).toBeVisible();
 
   await page.goto("/documents/doc_partnership_engine_agreement_alice");
+  await expect(page.getByRole("button", { name: "Needs You" })).toBeVisible();
   await page.getByRole("button", { name: "Details" }).click();
-  await expect(page.getByText("Captured intake summary")).toBeVisible();
-  await expect(page.getByText("Partner criteria")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Linked Tasks" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Current state" })).toBeVisible();
+  await page.getByRole("tab", { name: "Participants" }).click();
+  await expect(page.getByText("Celine Duarte")).toBeVisible();
+  await page.getByRole("tab", { name: "Embedded documents" }).click();
+  await expect(page.getByText("Find customers for Fresh Bites")).toBeVisible();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("tab", { name: "Share" }).click();
+  await expect(page.getByText("Share with others")).toBeVisible();
 
   await page.getByRole("button", { name: "Account switcher" }).first().click();
   await page.getByText("Switch to Celine Duarte").click();
