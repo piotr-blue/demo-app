@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ConversationPanelV2 } from "@/components/demo/conversation-panel-v2";
+import { NeedsYouList, TaskList } from "@/components/demo/demo-surface-components";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import {
   getHomeConversation,
@@ -15,7 +16,6 @@ import {
 } from "@/lib/demo/selectors";
 import { StudioEmptyState, StudioPageHeader, StudioSectionCard } from "@/components/studio/studio-primitives";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,7 +32,7 @@ const HOME_SECTIONS: Array<{
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   { key: "chat", label: "Chat", icon: MessageSquareIcon },
-  { key: "needs-action", label: "Needs Action", icon: CircleAlertIcon },
+  { key: "needs-action", label: "Needs You", icon: CircleAlertIcon },
   { key: "tasks", label: "Tasks", icon: ListTodoIcon },
   { key: "documents", label: "Documents", icon: FileTextIcon },
   { key: "services", label: "Services", icon: WorkflowIcon },
@@ -183,62 +183,18 @@ export function AccountHomeShell() {
         ) : null}
 
         {activeSection === "needs-action" ? (
-          <StudioSectionCard title="Needs Action" subtitle="Structured pending items across accessible documents">
-            <div className="space-y-3">
-              {needsAction.length === 0 ? (
-                <StudioEmptyState title="No pending items" body="Your structured queue is clear right now." />
-              ) : (
-                needsAction.map((item) => (
-                  <div key={item.id} className="rounded-lg border bg-card px-4 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                      <Badge variant={item.priority === "high" ? "destructive" : "outline"}>{item.priority}</Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {(item.availableActionLabels ?? []).map((label) => (
-                        <Button key={label} size="sm" variant="outline">
-                          {label}
-                        </Button>
-                      ))}
-                      {item.relatedDocumentId ? (
-                        <Link
-                          href={`/documents/${item.relatedDocumentId}`}
-                          className="inline-flex h-8 items-center rounded-md px-3 text-sm font-medium text-primary hover:bg-muted"
-                        >
-                          Open source
-                        </Link>
-                      ) : null}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+          <StudioSectionCard title="Needs You" subtitle="Structured pending items across accessible documents">
+            <NeedsYouList items={needsAction} />
           </StudioSectionCard>
         ) : null}
 
         {activeSection === "tasks" ? (
           <StudioSectionCard title="Tasks" subtitle="Browsable task documents attached to real documents">
-            <div className="space-y-3">
-              {filteredTasks.length === 0 ? (
-                <StudioEmptyState title="No tasks found" body="Try a different search term." />
-              ) : (
-                filteredTasks.map((task) => (
-                  <Link
-                    key={task.id}
-                    href={`/threads/${task.id}`}
-                    className="block rounded-lg border bg-card px-4 py-4 transition-colors hover:bg-muted/30"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-foreground">{task.title}</p>
-                      <Badge variant="outline">{task.status}</Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{task.summary}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{task.responsibleSummary}</p>
-                  </Link>
-                ))
-              )}
-            </div>
+            {filteredTasks.length === 0 ? (
+              <StudioEmptyState title="No tasks found" body="Try a different search term." />
+            ) : (
+              <TaskList tasks={filteredTasks} />
+            )}
           </StudioSectionCard>
         ) : null}
 

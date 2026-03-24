@@ -6,6 +6,7 @@ import {
   ArrowLeftIcon,
   CircleAlertIcon,
   HistoryIcon,
+  Link2Icon,
   ListTodoIcon,
   MessageSquareIcon,
   PanelRightOpenIcon,
@@ -15,29 +16,41 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { ConversationPanelV2 } from "@/components/demo/conversation-panel-v2";
+import {
+  ActivityTimeline,
+  AnchorDocumentBrowser,
+  CoreFieldsPanel,
+  DetailsTabs,
+  DocumentSummaryPanel,
+  NeedsYouList,
+  OperationsPanel,
+  SettingsPanels,
+  TaskList,
+} from "@/components/demo/demo-surface-components";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import {
-  getConversationPlaybook,
+  getDocumentActivity,
+  getDocumentAllOperations,
   getDocumentAnchorsForViewer,
   getDocumentConversation,
+  getDocumentCurrentStateFields,
+  getDocumentCurrentStateText,
+  getDocumentDescription,
+  getDocumentEmbeddedDocuments,
+  getDocumentInitialMessage,
+  getDocumentParticipants,
+  getDocumentPendingOperations,
+  getDocumentServices,
+  getDocumentShareSettings,
+  getDocumentSourceData,
   getDocumentViewerAccess,
   getNeedsActionForDocument,
   getTasksForDocument,
   getVisibleDocumentsForAnchor,
 } from "@/lib/demo/selectors";
 import type { DocumentRecord } from "@/lib/demo/types";
-import { StudioEmptyState, StudioPageHeader, StudioSectionCard } from "@/components/studio/studio-primitives";
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+import { StudioPageHeader, StudioSectionCard } from "@/components/studio/studio-primitives";
 
 type DocumentNavKey =
   | "chat-ui"
@@ -57,20 +70,21 @@ export function DocumentDetailShell({
   backHref: string;
   backLabel: string;
 }) {
-  const { snapshot, activeAccount, runDocumentAction, toggleFavorite } = useDemoApp();
+  const {
+    snapshot,
+    activeAccount,
+    runDocumentAction,
+    toggleFavorite,
+    setDocumentShareEnabled,
+    setDocumentPublicVisibility,
+    addDocumentShareEntry,
+    toggleDocumentService,
+  } = useDemoApp();
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
-  const [anchorQuery, setAnchorQuery] = useState("");
 
   const viewerAccountId = activeAccount?.id ?? document.ownerAccountId;
   const conversation = useMemo(
     () => (snapshot ? getDocumentConversation(snapshot, document.id, viewerAccountId) : null),
-    [document.id, snapshot, viewerAccountId]
-  );
-  const playbook = useMemo(
-    () =>
-      snapshot
-        ? getConversationPlaybook(snapshot, "document", document.id, viewerAccountId)
-        : null,
     [document.id, snapshot, viewerAccountId]
   );
   const tasks = useMemo(
@@ -85,6 +99,54 @@ export function DocumentDetailShell({
     () => (snapshot ? getDocumentAnchorsForViewer(snapshot, document.id, viewerAccountId) : []),
     [document.id, snapshot, viewerAccountId]
   );
+  const detailsDescription = useMemo(
+    () => (snapshot ? getDocumentDescription(snapshot, document.id) : document.summary),
+    [document.id, document.summary, snapshot]
+  );
+  const initialMessage = useMemo(
+    () => (snapshot ? getDocumentInitialMessage(snapshot, document.id) : ""),
+    [document.id, snapshot]
+  );
+  const currentStateText = useMemo(
+    () => (snapshot ? getDocumentCurrentStateText(snapshot, document.id) : ""),
+    [document.id, snapshot]
+  );
+  const currentStateFields = useMemo(
+    () => (snapshot ? getDocumentCurrentStateFields(snapshot, document.id) : document.coreFields.slice(0, 4)),
+    [document.coreFields, document.id, snapshot]
+  );
+  const participants = useMemo(
+    () => (snapshot ? getDocumentParticipants(snapshot, document.id) : []),
+    [document.id, snapshot]
+  );
+  const allOperations = useMemo(
+    () => (snapshot ? getDocumentAllOperations(snapshot, document.id) : []),
+    [document.id, snapshot]
+  );
+  const pendingOperations = useMemo(
+    () => (snapshot ? getDocumentPendingOperations(snapshot, document.id, viewerAccountId) : []),
+    [document.id, snapshot, viewerAccountId]
+  );
+  const embeddedDocuments = useMemo(
+    () => (snapshot ? getDocumentEmbeddedDocuments(snapshot, document.id, viewerAccountId) : []),
+    [document.id, snapshot, viewerAccountId]
+  );
+  const shareSettings = useMemo(
+    () => (snapshot ? getDocumentShareSettings(snapshot, document.id) : null),
+    [document.id, snapshot]
+  );
+  const services = useMemo(
+    () => (snapshot ? getDocumentServices(snapshot, document.id) : []),
+    [document.id, snapshot]
+  );
+  const activity = useMemo(
+    () => (snapshot ? getDocumentActivity(snapshot, document.id, viewerAccountId) : document.activity),
+    [document.activity, document.id, snapshot, viewerAccountId]
+  );
+  const sourceData = useMemo(
+    () => (snapshot ? getDocumentSourceData(snapshot, document.id) : document.details),
+    [document.details, document.id, snapshot]
+  );
   const viewerAccess = useMemo(
     () => (snapshot ? getDocumentViewerAccess(snapshot, document.id, viewerAccountId) : "none"),
     [document.id, snapshot, viewerAccountId]
@@ -95,14 +157,18 @@ export function DocumentDetailShell({
     label: string;
     icon?: React.ComponentType<{ className?: string }>;
   }> = [
-    { key: "chat-ui", label: "Chat / UI", icon: MessageSquareIcon },
+    { key: "chat-ui", label: "UI", icon: MessageSquareIcon },
     { key: "details", label: "Details", icon: PanelRightOpenIcon },
     { key: "activity", label: "Activity", icon: HistoryIcon },
     ...(needsAction.length > 0
-      ? [{ key: "needs-action" as const, label: "Needs Action", icon: CircleAlertIcon }]
+      ? [{ key: "needs-action" as const, label: "Needs You", icon: CircleAlertIcon }]
       : []),
     ...(tasks.length > 0 ? [{ key: "tasks" as const, label: "Tasks", icon: ListTodoIcon }] : []),
-    ...anchors.map((anchor) => ({ key: `anchor:${anchor.id}` as const, label: anchor.label })),
+    ...anchors.map((anchor) => ({
+      key: `anchor:${anchor.id}` as const,
+      label: anchor.label,
+      icon: Link2Icon,
+    })),
     { key: "settings", label: "Settings", icon: Settings2Icon },
   ];
 
@@ -115,17 +181,8 @@ export function DocumentDetailShell({
     if (!snapshot || !activeAnchor) {
       return [];
     }
-    const docs = getVisibleDocumentsForAnchor(snapshot, document.id, activeAnchor.id, viewerAccountId);
-    const query = anchorQuery.trim().toLowerCase();
-    if (!query) {
-      return docs;
-    }
-    return docs.filter(
-      (entry) =>
-        entry.title.toLowerCase().includes(query) ||
-        entry.summary.toLowerCase().includes(query)
-    );
-  }, [activeAnchor, anchorQuery, document.id, snapshot, viewerAccountId]);
+    return getVisibleDocumentsForAnchor(snapshot, document.id, activeAnchor.id, viewerAccountId);
+  }, [activeAnchor, document.id, snapshot, viewerAccountId]);
 
   return (
     <section className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -198,113 +255,56 @@ export function DocumentDetailShell({
         {activeNavKey === "chat-ui" ? (
           <div className="space-y-4">
             <StudioSectionCard title="Document summary" subtitle="Shared truth + viewer context">
-              <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-                <Card>
-                  <CardContent className="space-y-3 pt-5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">{document.owner}</Badge>
-                      {document.participants.map((participant) => (
-                        <Badge key={participant} variant="secondary">
-                          {participant}
-                        </Badge>
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {document.oneLineSummary ?? document.summary}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="space-y-2 pt-5">
-                    <h3 className="text-sm font-semibold">Core fields</h3>
-                    {document.coreFields.map((entry) => (
-                      <div
-                        key={`${document.id}_${entry.label}`}
-                        className="flex items-center justify-between gap-3 text-sm"
-                      >
-                        <span className="text-muted-foreground">{entry.label}</span>
-                        <span>{entry.value}</span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
+              <div className="space-y-4">
+                <DocumentSummaryPanel
+                  title={document.title}
+                  summary={document.oneLineSummary ?? document.summary}
+                  chips={[
+                    document.typeLabel ?? document.kind,
+                    document.status,
+                    document.visibilityLabel ?? (document.isPublic ? "Public" : "Private"),
+                  ]}
+                  ownerLine={`Owner: ${document.owner} • Participants: ${participants.map((entry) => entry.name).join(", ")}`}
+                />
+                <CoreFieldsPanel fields={document.coreFields} />
               </div>
             </StudioSectionCard>
 
-            {document.uiCards.length > 0 ? (
+            {allOperations.length > 0 ? (
               <StudioSectionCard title="Available actions" subtitle="Viewer-specific actions on this document">
-                <div className="space-y-3">
-                  {document.uiCards.map((card) => (
-                    <Card key={card.id}>
-                      <CardContent className="space-y-3 pt-5">
-                        <p className="text-sm font-semibold">{card.title}</p>
-                        <p className="text-sm text-muted-foreground">{card.body}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {(card.actions ?? []).map((entry) => (
-                            <Button
-                              key={entry.id}
-                              size="sm"
-                              variant="outline"
-                              disabled={busyActionId === entry.id}
-                              onClick={async () => {
-                                setBusyActionId(entry.id);
-                                await runDocumentAction(document.id, entry.id);
-                                setBusyActionId(null);
-                              }}
-                            >
-                              {busyActionId === entry.id ? "Applying…" : entry.label}
-                            </Button>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                <OperationsPanel
+                  operations={allOperations}
+                  busyActionId={busyActionId}
+                  onRunAction={async (actionId) => {
+                    setBusyActionId(actionId);
+                    await runDocumentAction(document.id, actionId);
+                    setBusyActionId(null);
+                  }}
+                />
               </StudioSectionCard>
             ) : null}
 
-            {tasks.length > 0 ? (
-              <StudioSectionCard title="Pending tasks" subtitle="Tasks attached to this document">
-                <div className="space-y-3">
-                  {tasks.map((task) => (
-                    <Link
-                      key={task.id}
-                      href={`/threads/${task.id}`}
-                      className="block rounded-lg border bg-card px-4 py-4 transition-colors hover:bg-muted/30"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-foreground">{task.title}</p>
-                        <Badge variant="outline">{task.status}</Badge>
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{task.summary}</p>
-                      <p className="mt-2 text-xs text-muted-foreground">{task.responsibleSummary}</p>
-                    </Link>
-                  ))}
-                </div>
-              </StudioSectionCard>
-            ) : null}
+            <StudioSectionCard title="Needs You preview" subtitle="The first items that still need the current viewer">
+              <NeedsYouList
+                items={needsAction}
+                limit={3}
+                onViewAll={() => setActiveNavKey("needs-action")}
+                viewAllLabel="View all Needs You"
+              />
+            </StudioSectionCard>
 
-            {needsAction.length > 0 ? (
-              <StudioSectionCard title="Pending asks / needs action" subtitle="Structured queue for the current viewer">
-                <div className="space-y-3">
-                  {needsAction.map((item) => (
-                    <div key={item.id} className="rounded-lg border bg-card px-4 py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                        <Badge variant={item.priority === "high" ? "destructive" : "outline"}>
-                          {item.priority}
-                        </Badge>
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
-                    </div>
-                  ))}
-                </div>
-              </StudioSectionCard>
-            ) : null}
+            <StudioSectionCard title="Tasks preview" subtitle="The most relevant task documents attached to this document">
+              <TaskList
+                tasks={tasks}
+                limit={3}
+                onViewAll={() => setActiveNavKey("tasks")}
+                viewAllLabel="View all tasks"
+              />
+            </StudioSectionCard>
 
             <StudioSectionCard
-              title="Chat history"
-              subtitle="Viewer-specific Blink narrative on top of the shared document state"
+              title="Conversation"
+              subtitle="Talk with Blink about this document without leaving the document surface"
             >
               <div className="h-[520px]">
                 <ConversationPanelV2
@@ -314,191 +314,78 @@ export function DocumentDetailShell({
                   fullHeight
                 />
               </div>
-              {playbook ? (
-                <p className="mt-3 text-xs text-muted-foreground">Playbook: {playbook.identityMarkdown}</p>
-              ) : null}
             </StudioSectionCard>
           </div>
         ) : null}
 
         {activeNavKey === "details" ? (
-          <StudioSectionCard title="Details" subtitle="Power-user factual detail view">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardContent className="space-y-3 pt-5">
-                  <h3 className="text-sm font-semibold">Document facts</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">ID</span>
-                      <span>{document.id}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Type</span>
-                      <span>{document.typeLabel ?? document.kind}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Owner</span>
-                      <span>{document.owner}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Visibility</span>
-                      <span>{document.visibilityLabel}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Access mode</span>
-                      <span>{viewerAccess}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              {document.detailBlocks.map((block) => (
-                <Card key={block.id}>
-                  <CardContent className="space-y-3 pt-5">
-                    <h3 className="text-sm font-semibold">{block.title}</h3>
-                    {block.items.map((item) => (
-                      <div key={`${block.id}_${item.label}`} className="flex justify-between gap-3 text-sm">
-                        <span className="text-muted-foreground">{item.label}</span>
-                        <span>{item.value}</span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          <StudioSectionCard title="Details" subtitle="Structured, human-readable detail for this document">
+            <DetailsTabs
+              description={detailsDescription}
+              initialMessage={initialMessage}
+              currentStateText={currentStateText}
+              currentStateFields={currentStateFields}
+              participants={participants}
+              allOperations={allOperations}
+              pendingOperations={pendingOperations}
+              embeddedDocuments={embeddedDocuments}
+              sourceData={sourceData}
+            />
           </StudioSectionCard>
         ) : null}
 
         {activeNavKey === "activity" ? (
-          <StudioSectionCard title="Activity" subtitle="Chronological audit log">
-            <div className="space-y-3">
-              {document.activity.length === 0 ? (
-                <StudioEmptyState title="No activity yet" body="Document timeline entries will appear here." />
-              ) : (
-                document.activity.map((entry) => (
-                  <div key={entry.id} className="rounded-lg border bg-card px-4 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-foreground">{entry.title}</p>
-                      <Badge variant="outline">{entry.kind}</Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{entry.detail}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{formatDate(entry.createdAt)}</p>
-                  </div>
-                ))
-              )}
-            </div>
+          <StudioSectionCard title="Activity" subtitle="Read-only timeline of what happened around this document">
+            <ActivityTimeline activity={activity} />
           </StudioSectionCard>
         ) : null}
 
         {activeNavKey === "needs-action" ? (
-          <StudioSectionCard title="Needs Action" subtitle="Structured queue for this document only">
-            <div className="space-y-3">
-              {needsAction.map((item) => (
-                <div key={item.id} className="rounded-lg border bg-card px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                    <Badge variant={item.priority === "high" ? "destructive" : "outline"}>
-                      {item.priority}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">{formatDate(item.createdAt)}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {(item.availableActionLabels ?? []).map((label) => (
-                      <Button key={label} size="sm" variant="outline">
-                        {label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <StudioSectionCard title="Needs You" subtitle="Everything on this document that still needs the current viewer">
+            <NeedsYouList items={needsAction} />
           </StudioSectionCard>
         ) : null}
 
         {activeNavKey === "tasks" ? (
           <StudioSectionCard title="Tasks" subtitle="Task documents attached to this document">
-            <div className="space-y-3">
-              {tasks.map((task) => (
-                <Link
-                  key={task.id}
-                  href={`/threads/${task.id}`}
-                  className="block rounded-lg border bg-card px-4 py-4 transition-colors hover:bg-muted/30"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-foreground">{task.title}</p>
-                    <Badge variant="outline">{task.status}</Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{task.summary}</p>
-                </Link>
-              ))}
-            </div>
+            <TaskList tasks={tasks} />
           </StudioSectionCard>
         ) : null}
 
         {activeAnchor ? (
           <StudioSectionCard title={activeAnchor.label} subtitle="Linked documents filtered for the current viewer">
-            <div className="mb-3">
-              <Input
-                value={anchorQuery}
-                onChange={(event) => setAnchorQuery(event.target.value)}
-                placeholder={`Search ${activeAnchor.label.toLowerCase()}...`}
-                className="max-w-sm"
-              />
-            </div>
-            <div className="space-y-3">
-              {anchorDocuments.length === 0 ? (
-                <StudioEmptyState
-                  title="No visible linked documents"
-                  body="Nothing in this anchor matches the current viewer or search."
-                />
-              ) : (
-                anchorDocuments.map((entry) => (
-                  <Link
-                    key={entry.id}
-                    href={`/documents/${entry.id}`}
-                    className="block rounded-lg border bg-card px-4 py-4 transition-colors hover:bg-muted/30"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-foreground">{entry.title}</p>
-                      <Badge variant="outline">{entry.status}</Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{entry.summary}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{formatDate(entry.updatedAt)}</p>
-                  </Link>
-                ))
-              )}
-            </div>
+            <AnchorDocumentBrowser
+              title={activeAnchor.label}
+              documents={anchorDocuments.map((entry) => ({
+                id: entry.id,
+                title: entry.title,
+                summary: entry.summary,
+                status: entry.status,
+                updatedAt: entry.updatedAt,
+              }))}
+            />
           </StudioSectionCard>
         ) : null}
 
         {activeNavKey === "settings" ? (
           <StudioSectionCard
             title="Settings"
-            subtitle="Sharing, participants, access grants, and service/task relationships"
+            subtitle="Main settings, sharing controls, and connected services for this document"
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              {document.settingsBlocks.map((block) => (
-                <Card key={block.id}>
-                  <CardContent className="space-y-3 pt-5">
-                    <h3 className="text-sm font-semibold">{block.title}</h3>
-                    {block.items.map((item) => (
-                      <div key={`${block.id}_${item.label}`} className="flex justify-between gap-3 text-sm">
-                        <span className="text-muted-foreground">{item.label}</span>
-                        <span>{item.value}</span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              ))}
-              <Card>
-                <CardContent className="space-y-3 pt-5">
-                  <h3 className="text-sm font-semibold">Raw details</h3>
-                  <pre className="overflow-auto rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground">
-                    {JSON.stringify(document.details, null, 2)}
-                  </pre>
-                </CardContent>
-              </Card>
-            </div>
+            <SettingsPanels
+              documentTitle={document.title}
+              documentId={document.id}
+              visibilityLabel={document.visibilityLabel ?? (document.isPublic ? "Public" : "Private")}
+              owner={document.owner}
+              participantCount={participants.length}
+              typeLabel={document.typeLabel ?? document.kind}
+              shareSettings={shareSettings}
+              services={services}
+              onShareEnabledChange={(enabled) => void setDocumentShareEnabled(document.id, enabled)}
+              onPublicVisibilityChange={(enabled) => void setDocumentPublicVisibility(document.id, enabled)}
+              onAddShareEntry={(type, name) => void addDocumentShareEntry(document.id, type, name)}
+              onToggleService={(serviceId) => void toggleDocumentService(document.id, serviceId)}
+            />
           </StudioSectionCard>
         ) : null}
       </div>

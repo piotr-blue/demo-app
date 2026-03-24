@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DemoAvatar } from "@/components/demo/demo-avatar";
 import { useDemoApp } from "@/components/demo/demo-provider";
 import {
   getAssistantTimelineItems,
@@ -25,6 +26,16 @@ function formatDayLabel(value: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+function messageTone(role: "assistant" | "user" | "system") {
+  if (role === "assistant") {
+    return "border-sky-200 bg-sky-50/80";
+  }
+  if (role === "user") {
+    return "border-primary/15 bg-primary/6";
+  }
+  return "border-border/80 bg-muted/35";
 }
 
 export function ConversationPanelV2({
@@ -145,31 +156,61 @@ export function ConversationPanelV2({
               const messages = getExchangeMessages(snapshot, item.exchangeId);
               const isOpen = exchange?.status === "open" || exchange?.status === "in-progress";
               const isExpanded = expandedExchangeId === item.exchangeId;
+              const alignRight = item.role === "user";
               return (
                 <div key={item.id} className="space-y-2">
                   <p className="text-center text-[11px] uppercase tracking-wide text-muted-foreground">
                     {formatDayLabel(item.createdAt)}
                   </p>
-                  <button
-                    type="button"
-                    className="w-full rounded-lg border bg-card px-4 py-3 text-left hover:bg-muted/30"
-                    onClick={() => setExpandedExchangeId(item.exchangeId)}
-                  >
-                    <p className="text-sm text-foreground">{item.body}</p>
-                    <p className="mt-2 text-right text-xs text-muted-foreground">
-                      {formatTimestamp(item.createdAt)}
-                    </p>
-                  </button>
+                  <div className={`flex gap-3 ${alignRight ? "justify-end" : "justify-start"}`}>
+                    {!alignRight ? (
+                      <DemoAvatar
+                        name={item.role === "assistant" ? assistantName : item.role}
+                        kind={item.role === "assistant" ? "blink" : "person"}
+                        size="md"
+                      />
+                    ) : null}
+                    <button
+                      type="button"
+                      className={`max-w-[85%] rounded-2xl border px-4 py-3 text-left transition-colors hover:bg-muted/30 ${messageTone(item.role)}`}
+                      onClick={() => setExpandedExchangeId(item.exchangeId)}
+                    >
+                      <p className="text-sm text-foreground">{item.body}</p>
+                      <p className={`mt-2 text-xs text-muted-foreground ${alignRight ? "text-left" : "text-right"}`}>
+                        {item.role === "assistant" ? assistantName : item.role} · {formatTimestamp(item.createdAt)}
+                      </p>
+                    </button>
+                    {alignRight ? (
+                      <DemoAvatar
+                        name="You"
+                        kind="person"
+                        size="md"
+                      />
+                    ) : null}
+                  </div>
 
                   {isExpanded ? (
                     <div className="rounded-lg border bg-muted/20 p-3">
                       <div className="space-y-2">
                         {messages.map((message) => (
-                          <div key={message.id} className="rounded-md bg-background px-3 py-2">
-                            <p className="text-sm text-foreground">{message.body}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {message.role} · {formatTimestamp(message.createdAt)}
-                            </p>
+                          <div
+                            key={message.id}
+                            className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                          >
+                            {message.role !== "user" ? (
+                              <DemoAvatar
+                                name={message.role === "assistant" ? assistantName : "System"}
+                                kind={message.role === "assistant" ? "blink" : "person"}
+                                size="sm"
+                              />
+                            ) : null}
+                            <div className={`max-w-[85%] rounded-xl border px-3 py-2 ${messageTone(message.role)}`}>
+                              <p className="text-sm text-foreground">{message.body}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {message.role === "assistant" ? assistantName : message.role} · {formatTimestamp(message.createdAt)}
+                              </p>
+                            </div>
+                            {message.role === "user" ? <DemoAvatar name="You" kind="person" size="sm" /> : null}
                           </div>
                         ))}
                       </div>

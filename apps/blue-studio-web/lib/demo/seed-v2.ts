@@ -161,43 +161,6 @@ function shareSettings(
   };
 }
 
-function buildParticipantSet(ids: string[]): DemoParticipantRecord[] {
-  return ids.map((id) => {
-    switch (id) {
-      case ACCOUNT_PIOTR:
-        return participant("part_piotr", "piotr-blue", {
-          accountId: ACCOUNT_PIOTR,
-          email: "piotr@blue.example",
-          subtitle: "MyOS operator",
-          roles: ["Owner"],
-        });
-      case ACCOUNT_ALICE:
-        return participant("part_alice", "Alice Martinez", {
-          accountId: ACCOUNT_ALICE,
-          email: "alice@freshbites.example",
-          subtitle: "Owner of Fresh Bites",
-          roles: ["Owner"],
-        });
-      case ACCOUNT_BOB:
-        return participant("part_bob", "Bob Chen", {
-          accountId: ACCOUNT_BOB,
-          email: "bob@northwind.example",
-          subtitle: "Northwind BI",
-          roles: ["Provider"],
-        });
-      case ACCOUNT_CELINE:
-        return participant("part_celine", "Celine Duarte", {
-          accountId: ACCOUNT_CELINE,
-          email: "celine@partnerflow.example",
-          subtitle: "PartnerFlow",
-          roles: ["Provider"],
-        });
-      default:
-        return participant(`part_${id}`, id);
-    }
-  });
-}
-
 function activity(params: {
   id: string;
   kind: string;
