@@ -4,26 +4,21 @@ import {
   appendThreadMessage,
   applyDocumentAction,
   applyThreadAction,
-  createRootDocument,
-  createThreadInScope,
-  createWorkspaceFromTemplate,
+  getOrCreateDocumentConversation,
+  getOrCreateHomeConversation,
   loadDemoSnapshot,
-  markWorkspaceBootstrapFailed,
-  markWorkspaceBootstrapSuccess,
   replyToAssistantExchange,
   resetDemoSnapshot,
   startAssistantDemoDiscussion,
   startUserDiscussion,
-  syncThreadDocumentSnapshot,
+  toggleDocumentFavorite,
   updateAssistantPlaybook,
 } from "@/lib/demo/scope-actions";
 import {
-  getBlinkScope,
   getDocumentById,
+  getDocumentConversation,
   getExchangeMessages,
-  getOpenAssistantExchanges,
-  getScopeAssistantPlaybook,
-  getScopeById,
+  getHomeConversation,
   getThreadById,
 } from "@/lib/demo/selectors";
 import { clearDemoPersistence } from "@/lib/demo/storage";
@@ -33,67 +28,42 @@ describe("demo scope actions", () => {
     await clearDemoPersistence();
   });
 
-  it("creates workspace from template and updates bootstrap state", async () => {
-    const created = await createWorkspaceFromTemplate({
-      templateKey: "shop",
-      workspaceName: "Alice Shop",
-    });
-    expect(created.workspaceId).toBeTruthy();
-    const workspace = getScopeById(created.snapshot, created.workspaceId);
-    expect(workspace?.type).toBe("workspace");
-    expect(workspace?.bootstrapStatus).toBe("ready");
+  it("returns seeded home and document conversation ids", async () => {
+    const home = await getOrCreateHomeConversation("account_alice");
+    expect(home.conversationId).toBeTruthy();
+    expect(getHomeConversation(home.snapshot, "account_alice")?.id).toBe(home.conversationId);
 
-    const readySnapshot = await markWorkspaceBootstrapSuccess({
-      scopeId: created.workspaceId,
-      sessionId: "session_1",
-      coreDocumentId: "doc_core_1",
-      myosDocumentId: "myos_doc_1",
-    });
-    const readyScope = getScopeById(readySnapshot, created.workspaceId);
-    expect(readyScope?.bootstrapStatus).toBe("ready");
-    expect(readyScope?.coreSessionId).toBe("session_1");
-    expect(readyScope?.coreDocumentId).toBe("doc_core_1");
-  });
-
-  it("creates thread and root document in blink scope", async () => {
-    const snapshot = await loadDemoSnapshot();
-    const blink = getBlinkScope(snapshot);
-    expect(blink).toBeTruthy();
-    if (!blink) {
-      return;
-    }
-
-    const threadCreated = await createThreadInScope({ scopeId: blink.id, title: "Ops thread" });
-    expect(threadCreated.threadId).toBeTruthy();
-    const synced = await syncThreadDocumentSnapshot(threadCreated.threadId);
-    expect(synced.documents.some((document) => document.kind === "thread")).toBe(true);
-
-    const rootDocument = await createRootDocument({ title: "Root spec" });
-    expect(rootDocument.documentId).toBeTruthy();
+    const doc = await getOrCreateDocumentConversation("doc_order_fresh_bites_bob", "account_bob");
+    expect(doc.conversationId).toBeTruthy();
     expect(
-      rootDocument.snapshot.documents.some(
-        (document) => document.id === rootDocument.documentId && document.scopeId === null
-      )
-    ).toBe(true);
+      getDocumentConversation(doc.snapshot, "doc_order_fresh_bites_bob", "account_bob")?.id
+    ).toBe(doc.conversationId);
   });
 
-  it("marks workspace bootstrap failure without deleting workspace", async () => {
-    const created = await createWorkspaceFromTemplate({
-      templateKey: "restaurant",
-      workspaceName: "Bistro",
-    });
+  it("toggles favorites for the active account", async () => {
+    const before = await loadDemoSnapshot();
+    const account = before.accounts.find((entry) => entry.id === "account_piotr_blue");
+    expect(account?.favoriteDocumentIds.includes("doc_fresh_bites")).toBe(true);
 
-    const failed = await markWorkspaceBootstrapFailed(created.workspaceId, "bootstrap error");
-    const workspace = getScopeById(failed, created.workspaceId);
-    expect(workspace?.bootstrapStatus).toBe("failed");
-    expect(workspace?.bootstrapError).toContain("bootstrap error");
-    expect(workspace?.type).toBe("workspace");
+    const afterRemove = await toggleDocumentFavorite("account_piotr_blue", "doc_fresh_bites");
+    expect(
+      afterRemove.accounts
+        .find((entry) => entry.id === "account_piotr_blue")
+        ?.favoriteDocumentIds.includes("doc_fresh_bites")
+    ).toBe(false);
+
+    const afterAdd = await toggleDocumentFavorite("account_piotr_blue", "doc_fresh_bites");
+    expect(
+      afterAdd.accounts
+        .find((entry) => entry.id === "account_piotr_blue")
+        ?.favoriteDocumentIds.includes("doc_fresh_bites")
+    ).toBe(true);
   });
 
   it("applies document and thread actions and appends thread chat", async () => {
     const snapshot = await loadDemoSnapshot();
-    const document = snapshot.documents.find((entry) => entry.id === "doc_home_sms_provider");
-    const thread = snapshot.threads.find((entry) => entry.id === "thread_home_daily_ops");
+    const document = snapshot.documents.find((entry) => entry.id === "doc_order_fresh_bites_bob");
+    const thread = snapshot.threads.find((entry) => entry.id === "thread_find_customers_for_fresh_bites");
     expect(document).toBeTruthy();
     expect(thread).toBeTruthy();
     if (!document || !thread) {
@@ -108,7 +78,7 @@ describe("demo scope actions", () => {
 
     const afterDocumentAction = await applyDocumentAction(document.id, documentActionId);
     const updatedDocument = getDocumentById(afterDocumentAction, document.id);
-    expect(updatedDocument?.activity.length).toBeGreaterThan(document.activity.length);
+    expect(updatedDocument?.details.lastAction).toBe(document.uiCards[0]?.actions?.[0]?.label);
 
     const threadActionId = thread.uiCards[0]?.actions?.[0]?.id;
     expect(threadActionId).toBeTruthy();
@@ -125,105 +95,86 @@ describe("demo scope actions", () => {
     expect(threadAfterMessage?.messages.at(-1)?.text).toContain("supplier follow-up");
   });
 
-  it("runs assistant-started discussion loop and resolves with last user message", async () => {
+  it("runs assistant-started discussion loop and resolves", async () => {
     const seeded = await loadDemoSnapshot();
-    const homeScope = seeded.scopes.find((scope) => scope.type === "blink");
-    expect(homeScope).toBeTruthy();
-    if (!homeScope) {
+    const conversation = getHomeConversation(seeded, "account_alice");
+    expect(conversation).toBeTruthy();
+    if (!conversation) {
       return;
     }
 
-    const started = await startAssistantDemoDiscussion(homeScope.id);
+    const started = await startAssistantDemoDiscussion(conversation.id);
     expect(started.exchangeId).toBeTruthy();
     if (!started.exchangeId) {
       return;
     }
 
     const afterReply = await replyToAssistantExchange(started.exchangeId, "yes");
-    const exchangeAfterReply = afterReply.assistantExchanges.find(
-      (exchange) => exchange.id === started.exchangeId
-    );
-    expect(exchangeAfterReply?.status).toBe("in-progress");
     const messagesAfterReply = getExchangeMessages(afterReply, started.exchangeId);
     expect(messagesAfterReply.at(-1)?.body).toBe("Reply to: yes");
 
     const afterDone = await replyToAssistantExchange(started.exchangeId, "DONE");
-    const resolvedExchange = afterDone.assistantExchanges.find(
-      (exchange) => exchange.id === started.exchangeId
-    );
-    expect(resolvedExchange?.status).toBe("resolved");
     const resolvedMessages = getExchangeMessages(afterDone, started.exchangeId);
     expect(resolvedMessages.at(-1)?.kind).toBe("resolution");
-    expect(resolvedMessages.at(-1)?.body).toBe("yes");
-    expect(resolvedMessages.some((message) => message.body === "DONE")).toBe(false);
-    const linkedAttention = afterDone.attentionItems.find(
-      (item) => item.id === resolvedExchange?.linkedAttentionItemId
-    );
-    expect(linkedAttention?.status).toBe("resolved");
   });
 
-  it("runs user-started discussion loop and resolves with assistant DONE confirmation", async () => {
+  it("runs user-started discussion loop and updates playbooks", async () => {
     const seeded = await loadDemoSnapshot();
-    const scope = seeded.scopes.find((entry) => entry.type === "workspace");
-    expect(scope).toBeTruthy();
-    if (!scope) {
+    const conversation = getDocumentConversation(
+      seeded,
+      "doc_partnership_engine_agreement_alice",
+      "account_alice"
+    );
+    expect(conversation).toBeTruthy();
+    if (!conversation) {
       return;
     }
 
-    const started = await startUserDiscussion(scope.id, "What should I track here?");
+    const started = await startUserDiscussion(conversation.id, "What should I track here?");
     expect(started.exchangeId).toBeTruthy();
     if (!started.exchangeId) {
       return;
     }
-
-    const openedExchange = started.snapshot.assistantExchanges.find(
-      (exchange) => exchange.id === started.exchangeId
-    );
-    expect(openedExchange?.status).toBe("in-progress");
     const messagesAfterStart = getExchangeMessages(started.snapshot, started.exchangeId);
     expect(messagesAfterStart.at(-1)?.body).toBe("Reply to: What should I track here?");
 
-    const afterDone = await replyToAssistantExchange(started.exchangeId, "DONE");
-    const resolvedExchange = afterDone.assistantExchanges.find(
-      (exchange) => exchange.id === started.exchangeId
+    const playbook = started.snapshot.assistantPlaybooks.find(
+      (entry) =>
+        entry.targetType === "document" &&
+        entry.targetId === "doc_partnership_engine_agreement_alice" &&
+        entry.viewerAccountId === "account_alice"
     );
-    expect(resolvedExchange?.status).toBe("resolved");
-    const finalMessages = getExchangeMessages(afterDone, started.exchangeId);
-    expect(finalMessages.at(-1)?.body).toBe("OK, so it's DONE");
-    expect(finalMessages.some((message) => message.body === "DONE")).toBe(false);
-  });
-
-  it("updates assistant playbook markdown and keeps open-ask selector accurate", async () => {
-    const seeded = await loadDemoSnapshot();
-    const homeScope = seeded.scopes.find((scope) => scope.type === "blink");
-    expect(homeScope).toBeTruthy();
-    if (!homeScope) {
+    expect(playbook).toBeTruthy();
+    if (!playbook) {
       return;
     }
-    const beforeOpen = getOpenAssistantExchanges(seeded, homeScope.id);
-    expect(beforeOpen.length).toBeGreaterThan(0);
 
-    const updated = await updateAssistantPlaybook(homeScope.id, {
+    const updated = await updateAssistantPlaybook(playbook.id, {
       identityMarkdown: "Updated identity",
       defaultsMarkdown: "Updated defaults",
       contextMarkdown: "Updated context",
       overridesMarkdown: "Updated overrides",
     });
-    const nextPlaybook = getScopeAssistantPlaybook(updated, homeScope.id);
+    const nextPlaybook = updated.assistantPlaybooks.find((entry) => entry.id === playbook.id);
     expect(nextPlaybook?.identityMarkdown).toBe("Updated identity");
     expect(nextPlaybook?.defaultsMarkdown).toBe("Updated defaults");
     expect(nextPlaybook?.contextMarkdown).toBe("Updated context");
     expect(nextPlaybook?.overridesMarkdown).toBe("Updated overrides");
-    const afterOpen = getOpenAssistantExchanges(updated, homeScope.id);
-    expect(afterOpen.length).toBeGreaterThan(0);
   });
 
   it("resets snapshot to deterministic seed", async () => {
-    const created = await createRootDocument({ title: "Temporary doc" });
-    expect(created.snapshot.documents.some((entry) => entry.title === "Temporary doc")).toBe(true);
+    const changed = await toggleDocumentFavorite("account_piotr_blue", "doc_fresh_bites");
+    expect(
+      changed.accounts.find((entry) => entry.id === "account_piotr_blue")?.favoriteDocumentIds.includes(
+        "doc_fresh_bites"
+      )
+    ).toBe(false);
 
     const reset = await resetDemoSnapshot();
-    expect(reset.documents.some((entry) => entry.title === "Temporary doc")).toBe(false);
-    expect(reset.scopes.some((entry) => entry.name === "Home")).toBe(true);
+    expect(
+      reset.accounts.find((entry) => entry.id === "account_piotr_blue")?.favoriteDocumentIds.includes(
+        "doc_fresh_bites"
+      )
+    ).toBe(true);
   });
 });

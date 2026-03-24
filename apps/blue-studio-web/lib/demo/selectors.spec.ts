@@ -1,56 +1,118 @@
 import { describe, expect, it } from "vitest";
-import { createSeedSnapshot, BLINK_SCOPE_ID } from "@/lib/demo/seed";
+import { createSeedSnapshot, DEFAULT_DEMO_ACCOUNT_ID } from "@/lib/demo/seed";
 import {
+  getAccessibleDocumentsForAccount,
   getAssistantTimelineItems,
+  getConversationExchanges,
+  getDocumentConversation,
   getExchangeMessages,
-  getOpenAssistantExchanges,
-  getScopeAssistantConversation,
-  getScopeAssistantExchanges,
-  getScopeAssistantPlaybook,
+  getFavoriteDocumentsForAccount,
+  getHomeConversation,
+  getVisibleDocumentsForAnchor,
+  getViewerSpecificCommentDocuments,
 } from "@/lib/demo/selectors";
 
-describe("assistant conversation selectors", () => {
-  it("returns seeded conversation and playbook per scope", () => {
+describe("multi-account selectors", () => {
+  it("returns seeded home and document conversations", () => {
     const snapshot = createSeedSnapshot();
-    const conversation = getScopeAssistantConversation(snapshot, BLINK_SCOPE_ID);
-    const playbook = getScopeAssistantPlaybook(snapshot, BLINK_SCOPE_ID);
+    const homeConversation = getHomeConversation(snapshot, DEFAULT_DEMO_ACCOUNT_ID);
+    const documentConversation = getDocumentConversation(
+      snapshot,
+      "doc_order_fresh_bites_bob",
+      "account_bob"
+    );
 
-    expect(conversation).toBeTruthy();
-    expect(conversation?.scopeId).toBe(BLINK_SCOPE_ID);
-    expect(playbook).toBeTruthy();
-    expect(playbook?.scopeId).toBe(BLINK_SCOPE_ID);
+    expect(homeConversation).toBeTruthy();
+    expect(homeConversation?.targetType).toBe("home");
+    expect(homeConversation?.targetId).toBe(DEFAULT_DEMO_ACCOUNT_ID);
+
+    expect(documentConversation).toBeTruthy();
+    expect(documentConversation?.targetType).toBe("document");
+    expect(documentConversation?.viewerAccountId).toBe("account_bob");
   });
 
-  it("builds timeline anchors with opener and resolution only", () => {
+  it("filters Fresh Bites orders by viewer", () => {
     const snapshot = createSeedSnapshot();
-    const timeline = getAssistantTimelineItems(snapshot, BLINK_SCOPE_ID);
-
-    expect(timeline.length).toBeGreaterThanOrEqual(3);
-    expect(timeline.some((entry) => entry.kind === "opener")).toBe(true);
-    expect(timeline.some((entry) => entry.kind === "resolution")).toBe(true);
-
-    for (let index = 1; index < timeline.length; index += 1) {
-      expect(timeline[index - 1]?.createdAt <= timeline[index]?.createdAt).toBe(true);
-    }
-  });
-
-  it("returns open exchanges and full expanded messages", () => {
-    const snapshot = createSeedSnapshot();
-    const allExchanges = getScopeAssistantExchanges(snapshot, BLINK_SCOPE_ID);
-    const openExchanges = getOpenAssistantExchanges(snapshot, BLINK_SCOPE_ID);
-
-    expect(allExchanges.length).toBeGreaterThanOrEqual(2);
-    expect(openExchanges.length).toBe(1);
-    expect(openExchanges[0]?.status).toBe("open");
-
-    const resolved = allExchanges.find((exchange) => exchange.status === "resolved");
-    expect(resolved).toBeTruthy();
-    if (!resolved) {
+    const orderAnchor = snapshot.documentAnchors.find(
+      (anchor) => anchor.id === "anchor_fresh_bites_orders"
+    );
+    expect(orderAnchor).toBeTruthy();
+    if (!orderAnchor) {
       return;
     }
 
-    const messages = getExchangeMessages(snapshot, resolved.id);
+    const aliceOrders = getVisibleDocumentsForAnchor(
+      snapshot,
+      "doc_fresh_bites",
+      orderAnchor.id,
+      "account_alice"
+    );
+    const bobOrders = getVisibleDocumentsForAnchor(
+      snapshot,
+      "doc_fresh_bites",
+      orderAnchor.id,
+      "account_bob"
+    );
+
+    expect(aliceOrders.length).toBeGreaterThan(5);
+    expect(bobOrders).toHaveLength(1);
+    expect(bobOrders[0]?.title).toBe("Fresh Bites order — Bob");
+  });
+
+  it("shows viewer-specific comments on Bob's public notebook notes", () => {
+    const snapshot = createSeedSnapshot();
+    const aliceComments = getViewerSpecificCommentDocuments(
+      snapshot,
+      "doc_my_life_note_morning_walk",
+      "account_alice"
+    );
+    const alicePrivateComments = getViewerSpecificCommentDocuments(
+      snapshot,
+      "doc_my_life_note_journal",
+      "account_alice"
+    );
+    const celinePrivateComments = getViewerSpecificCommentDocuments(
+      snapshot,
+      "doc_my_life_note_journal",
+      "account_celine"
+    );
+
+    expect(aliceComments.some((document) => document.title.includes("Alice comment"))).toBe(true);
+    expect(alicePrivateComments.some((document) => document.title.includes("private comment"))).toBe(
+      true
+    );
+    expect(celinePrivateComments).toHaveLength(0);
+  });
+
+  it("builds assistant timeline items and exchange messages by conversation", () => {
+    const snapshot = createSeedSnapshot();
+    const conversation = getHomeConversation(snapshot, "account_alice");
+    expect(conversation).toBeTruthy();
+    if (!conversation) {
+      return;
+    }
+
+    const exchanges = getConversationExchanges(snapshot, conversation.id);
+    expect(exchanges.length).toBeGreaterThan(0);
+    const timeline = getAssistantTimelineItems(snapshot, conversation.id);
+    expect(timeline.some((entry) => entry.kind === "opener")).toBe(true);
+    expect(timeline.some((entry) => entry.kind === "resolution")).toBe(true);
+
+    const messages = getExchangeMessages(snapshot, exchanges[0]!.id);
     expect(messages.some((message) => message.kind === "reply")).toBe(true);
     expect(messages.some((message) => message.kind === "resolution")).toBe(true);
+  });
+
+  it("returns account favourites and accessible documents", () => {
+    const snapshot = createSeedSnapshot();
+    const piotrFavorites = getFavoriteDocumentsForAccount(snapshot, "account_piotr_blue");
+    const bobAccessible = getAccessibleDocumentsForAccount(snapshot, "account_bob");
+
+    expect(piotrFavorites.some((document) => document.title === "Fresh Bites")).toBe(true);
+    expect(piotrFavorites.some((document) => document.title === "Northwind BI")).toBe(true);
+    expect(bobAccessible.some((document) => document.title === "Fresh Bites")).toBe(true);
+    expect(bobAccessible.some((document) => document.title === "Northwind BI Agreement — Bob")).toBe(
+      true
+    );
   });
 });

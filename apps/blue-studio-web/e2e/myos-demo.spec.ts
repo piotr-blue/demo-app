@@ -1,44 +1,63 @@
 import { expect, test } from "@playwright/test";
 
-test("myos demo opens in Home and supports seeded navigation/search/detail interactions", async ({ page }) => {
+test("myos demo supports multi-account document-first stories", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL("/home");
 
   await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Search" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Alice’s Shop" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Here’s what happened while you were away/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: "My Profile" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Fresh Bites" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "piotr-blue" })).toBeVisible();
 
-  await page.getByRole("tab", { name: "Services" }).click();
-  await page.getByRole("link", { name: /SMS Provider Subscription/i }).click();
-  await expect(page).toHaveURL(/\/documents\/.+/);
-  await expect(page.getByRole("tab", { name: "UI" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Activity" })).toBeVisible();
-  await page.getByRole("button", { name: "Check quota" }).click();
-  await page.getByRole("tab", { name: "Activity" }).click();
-  await expect(page.getByText("Quota checked")).toBeVisible();
-
-  await page.goto("/home?section=tasks");
-  await page.getByRole("link", { name: /Daily operations triage/i }).click();
-  await expect(page).toHaveURL(/\/threads\/.+/);
-  await expect(page.getByRole("tab", { name: "Chat" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "UI" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Activity" })).toBeVisible();
-  await page.getByPlaceholder("Add an update to this task…").fill("Please track supplier escalation.");
-  await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByText("Please track supplier escalation.")).toBeVisible();
-
-  await page.getByPlaceholder("Search workspaces, documents, threads, services…").fill("northwind");
+  await page.getByPlaceholder("Search accounts, services, and documents...").fill("Fresh Bites");
   await page.getByRole("button", { name: "Search" }).first().click();
-  await expect(page).toHaveURL(/\/search\?q=northwind/);
-  await expect(page.getByRole("link", { name: /Shared NDA with Northwind Press/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/search\?q=Fresh%20Bites/);
+  await expect(page.getByText("Accounts")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Alice Martinez/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Fresh Bites/i }).first()).toBeVisible();
 
-  await page.goto("/blink");
-  await expect(page).toHaveURL("/home");
+  await page.goto("/documents/doc_fresh_bites");
+  await expect(page.getByText("Chat / UI")).toBeVisible();
+  await expect(page.getByText("Orders")).toBeVisible();
+  await expect(page.getByText("Products")).toBeVisible();
+  await expect(page.getByText("Partnerships")).toBeVisible();
 
-  await page.goto("/documents");
-  await expect(page).toHaveURL("/home?section=documents");
+  await page.getByRole("button", { name: /piotr-blue/i }).click();
+  await page.getByText("Switch to Bob Chen").click();
+  await expect(page.getByRole("heading", { name: "Bob Chen" })).toBeVisible();
+
+  await page.getByPlaceholder("Search accounts, services, and documents...").fill("Fresh Bites");
+  await page.getByRole("button", { name: "Search" }).first().click();
+  await page.getByRole("link", { name: /Fresh Bites/i }).first().click();
+  await page.getByRole("button", { name: "Orders" }).click();
+  await expect(page.getByText("Fresh Bites order — Bob")).toBeVisible();
+  await expect(page.getByText("Fresh Bites order #1001")).toHaveCount(0);
+
+  await page.getByRole("link", { name: /Fresh Bites order — Bob/i }).click();
+  await expect(page.getByText("Awaiting delivery")).toBeVisible();
+  await expect(page.getByText("Chat history")).toBeVisible();
+
+  await page.getByRole("button", { name: /Bob Chen/i }).click();
+  await page.getByText("Switch to Alice Martinez").click();
+  await expect(page.getByRole("heading", { name: "Alice Martinez" })).toBeVisible();
+
+  await page.goto("/documents/doc_partnership_engine_agreement_alice");
+  await expect(page.getByText("Captured intake summary")).toBeVisible();
+  await expect(page.getByText("Partner criteria")).toBeVisible();
+  await expect(page.getByText("Find customers for Fresh Bites")).toBeVisible();
+
+  await page.getByRole("button", { name: /Alice Martinez/i }).click();
+  await page.getByText("Switch to Celine Duarte").click();
+  await expect(page.getByRole("heading", { name: "Celine Duarte" })).toBeVisible();
+
+  await page.getByPlaceholder("Search accounts, services, and documents...").fill("My Life");
+  await page.getByRole("button", { name: "Search" }).first().click();
+  await page.getByRole("link", { name: /My Life/i }).first().click();
+  await page.getByRole("button", { name: "Notes" }).click();
+  await expect(page.getByText("Morning walk notes")).toBeVisible();
+  await expect(page.getByText("Thinking about staying balanced")).toBeVisible();
+
+  await page.goto("/documents/doc_my_life_note_journal");
+  await page.getByRole("button", { name: "Comments" }).click();
+  await expect(page.getByText("Alice private comment")).toHaveCount(0);
 });

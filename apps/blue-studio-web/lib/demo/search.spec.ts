@@ -3,34 +3,40 @@ import { createSeedSnapshot } from "@/lib/demo/seed";
 import { searchSnapshot } from "@/lib/demo/search";
 
 describe("demo search", () => {
-  it("returns mixed results for acceptance queries", () => {
+  it("returns grouped public and my-doc search results", () => {
     const snapshot = createSeedSnapshot();
-    const alice = searchSnapshot(snapshot, "alice", "all");
-    expect(alice.some((entry) => entry.type === "workspace")).toBe(true);
-    expect(alice.some((entry) => entry.type === "document")).toBe(true);
 
-    const order = searchSnapshot(snapshot, "order", "all");
-    expect(order.some((entry) => entry.title.includes("Order #"))).toBe(true);
+    const freshBites = searchSnapshot(snapshot, "account_piotr_blue", "Fresh Bites");
+    expect(
+      freshBites.find((group) => group.key === "accounts")?.results.some((entry) => entry.title === "Alice Martinez")
+    ).toBe(true);
+    expect(
+      freshBites.find((group) => group.key === "public-documents")?.results.some((entry) => entry.title === "Fresh Bites")
+    ).toBe(true);
 
-    const sms = searchSnapshot(snapshot, "sms", "all");
-    expect(sms.some((entry) => entry.type === "service")).toBe(true);
+    const bi = searchSnapshot(snapshot, "account_piotr_blue", "BI");
+    expect(
+      bi.find((group) => group.key === "public-services")?.results.some((entry) => entry.title === "Northwind BI")
+    ).toBe(true);
 
-    const northwind = searchSnapshot(snapshot, "northwind", "all");
-    expect(northwind.some((entry) => entry.title.includes("Northwind"))).toBe(true);
+    const partnership = searchSnapshot(snapshot, "account_piotr_blue", "Partnership");
+    expect(
+      partnership
+        .find((group) => group.key === "public-services")
+        ?.results.some((entry) => entry.title === "Partnership Engine")
+    ).toBe(true);
 
-    const review = searchSnapshot(snapshot, "review", "all");
-    expect(review.some((entry) => entry.type === "thread" || entry.type === "document")).toBe(true);
-
-    const supplier = searchSnapshot(snapshot, "supplier", "all");
-    expect(supplier.some((entry) => entry.type === "service" || entry.type === "thread")).toBe(true);
+    const myLife = searchSnapshot(snapshot, "account_piotr_blue", "My Life");
+    expect(
+      myLife.find((group) => group.key === "public-documents")?.results.some((entry) => entry.title === "My Life")
+    ).toBe(true);
   });
 
-  it("honors filter chips", () => {
+  it("includes private/shared results in My Documents for the active account", () => {
     const snapshot = createSeedSnapshot();
-    const services = searchSnapshot(snapshot, "supplier", "services");
-    expect(services.every((entry) => entry.type === "service")).toBe(true);
-
-    const workspaces = searchSnapshot(snapshot, "lake", "workspaces");
-    expect(workspaces.every((entry) => entry.type === "workspace")).toBe(true);
+    const bobResults = searchSnapshot(snapshot, "account_bob", "Fresh Bites order");
+    expect(
+      bobResults.find((group) => group.key === "my-documents")?.results.some((entry) => entry.title === "Fresh Bites order — Bob")
+    ).toBe(true);
   });
 });

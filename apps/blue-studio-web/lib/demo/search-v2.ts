@@ -1,10 +1,5 @@
 import type { DemoAccountRecord, DemoSnapshot, DocumentRecord } from "@/lib/demo/types";
-import {
-  canViewerAccessDocument,
-  getAccessibleDocumentsForAccount,
-  getPublicAccounts,
-  getPublicDocuments,
-} from "@/lib/demo/selectors";
+import { getAccessibleDocumentsForAccount, getPublicAccounts, getPublicDocuments } from "@/lib/demo/selectors";
 
 export type DemoSearchGroupKey =
   | "accounts"
@@ -29,6 +24,8 @@ export interface DemoSearchGroup {
   label: string;
   results: DemoSearchResult[];
 }
+
+export type DemoSearchFilter = "all";
 
 function normalize(text: string): string {
   return text.toLowerCase().trim();
@@ -124,7 +121,7 @@ export function searchSnapshot(
     .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
 
   const publicDocumentResults = publicDocs
-    .filter((document) => !document.isService && canViewerAccessDocument(snapshot, document.id, activeAccountId))
+    .filter((document) => !document.isService)
     .map((document) => documentResult(document, query, "public-documents"))
     .filter((entry): entry is DemoSearchResult => !!entry)
     .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));

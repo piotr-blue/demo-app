@@ -7,31 +7,28 @@ describe("demo storage", () => {
     await clearDemoPersistence();
   });
 
-  it("seeds blink scope and root artifacts on first read", async () => {
+  it("seeds four demo accounts and shared artifacts on first read", async () => {
     const snapshot = await getDemoSnapshot();
-    expect(snapshot.scopes.length).toBeGreaterThan(0);
-    expect(snapshot.scopes.some((scope) => scope.type === "blink")).toBe(true);
-    expect(snapshot.scopes.filter((scope) => scope.type === "workspace")).toHaveLength(3);
-    expect(snapshot.threads.length).toBeGreaterThanOrEqual(9);
-    expect(snapshot.documents.filter((document) => document.scopeId === null)).toHaveLength(4);
+    expect(snapshot.accounts).toHaveLength(4);
+    expect(snapshot.accounts.some((account) => account.name === "piotr-blue")).toBe(true);
+    expect(snapshot.accounts.some((account) => account.name === "Alice Martinez")).toBe(true);
+    expect(snapshot.accounts.some((account) => account.name === "Bob Chen")).toBe(true);
+    expect(snapshot.accounts.some((account) => account.name === "Celine Duarte")).toBe(true);
+    expect(snapshot.documentAnchors.length).toBeGreaterThanOrEqual(10);
+    expect(snapshot.threads.length).toBeGreaterThanOrEqual(3);
+    expect(snapshot.documents.some((document) => document.title === "Fresh Bites")).toBe(true);
+    expect(snapshot.documents.some((document) => document.title === "Northwind BI")).toBe(true);
+    expect(snapshot.documents.some((document) => document.title === "Partnership Engine")).toBe(true);
+    expect(snapshot.documents.some((document) => document.title === "My Life")).toBe(true);
     expect(snapshot.documents.some((document) => document.isService)).toBe(true);
     expect(snapshot.attentionItems.length).toBeGreaterThan(0);
-    expect(snapshot.assistantConversations.length).toBe(snapshot.scopes.length);
-    expect(snapshot.assistantPlaybooks.length).toBe(snapshot.scopes.length);
-    expect(snapshot.assistantExchanges.length).toBeGreaterThanOrEqual(4);
-    expect(snapshot.assistantExchangeMessages.length).toBeGreaterThanOrEqual(9);
-    expect(
-      snapshot.scopes.every(
-        (scope) =>
-          !!scope.assistantConversationId &&
-          snapshot.assistantConversations.some(
-            (conversation) => conversation.id === scope.assistantConversationId
-          ) &&
-          !!scope.assistantPlaybookId &&
-          snapshot.assistantPlaybooks.some(
-            (playbook) => playbook.id === scope.assistantPlaybookId
-          )
-      )
-    ).toBe(true);
+    expect(snapshot.assistantConversations.length).toBeGreaterThanOrEqual(10);
+    expect(snapshot.assistantPlaybooks.length).toBe(snapshot.assistantConversations.length);
+    expect(snapshot.assistantExchanges.length).toBeGreaterThanOrEqual(10);
+    expect(snapshot.assistantExchangeMessages.length).toBeGreaterThanOrEqual(20);
+    const sharedBiAgreement = snapshot.documents.filter(
+      (document) => document.title === "Northwind BI Agreement — Bob"
+    );
+    expect(sharedBiAgreement).toHaveLength(1);
   });
 });
