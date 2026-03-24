@@ -202,9 +202,12 @@ export function AccountHomeShell() {
                         </Button>
                       ))}
                       {item.relatedDocumentId ? (
-                        <Button size="sm" variant="ghost" render={<Link href={`/documents/${item.relatedDocumentId}`} />}>
+                        <Link
+                          href={`/documents/${item.relatedDocumentId}`}
+                          className="inline-flex h-8 items-center rounded-md px-3 text-sm font-medium text-primary hover:bg-muted"
+                        >
                           Open source
-                        </Button>
+                        </Link>
                       ) : null}
                     </div>
                   </div>

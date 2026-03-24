@@ -44,10 +44,12 @@ export function ThreadDetailShell({
           title={thread.title}
           description={thread.summary}
           actions={
-            <Button variant="outline" size="sm" render={<Link href={backHref} />}>
-              <ArrowLeftIcon className="size-3.5" />
-              {backLabel}
-            </Button>
+            <Link href={backHref}>
+              <Button variant="outline" size="sm">
+                <ArrowLeftIcon className="size-3.5" />
+                {backLabel}
+              </Button>
+            </Link>
           }
           meta={
             <>

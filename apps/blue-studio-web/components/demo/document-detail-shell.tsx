@@ -177,10 +177,12 @@ export function DocumentDetailShell({
                 />
                 {document.starredByAccountIds.includes(viewerAccountId) ? "Starred" : "Star"}
               </Button>
-              <Button variant="outline" size="sm" render={<Link href={backHref} />}>
-                <ArrowLeftIcon className="size-3.5" />
-                {backLabel}
-              </Button>
+              <Link href={backHref}>
+                <Button variant="outline" size="sm">
+                  <ArrowLeftIcon className="size-3.5" />
+                  {backLabel}
+                </Button>
+              </Link>
             </div>
           }
           meta={

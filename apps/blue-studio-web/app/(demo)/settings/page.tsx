@@ -178,9 +178,11 @@ export default function SettingsPage() {
               </p>
               <p className="mt-1 font-medium">/t/[threadId]</p>
             </div>
-            <Button variant="outline" size="sm" render={<Link href="/t/thread_demo_legacy" />}>
-              Open legacy /t/[threadId]
-            </Button>
+            <Link href="/t/thread_demo_legacy">
+              <Button variant="outline" size="sm">
+                Open legacy /t/[threadId]
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>

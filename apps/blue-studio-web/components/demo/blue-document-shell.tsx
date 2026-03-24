@@ -41,10 +41,12 @@ export function BlueDocumentShell({
             <Badge variant="secondary">{status}</Badge>
           </div>
         </div>
-        <Button variant="outline" size="sm" render={<Link href={backHref} />}>
-          <ArrowLeftIcon className="size-3.5" />
-          {backLabel}
-        </Button>
+        <Link href={backHref}>
+          <Button variant="outline" size="sm">
+            <ArrowLeftIcon className="size-3.5" />
+            {backLabel}
+          </Button>
+        </Link>
       </div>
 
       {/* Tabs */}

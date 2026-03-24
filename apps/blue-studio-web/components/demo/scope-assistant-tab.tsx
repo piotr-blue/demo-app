@@ -1,33 +1,13 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { AssistantConversationPanel } from "@/components/demo/assistant-conversation-panel";
-import type {
-  ActivityRecord,
-  AttentionItem,
-  DocumentRecord,
-  ScopeRecord,
-  ThreadRecord,
-} from "@/lib/demo/types";
+import { Card, CardContent } from "@/components/ui/card";
 
-export function ScopeAssistantTab({
-  scope,
-  threads: _threads,
-  documents: _documents,
-  recentActivity: _recentActivity,
-  attentionItems: _attentionItems,
-  onAddThread: _onAddThread,
-  onAddDocument: _onAddDocument,
-  onSendMessage: _onSendMessage,
-}: {
-  scope: ScopeRecord;
-  threads: ThreadRecord[];
-  documents: DocumentRecord[];
-  recentActivity: ActivityRecord[];
-  attentionItems: AttentionItem[];
-  onAddThread: () => Promise<void>;
-  onAddDocument: () => Promise<void>;
-  onSendMessage: (text: string) => Promise<void>;
-}) {
-  return <AssistantConversationPanel scope={scope} />;
+export function ScopeAssistantTab() {
+  return (
+    <Card>
+      <CardContent className="pt-5 text-sm text-muted-foreground">
+        Legacy scope assistant tab is not used in the multi-account demo surface.
+      </CardContent>
+    </Card>
+  );
 }

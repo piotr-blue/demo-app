@@ -1029,6 +1029,12 @@ export function createSeedSnapshot(): DemoSnapshot {
       visibleToAccountIds: ALL_ACCOUNTS,
       searchVisibility: "public",
       parentDocumentId: DOC_MY_LIFE,
+      anchorIds:
+        entry.id === myLifeNoteIds[0]
+          ? ["anchor_note_walk_comments"]
+          : entry.id === myLifeNoteIds[1]
+            ? ["anchor_note_balance_comments"]
+            : [],
       typeLabel: "Note",
       coreFields: [
         field("Notebook", "My Life"),
@@ -1424,6 +1430,7 @@ export function createSeedSnapshot(): DemoSnapshot {
         { label: "Task relationship", value: "Agreement drives Find customers for Fresh Bites" },
       ]),
     ],
+    anchorIds: ["anchor_partnerflow_agreement_tasks"],
     uiCards: [
       {
         id: "card_partnerflow_agreement_actions",
@@ -1718,6 +1725,7 @@ export function createSeedSnapshot(): DemoSnapshot {
     anchor("anchor_partnerflow_clients", DOC_PARTNERFLOW_OFFERING, "clients", "Clients", [DOC_PROFILE_ALICE]),
     anchor("anchor_partnerflow_contracts", DOC_PARTNERFLOW_OFFERING, "contracts", "Contracts", [DOC_PARTNERFLOW_AGREEMENT], [ACCOUNT_ALICE, ACCOUNT_CELINE]),
     anchor("anchor_partnerflow_playbooks", DOC_PARTNERFLOW_OFFERING, "playbooks", "Playbooks", partnerflowPlaybookIds, [ACCOUNT_ALICE, ACCOUNT_CELINE]),
+    anchor("anchor_partnerflow_agreement_tasks", DOC_PARTNERFLOW_AGREEMENT, "linked-tasks", "Linked Tasks", [DOC_FRESH_BITES]),
     anchor("anchor_my_life_notes", DOC_MY_LIFE, "notes", "Notes", myLifeNoteIds),
     anchor("anchor_note_walk_comments", myLifeNoteIds[0], "comments", "Comments", [commentPublicAlice.id]),
     anchor("anchor_note_balance_comments", myLifeNoteIds[1], "comments", "Comments", [commentPrivateAlice.id]),
