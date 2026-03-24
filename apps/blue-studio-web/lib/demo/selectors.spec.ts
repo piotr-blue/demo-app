@@ -154,6 +154,9 @@ describe("multi-account selectors", () => {
     expect(allOperations.length).toBeGreaterThanOrEqual(3);
     expect(pendingOperations.length).toBeGreaterThanOrEqual(1);
     expect(embeddedDocuments.length).toBeGreaterThanOrEqual(2);
+    expect(
+      embeddedDocuments.some((entry) => entry.title === "Find customers for Fresh Bites")
+    ).toBe(true);
     expect(shareSettings?.entries.length).toBeGreaterThanOrEqual(2);
     expect(services.length).toBeGreaterThanOrEqual(2);
     expect(currentStateFields.length).toBeGreaterThanOrEqual(3);

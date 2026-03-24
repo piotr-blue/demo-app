@@ -383,9 +383,13 @@ export function getDocumentEmbeddedDocuments(
   }
 
   if (document.embeddedDocuments?.length) {
-    return document.embeddedDocuments.filter((entry) =>
-      canViewerAccessDocument(snapshot, entry.documentId, accountId)
-    );
+    return document.embeddedDocuments.filter((entry) => {
+      if (canViewerAccessDocument(snapshot, entry.documentId, accountId)) {
+        return true;
+      }
+      const embeddedThread = getThreadById(snapshot, entry.documentId);
+      return !!embeddedThread && embeddedThread.visibleToAccountIds.includes(accountId);
+    });
   }
 
   return getViewerVisibleLinkedDocuments(snapshot, documentId, accountId)

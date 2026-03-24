@@ -63,7 +63,7 @@ test("myos demo supports multi-account document-first stories", async ({ page })
   await page.getByPlaceholder("Search accounts, services, and documents...").fill("My Life");
   await page.getByRole("button", { name: "Search" }).first().click();
   await page.getByRole("link", { name: /My Life/i }).first().click();
-  await page.getByRole("button", { name: "Notes" }).click();
+  await page.getByRole("button", { name: "Notes", exact: true }).click();
   await expect(page.getByText("Morning walk notes")).toBeVisible();
   await expect(page.getByText("Thinking about staying balanced")).toBeVisible();
 
