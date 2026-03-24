@@ -530,6 +530,56 @@ export function ActivityTimeline({ activity }: { activity: ActivityRecord[] }) {
   );
 }
 
+export function SimpleDocumentList({
+  documents,
+  emptyTitle,
+  emptyBody,
+}: {
+  documents: Array<{
+    id: string;
+    title: string;
+    summary: string;
+    visibilityLabel?: string | null;
+    status?: string | null;
+    updatedAt?: string;
+  }>;
+  emptyTitle: string;
+  emptyBody: string;
+}) {
+  if (documents.length === 0) {
+    return <StudioEmptyState title={emptyTitle} body={emptyBody} />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {documents.map((document) => (
+        <Link
+          key={document.id}
+          href={`/documents/${document.id}`}
+          className="block rounded-xl border border-border/80 bg-card px-4 py-4 transition-colors hover:bg-muted/30"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">{document.title}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{document.summary}</p>
+              {document.updatedAt ? (
+                <p className="mt-2 text-xs text-muted-foreground">{formatDate(document.updatedAt)}</p>
+              ) : null}
+            </div>
+            {document.visibilityLabel ? (
+              <Badge variant={badgeVariantForStatus(document.visibilityLabel)}>
+                {document.visibilityLabel}
+              </Badge>
+            ) : document.status ? (
+              <Badge variant={badgeVariantForStatus(document.status)}>{document.status}</Badge>
+            ) : null}
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 export function DetailsTabs({
   description,
   initialMessage,

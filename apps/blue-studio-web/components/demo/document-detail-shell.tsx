@@ -270,19 +270,17 @@ export function DocumentDetailShell({
               </div>
             </StudioSectionCard>
 
-            {allOperations.length > 0 ? (
-              <StudioSectionCard title="Available actions" subtitle="Viewer-specific actions on this document">
-                <OperationsPanel
-                  operations={allOperations}
-                  busyActionId={busyActionId}
-                  onRunAction={async (actionId) => {
-                    setBusyActionId(actionId);
-                    await runDocumentAction(document.id, actionId);
-                    setBusyActionId(null);
-                  }}
-                />
-              </StudioSectionCard>
-            ) : null}
+            <StudioSectionCard title="Available operations" subtitle="What can be done next from this document">
+              <OperationsPanel
+                operations={allOperations}
+                busyActionId={busyActionId}
+                onRunAction={async (actionId) => {
+                  setBusyActionId(actionId);
+                  await runDocumentAction(document.id, actionId);
+                  setBusyActionId(null);
+                }}
+              />
+            </StudioSectionCard>
 
             <StudioSectionCard title="Needs You preview" subtitle="The first items that still need the current viewer">
               <NeedsYouList
