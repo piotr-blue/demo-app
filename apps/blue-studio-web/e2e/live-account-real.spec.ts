@@ -1,11 +1,22 @@
 import { expect, test } from "@playwright/test";
+import { resolveLiveCredentials } from "@/test-utils/live-credentials";
 
-const openAiApiKey = process.env.OPENAI_API_KEY;
-const myOsApiKey = process.env.MYOS_API_KEY;
-const myOsAccountId = process.env.MYOS_ACCOUNT_ID;
-const myOsBaseUrl = process.env.MYOS_BASE_URL ?? "https://api.dev.myos.blue";
+const resolved = resolveLiveCredentials();
+const liveEnabled = Boolean(resolved.credentials);
 
-const liveEnabled = Boolean(openAiApiKey && myOsApiKey && myOsAccountId);
+function buildCredentials() {
+  if (!resolved.credentials) {
+    throw new Error(
+      `Missing live credentials: ${resolved.missing.join(", ")}. Checked env and optional file ${resolved.filePath}`
+    );
+  }
+  return {
+    openAiApiKey: resolved.credentials.openAiApiKey,
+    myOsApiKey: resolved.credentials.myOsApiKey,
+    myOsAccountId: resolved.credentials.myOsAccountId,
+    myOsBaseUrl: resolved.credentials.myOsBaseUrl,
+  };
+}
 
 test.skip(!liveEnabled, "Live credentials are required for this spec.");
 
@@ -32,6 +43,7 @@ interface LiveCreatePayload {
 }
 
 test("live account runs real assistant and creates real MyOS doc", async ({ page }) => {
+  const credentials = buildCredentials();
   const documentName = `Live QA ${Date.now()}`;
   const documentDescription = "Created from real UI live-account test";
   const liveCreateResult: { payload?: LiveCreatePayload } = {};
@@ -53,10 +65,10 @@ test("live account runs real assistant and creates real MyOS doc", async ({ page
       window.localStorage.setItem("myosDemo.activeAccountId", "account_piotr_blue");
     },
     {
-      openAiApiKey,
-      myOsApiKey,
-      myOsAccountId,
-      myOsBaseUrl,
+      openAiApiKey: credentials.openAiApiKey,
+      myOsApiKey: credentials.myOsApiKey,
+      myOsAccountId: credentials.myOsAccountId,
+      myOsBaseUrl: credentials.myOsBaseUrl,
     }
   );
 

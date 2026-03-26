@@ -3,21 +3,23 @@ import { POST as liveAssistantPost } from "@/app/api/demo/live-assistant/stream/
 import { POST as liveDocumentCreatePost } from "@/app/api/demo/live-documents/create/route";
 import { POST as liveDocumentRetrievePost } from "@/app/api/demo/live-documents/retrieve/route";
 import { POST as liveDocumentsListPost } from "@/app/api/demo/live-documents/list/route";
+import { resolveLiveCredentials } from "@/test-utils/live-credentials";
 
-const openAiApiKey = process.env.OPENAI_API_KEY;
-const myOsApiKey = process.env.MYOS_API_KEY;
-const myOsAccountId = process.env.MYOS_ACCOUNT_ID;
-const myOsBaseUrl = process.env.MYOS_BASE_URL ?? "https://api.dev.myos.blue/";
-
-const liveEnabled = Boolean(openAiApiKey && myOsApiKey && myOsAccountId);
+const resolved = resolveLiveCredentials();
+const liveEnabled = Boolean(resolved.credentials);
 const suite = liveEnabled ? describe : describe.skip;
 
 function buildCredentials() {
+  if (!resolved.credentials) {
+    throw new Error(
+      `Missing live credentials: ${resolved.missing.join(", ")}. Checked env and optional file ${resolved.filePath}`
+    );
+  }
   return {
-    openAiApiKey: openAiApiKey!,
-    myOsApiKey: myOsApiKey!,
-    myOsAccountId: myOsAccountId!,
-    myOsBaseUrl,
+    openAiApiKey: resolved.credentials.openAiApiKey,
+    myOsApiKey: resolved.credentials.myOsApiKey,
+    myOsAccountId: resolved.credentials.myOsAccountId,
+    myOsBaseUrl: resolved.credentials.myOsBaseUrl,
   };
 }
 
