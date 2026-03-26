@@ -102,4 +102,75 @@ describe("POST /api/demo/live-documents/retrieve", () => {
     expect(linksListMock).toHaveBeenCalledWith("session_live_abc");
     expect(MyOsClient).toHaveBeenCalledTimes(1);
   });
+
+  it("maps session links from links.list payload when retrieve contracts have none", async () => {
+    retrieveMock.mockResolvedValueOnce({
+      sessionId: "session_parent_1",
+      documentId: "myos_parent_1",
+      processingStatus: "RUNNING",
+      isPublic: false,
+      document: {
+        kind: "shop",
+        name: "Parent Shop",
+        description: "Parent document",
+        contracts: {
+          anchors: {
+            type: "MyOS/Document Anchors",
+            orders: {
+              type: "MyOS/Document Anchor",
+              label: "Orders",
+              purpose: "Track orders",
+            },
+          },
+        },
+      },
+    });
+    linksListMock.mockResolvedValueOnce({
+      items: [
+        {
+          contracts: {
+            links: {
+              type: "MyOS/Document Links",
+              link_orders_1: {
+                type: "MyOS/MyOS Session Link",
+                anchor: "orders",
+                sessionId: "session_child_1",
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/demo/live-documents/retrieve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials: {
+            openAiApiKey: "sk-test",
+            myOsApiKey: "myos-test",
+            myOsAccountId: "acc-1",
+            myOsBaseUrl: "https://api.dev.myos.blue/",
+          },
+          sessionId: "session_parent_1",
+          accountId: "account_piotr_blue",
+          accountName: "piotr-blue",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      ok: boolean;
+      linked: Array<{ anchorKey: string; childSessionId: string }>;
+    };
+    expect(payload.ok).toBe(true);
+    expect(payload.linked).toEqual([
+      {
+        anchorKey: "orders",
+        childSessionId: "session_child_1",
+      },
+    ]);
+  });
 });
