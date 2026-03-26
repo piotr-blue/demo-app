@@ -155,10 +155,25 @@ export function getPublicDocumentsForAccount(
 }
 
 export function getPublicAccounts(snapshot: DemoSnapshot): DemoAccountRecord[] {
-  return snapshot.accounts.filter((account) => account.publicDocumentIds.length > 0);
+  return snapshot.accounts.filter(
+    (account) => account.mode === "demo" && account.publicDocumentIds.length > 0
+  );
 }
 
 export function getHomeNeedsActionForAccount(snapshot: DemoSnapshot, accountId: string) {
+  const account = getAccountById(snapshot, accountId);
+  if (account?.mode === "live") {
+    return snapshot.attentionItems
+      .filter(
+        (item) =>
+          item.accountId === accountId &&
+          item.status === "pending" &&
+          (!item.visibleToAccountIds || item.visibleToAccountIds.includes(accountId)) &&
+          ((item.relatedDocumentId?.startsWith("doc_live_") ?? false) ||
+            (item.relatedThreadId?.startsWith("thread_live_") ?? false))
+      )
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }
   return snapshot.attentionItems
     .filter(
       (item) =>
@@ -170,16 +185,49 @@ export function getHomeNeedsActionForAccount(snapshot: DemoSnapshot, accountId: 
 }
 
 export function getHomeTasksForAccount(snapshot: DemoSnapshot, accountId: string): ThreadRecord[] {
+  const account = getAccountById(snapshot, accountId);
+  if (account?.mode === "live") {
+    return snapshot.threads
+      .filter(
+        (thread) =>
+          thread.visibleToAccountIds.includes(accountId) &&
+          thread.ownerAccountId === accountId &&
+          thread.id.startsWith("thread_live_")
+      )
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
   return snapshot.threads
     .filter((thread) => thread.visibleToAccountIds.includes(accountId))
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
 export function getHomeDocumentsForAccount(snapshot: DemoSnapshot, accountId: string): DocumentRecord[] {
+  const account = getAccountById(snapshot, accountId);
+  if (account?.mode === "live") {
+    return snapshot.documents
+      .filter(
+        (document) =>
+          !document.isService &&
+          document.ownerAccountId === accountId &&
+          document.id.startsWith("doc_live_")
+      )
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
   return getAccessibleDocumentsForAccount(snapshot, accountId).filter((document) => !document.isService);
 }
 
 export function getHomeServicesForAccount(snapshot: DemoSnapshot, accountId: string): DocumentRecord[] {
+  const account = getAccountById(snapshot, accountId);
+  if (account?.mode === "live") {
+    return snapshot.documents
+      .filter(
+        (document) =>
+          document.isService &&
+          document.ownerAccountId === accountId &&
+          document.id.startsWith("doc_live_")
+      )
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
   return getAccessibleDocumentsForAccount(snapshot, accountId).filter((document) => document.isService);
 }
 

@@ -11,7 +11,13 @@ describe("demo storage", () => {
     const snapshot = await getDemoSnapshot();
     expect(snapshot.accounts).toHaveLength(4);
     expect(snapshot.accounts.some((account) => account.name === "piotr-blue")).toBe(true);
+    expect(
+      snapshot.accounts.some((account) => account.name === "piotr-blue" && account.mode === "live")
+    ).toBe(true);
     expect(snapshot.accounts.some((account) => account.name === "Alice Martinez")).toBe(true);
+    expect(
+      snapshot.accounts.some((account) => account.name === "Alice Martinez" && account.mode === "demo")
+    ).toBe(true);
     expect(snapshot.accounts.some((account) => account.name === "Bob Chen")).toBe(true);
     expect(snapshot.accounts.some((account) => account.name === "Celine Duarte")).toBe(true);
     expect(snapshot.documentAnchors.length).toBeGreaterThanOrEqual(10);
