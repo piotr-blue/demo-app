@@ -147,6 +147,15 @@ bash apps/blue-studio-web/scripts/run-live-proof.sh
 This runs:
 
 - `live-tests/live-account-proof.spec.ts`
+- and writes execution artifacts:
+  - `/opt/cursor/artifacts/live-proof-run.log`
+  - `/opt/cursor/artifacts/live-proof-order-details.json` (when proof marker is emitted)
+
+Optional preflight:
+
+```bash
+bash apps/blue-studio-web/scripts/run-live-proof.sh --check-only
+```
 
 The spec automates:
 
