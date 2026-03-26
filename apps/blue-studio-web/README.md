@@ -132,6 +132,30 @@ MYOS_BASE_URL="https://api.dev.myos.blue/" \
 npm run test:live
 ```
 
+### Mandatory live proof flow (shop -> linked order)
+
+To execute the required proof flow test:
+
+```bash
+# one-time template
+cp /opt/cursor/artifacts/live-credentials.example.json /opt/cursor/artifacts/live-credentials.json
+# edit /opt/cursor/artifacts/live-credentials.json with real keys
+
+bash apps/blue-studio-web/scripts/run-live-proof.sh
+```
+
+This runs:
+
+- `live-tests/live-account-proof.spec.ts`
+
+The spec automates:
+
+1. Root assistant creates a shop document including an `orders` anchor.
+2. Document-context assistant creates an order child linked to `orders`.
+3. Retrieval verifies the child appears under the parent `orders` links.
+4. Final order details (including `sessionId`) are printed in test logs under:
+   - `MANDATORY_PROOF_ORDER_DETAILS`
+
 ## Vercel deployment notes
 
 - Set app root to `apps/blue-studio-web` in the Vercel monorepo project settings.
