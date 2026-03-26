@@ -309,6 +309,7 @@ export function DocumentDetailShell({
                   conversationId={conversation?.id ?? null}
                   assistantName="Blink"
                   title={`${document.title} · ${document.owner}`}
+                  target={{ type: "document", id: document.id }}
                   fullHeight
                 />
               </div>

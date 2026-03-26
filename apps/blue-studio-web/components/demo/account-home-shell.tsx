@@ -162,10 +162,16 @@ export function AccountHomeShell() {
 
         {activeSection === "chat" ? (
           <div className="h-[calc(100vh-220px)] min-h-[560px]">
+            {activeAccount.mode === "live" ? (
+              <div className="mb-3 rounded-lg border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+                Ask me a question • Create a document • Try: create a doc named Roadmap with description Q4 priorities
+              </div>
+            ) : null}
             <ConversationPanelV2
               conversationId={conversation?.id ?? null}
               assistantName="Blink"
               title={`${activeAccount.name} Home`}
+              target={{ type: "home", id: activeAccount.id }}
               fullHeight
             />
           </div>

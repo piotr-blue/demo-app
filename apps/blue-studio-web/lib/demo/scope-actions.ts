@@ -1,4 +1,5 @@
 import { clearDemoPersistence, getDemoSnapshot, saveDemoSnapshot } from "@/lib/demo/storage";
+import { createDocumentId } from "@/lib/demo/ids";
 import type {
   AssistantConversationRecord,
   AssistantExchangeMessageRecord,
@@ -667,7 +668,7 @@ function buildLiveDocumentRecord(params: {
   sessionId: string | null;
 }): DemoSnapshot["documents"][number] {
   const timestamp = nowIso();
-  const documentId = nextId("doc_live");
+  const documentId = createDocumentId().replace("doc_", "doc_live_");
   return {
     id: documentId,
     scopeId: null,
@@ -807,6 +808,10 @@ export async function finalizeLiveDiscussion(params: {
         myosDocumentId: params.createdDocument.myosDocumentId,
       });
       snapshot.documents.unshift(document);
+      const account = snapshot.accounts.find((entry) => entry.id === accountId);
+      if (account && !account.favoriteDocumentIds.includes(document.id)) {
+        account.favoriteDocumentIds.unshift(document.id);
+      }
       appendActivity(snapshot, {
         kind: "live-document-created",
         title: `Created "${document.title}"`,

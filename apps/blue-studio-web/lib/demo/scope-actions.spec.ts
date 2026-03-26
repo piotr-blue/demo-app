@@ -5,11 +5,14 @@ import {
   applyDocumentAction,
   applyThreadAction,
   addDocumentShareEntry,
+  continueLiveDiscussion,
+  finalizeLiveDiscussion,
   getOrCreateDocumentConversation,
   getOrCreateHomeConversation,
   loadDemoSnapshot,
   replyToAssistantExchange,
   resetDemoSnapshot,
+  startLiveDiscussion,
   startAssistantDemoDiscussion,
   startUserDiscussion,
   toggleDocumentPublicVisibility,
@@ -189,6 +192,50 @@ describe("demo scope actions", () => {
     expect(nextPlaybook?.defaultsMarkdown).toBe("Updated defaults");
     expect(nextPlaybook?.contextMarkdown).toBe("Updated context");
     expect(nextPlaybook?.overridesMarkdown).toBe("Updated overrides");
+  });
+
+  it("runs live discussion loop with follow-up and document creation", async () => {
+    const seeded = await loadDemoSnapshot();
+    const conversation = getHomeConversation(seeded, "account_piotr_blue");
+    expect(conversation).toBeTruthy();
+    if (!conversation) {
+      return;
+    }
+
+    const started = await startLiveDiscussion(conversation.id, "make me a document");
+    expect(started.exchangeId).toBeTruthy();
+    if (!started.exchangeId) {
+      return;
+    }
+
+    const afterMore = await finalizeLiveDiscussion({
+      exchangeId: started.exchangeId,
+      turn: { t: "more", q: "What should the document be called?" },
+    });
+    const openExchange = afterMore.assistantExchanges.find((entry) => entry.id === started.exchangeId);
+    expect(openExchange?.status).toBe("in-progress");
+
+    const afterReply = await continueLiveDiscussion(started.exchangeId, "Roadmap");
+    const afterReplyMessages = getExchangeMessages(afterReply, started.exchangeId);
+    expect(afterReplyMessages.at(-1)?.body).toBe("Roadmap");
+
+    const afterDoc = await finalizeLiveDiscussion({
+      exchangeId: started.exchangeId,
+      turn: {
+        t: "doc",
+        summ: "I will create the document 'Roadmap'.",
+        doc: { name: "Roadmap", description: "Q4 priorities and milestones" },
+      },
+      createdDocument: {
+        name: "Roadmap",
+        description: "Q4 priorities and milestones",
+        sessionId: "session_live_roadmap",
+        myosDocumentId: "myos_live_roadmap",
+      },
+    });
+    const resolved = afterDoc.assistantExchanges.find((entry) => entry.id === started.exchangeId);
+    expect(resolved?.status).toBe("resolved");
+    expect(afterDoc.documents.some((document) => document.title === "Roadmap")).toBe(true);
   });
 
   it("resets snapshot to deterministic seed", async () => {

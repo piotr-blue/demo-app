@@ -35,7 +35,7 @@ function hasStableKeyOrder(raw: string): boolean {
     return /^\{\s*"t"\s*:\s*"more"\s*,\s*"q"\s*:/u.test(trimmed);
   }
   if (trimmed.startsWith('{"t":"doc"')) {
-    return /^\{\s*"t"\s*:\s*"doc"\s*,\s*"summ"\s*:.*"doc"\s*:\s*\{\s*"name"\s*:.*"description"\s*:/us.test(
+    return /^\{\s*"t"\s*:\s*"doc"\s*,\s*"summ"\s*:.*"doc"\s*:\s*\{\s*"name"\s*:.*"description"\s*:/u.test(
       trimmed
     );
   }

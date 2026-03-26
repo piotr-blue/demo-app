@@ -2760,9 +2760,9 @@ export function createSeedSnapshot(): DemoSnapshot {
   ];
 
   const assistantExchangeMessages: AssistantExchangeMessageRecord[] = [
-    exchangeMessage("aem_home_piotr_1", "aconv_home_piotr", "aex_home_piotr_1", "assistant", "opener", "Home is light today. Fresh Bites, Northwind BI, and Partnership Engine are ready to browse from search.", 170),
-    exchangeMessage("aem_home_piotr_2", "aconv_home_piotr", "aex_home_piotr_1", "user", "reply", "Keep this account clean and use search to move around the demo.", 171),
-    exchangeMessage("aem_home_piotr_3", "aconv_home_piotr", "aex_home_piotr_1", "assistant", "resolution", "Done — I’ll keep piotr-blue lightweight and discovery-first.", 172),
+    exchangeMessage("aem_home_piotr_live_1", "aconv_home_piotr", "aex_home_piotr_live_1", "assistant", "opener", "You are on the live account. Ask a question or ask me to create a document with a name and description.", 170),
+    exchangeMessage("aem_home_piotr_live_2", "aconv_home_piotr", "aex_home_piotr_live_1", "user", "reply", "Okay, keep this account empty until I create docs.", 171),
+    exchangeMessage("aem_home_piotr_live_3", "aconv_home_piotr", "aex_home_piotr_live_1", "assistant", "resolution", "Understood. I’ll wait for your next live request.", 172),
 
     exchangeMessage("aem_home_alice_1", "aconv_home_alice", "aex_home_alice_1", "assistant", "opener", "Today you have two failed payments, one partnership proposal to review, and one contractor milestone approval waiting.", 173),
     exchangeMessage("aem_home_alice_2", "aconv_home_alice", "aex_home_alice_1", "user", "reply", "Show the service agreements after the payment issues.", 174),
@@ -2802,9 +2802,9 @@ export function createSeedSnapshot(): DemoSnapshot {
   ];
 
   const assistantExchanges: AssistantExchangeRecord[] = [
-    exchange("aex_home_piotr_1", "aconv_home_piotr", "home", ACCOUNT_PIOTR, ACCOUNT_PIOTR, "Keep piotr-blue lightweight", "aem_home_piotr_1", "aem_home_piotr_3", 170, {
-      resolutionMessageId: "aem_home_piotr_3",
-      sourceType: "user-demo",
+    exchange("aex_home_piotr_live_1", "aconv_home_piotr", "home", ACCOUNT_PIOTR, ACCOUNT_PIOTR, "Live account intro", "aem_home_piotr_live_1", "aem_home_piotr_live_3", 170, {
+      resolutionMessageId: "aem_home_piotr_live_3",
+      sourceType: "system",
     }),
     exchange("aex_home_alice_1", "aconv_home_alice", "home", ACCOUNT_ALICE, ACCOUNT_ALICE, "Prioritize Alice home queue", "aem_home_alice_1", "aem_home_alice_3", 173, {
       resolutionMessageId: "aem_home_alice_3",
