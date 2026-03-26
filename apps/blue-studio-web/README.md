@@ -157,6 +157,17 @@ Optional preflight:
 bash apps/blue-studio-web/scripts/run-live-proof.sh --check-only
 ```
 
+Optional watcher (auto-runs proof once credentials appear):
+
+```bash
+bash apps/blue-studio-web/scripts/watch-live-proof.sh
+```
+
+Watcher environment options:
+
+- `LIVE_PROOF_WATCH_INTERVAL_SECONDS` (default `15`)
+- `LIVE_PROOF_WATCH_TIMEOUT_SECONDS` (default `3600`)
+
 The spec automates:
 
 1. Root assistant creates a shop document including an `orders` anchor.
