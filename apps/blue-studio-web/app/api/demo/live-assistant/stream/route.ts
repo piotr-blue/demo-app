@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   OPENAI_TEXT_MODEL,
   streamTextWithResponsesApi,
@@ -23,6 +25,21 @@ const conversationMessageSchema = z.object({
   createdAt: z.string(),
 });
 
+const anchorSummarySchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  purpose: z.string().optional().default(""),
+});
+
+const conversationDocSummarySchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  fields: z.record(z.string()).optional().default({}),
+  anchors: z.array(anchorSummarySchema).optional().default([]),
+});
+
 const requestSchema = z.object({
   credentials: z.object({
     openAiApiKey: z.string().min(1),
@@ -43,32 +60,26 @@ const requestSchema = z.object({
     messages: z.array(conversationMessageSchema).default([]),
   }),
   liveDocuments: z.array(documentSummarySchema).default([]),
+  documentContext: z
+    .object({
+      currentDocument: conversationDocSummarySchema,
+      recentMessages: z.array(conversationMessageSchema).default([]),
+    })
+    .nullable()
+    .optional()
+    .default(null),
   userInput: z.string().min(1),
 });
 
-function buildSystemPrompt(): string {
-  return [
-    "You are Blink, the assistant for the user’s live MyOS account.",
-    "You must ALWAYS reply with exactly one JSON object and nothing else.",
-    "Do not use markdown fences.",
-    "Do not write commentary outside JSON.",
-    "",
-    "Return one of these shapes only:",
-    '{"t":"ans","c":"..."}',
-    '{"t":"more","q":"..."}',
-    '{"t":"doc","summ":"...","doc":{"name":"...","description":"..."}}',
-    "",
-    "Rules:",
-    "1. If the user is asking a normal question, return `ans`.",
-    "2. If the user wants to create a document and either the name or description is missing, return `more` with exactly one concise follow-up question.",
-    "3. If the user wants to create a document and both name and description are known from the current message and/or prior conversation context, return `doc`.",
-    "4. Never invent a missing document name or description.",
-    "5. Use prior Q/A context from this exchange when deciding what is already known.",
-    "6. Keep the response concise.",
-    "7. Prefer the user’s language.",
-    "8. Output valid JSON only.",
-    "9. Start the JSON with the `t` field.",
-  ].join("\n");
+let promptCache: string | null = null;
+
+async function loadSystemPrompt(): Promise<string> {
+  if (promptCache) {
+    return promptCache;
+  }
+  const promptPath = join(process.cwd(), "lib/prompts/blink-live-doc-creation-prompt.md");
+  promptCache = await readFile(promptPath, "utf-8");
+  return promptCache;
 }
 
 function buildPromptInput(body: z.infer<typeof requestSchema>): string {
@@ -86,8 +97,11 @@ function buildPromptInput(body: z.infer<typeof requestSchema>): string {
     createdAt: message.createdAt,
   }));
 
+  const mode = body.target.type === "document" ? "DOCUMENT" : "ROOT";
+
   return JSON.stringify(
     {
+      operatingMode: mode,
       account: {
         id: body.account.id,
         name: body.account.name,
@@ -98,6 +112,12 @@ function buildPromptInput(body: z.infer<typeof requestSchema>): string {
         id: body.conversation.id,
         exchangeId: body.conversation.exchangeId,
         messages: recentMessages,
+      },
+      context: {
+        rootMode: {
+          liveDocuments: compactDocs,
+        },
+        documentMode: body.documentContext,
       },
       liveDocuments: compactDocs,
       userInput: body.userInput,
@@ -114,6 +134,7 @@ function toSseEvent(type: string, data: Record<string, unknown>): string {
 export async function POST(request: Request) {
   try {
     const body = requestSchema.parse(await request.json());
+    const systemPrompt = await loadSystemPrompt();
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream<Uint8Array>({
@@ -124,7 +145,7 @@ export async function POST(request: Request) {
           await streamTextWithResponsesApi({
             apiKey: body.credentials.openAiApiKey.trim(),
             model: OPENAI_TEXT_MODEL,
-            systemPrompt: buildSystemPrompt(),
+            systemPrompt,
             input: buildPromptInput(body),
             onDelta: (delta) => {
               finalText += delta;

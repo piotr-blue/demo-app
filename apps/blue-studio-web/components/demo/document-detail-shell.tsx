@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftIcon,
   CircleAlertIcon,
@@ -73,6 +73,7 @@ export function DocumentDetailShell({
   const {
     snapshot,
     activeAccount,
+    syncLiveDocumentById,
     runDocumentAction,
     toggleFavorite,
     setDocumentShareEnabled,
@@ -183,6 +184,16 @@ export function DocumentDetailShell({
     }
     return getVisibleDocumentsForAnchor(snapshot, document.id, activeAnchor.id, viewerAccountId);
   }, [activeAnchor, document.id, snapshot, viewerAccountId]);
+
+  useEffect(() => {
+    if (!activeAccount || activeAccount.mode !== "live") {
+      return;
+    }
+    if (!document.id.startsWith("doc_live_")) {
+      return;
+    }
+    void syncLiveDocumentById(document.id);
+  }, [activeAccount, document.id, syncLiveDocumentById]);
 
   return (
     <section className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">

@@ -5,6 +5,25 @@ export type DemoSearchVisibility = "private" | "participants" | "public";
 export type DemoViewerAccessMode = "owner" | "participant" | "public" | "none";
 export type DemoAccountMode = "live" | "demo";
 
+export interface LiveAssistantDocAnchor {
+  key: string;
+  label: string;
+  purpose: string;
+}
+
+export interface LiveAssistantDocPayload {
+  kind: string;
+  name: string;
+  description: string;
+  fields: Record<string, string>;
+  anchors: LiveAssistantDocAnchor[];
+}
+
+export interface LiveAssistantDocLinkPayload {
+  parentDocumentId: string;
+  anchorKey: string;
+}
+
 export interface DemoSectionDefinition {
   key: string;
   label: string;
@@ -472,13 +491,12 @@ export type LiveAssistantTurn =
     }
   | {
       t: "more";
+      c: string;
       q: string;
     }
   | {
       t: "doc";
       summ: string;
-      doc: {
-        name: string;
-        description: string;
-      };
+      doc: LiveAssistantDocPayload;
+      link: LiveAssistantDocLinkPayload | null;
     };

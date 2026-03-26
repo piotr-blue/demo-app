@@ -8,16 +8,32 @@ const answerTurnSchema = z.object({
 
 const moreTurnSchema = z.object({
   t: z.literal("more"),
+  c: z.string().min(1),
   q: z.string().min(1),
+});
+
+const anchorSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  purpose: z.string().min(1),
 });
 
 const docTurnSchema = z.object({
   t: z.literal("doc"),
   summ: z.string().min(1),
   doc: z.object({
+    kind: z.string().min(1),
     name: z.string().min(1),
     description: z.string().min(1),
+    fields: z.record(z.string()).default({}),
+    anchors: z.array(anchorSchema).default([]),
   }),
+  link: z
+    .object({
+      parentDocumentId: z.string().min(1),
+      anchorKey: z.string().min(1),
+    })
+    .nullable(),
 });
 
 export const liveAssistantTurnSchema = z.union([
@@ -32,10 +48,10 @@ function hasStableKeyOrder(raw: string): boolean {
     return /^\{\s*"t"\s*:\s*"ans"\s*,\s*"c"\s*:/u.test(trimmed);
   }
   if (trimmed.startsWith('{"t":"more"')) {
-    return /^\{\s*"t"\s*:\s*"more"\s*,\s*"q"\s*:/u.test(trimmed);
+    return /^\{\s*"t"\s*:\s*"more"\s*,\s*"c"\s*:[\s\S]*"q"\s*:/u.test(trimmed);
   }
   if (trimmed.startsWith('{"t":"doc"')) {
-    return /^\{\s*"t"\s*:\s*"doc"\s*,\s*"summ"\s*:.*"doc"\s*:\s*\{\s*"name"\s*:.*"description"\s*:/u.test(
+    return /^\{\s*"t"\s*:\s*"doc"\s*,\s*"summ"\s*:[\s\S]*"doc"\s*:\s*\{\s*"kind"\s*:[\s\S]*"name"\s*:[\s\S]*"description"\s*:[\s\S]*"fields"\s*:[\s\S]*"anchors"\s*:[\s\S]*\}\s*,\s*"link"\s*:/u.test(
       trimmed
     );
   }
@@ -61,6 +77,7 @@ export function serializeLiveAssistantTurn(turn: LiveAssistantTurn): string {
   if (turn.t === "more") {
     return JSON.stringify({
       t: "more",
+      c: turn.c,
       q: turn.q,
     });
   }
@@ -68,8 +85,12 @@ export function serializeLiveAssistantTurn(turn: LiveAssistantTurn): string {
     t: "doc",
     summ: turn.summ,
     doc: {
+      kind: turn.doc.kind,
       name: turn.doc.name,
       description: turn.doc.description,
+      fields: turn.doc.fields,
+      anchors: turn.doc.anchors,
     },
+    link: turn.link,
   });
 }

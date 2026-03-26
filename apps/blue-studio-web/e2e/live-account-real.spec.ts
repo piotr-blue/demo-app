@@ -15,6 +15,20 @@ interface LiveCreatePayload {
   ok?: boolean;
   sessionId?: string | null;
   myosDocumentId?: string | null;
+  created?: {
+    kind?: string;
+    name?: string;
+    description?: string;
+    fields?: Record<string, string>;
+    anchors?: Array<{ key: string; label: string; purpose: string }>;
+  };
+  link?: { parentDocumentId: string; anchorKey: string } | null;
+  linked?: Array<{
+    anchorKey: string;
+    childSessionId: string;
+    childDocumentId: string;
+    linkSessionId: string | null;
+  }>;
 }
 
 test("live account runs real assistant and creates real MyOS doc", async ({ page }) => {
@@ -73,4 +87,6 @@ test("live account runs real assistant and creates real MyOS doc", async ({ page
   }
   expect(confirmedPayload.ok).toBe(true);
   expect(confirmedPayload.sessionId).toBeTruthy();
+  expect(confirmedPayload.created?.name).toBe(documentName);
+  expect(confirmedPayload.created?.description).toBe(documentDescription);
 });

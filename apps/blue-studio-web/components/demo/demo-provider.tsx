@@ -19,9 +19,12 @@ import {
   getOrCreateDocumentConversation,
   getOrCreateHomeConversation,
   loadDemoSnapshot,
+  markLiveDocumentVisibilityUnsupported,
   replyToAssistantExchange as replyToAssistantExchangeAction,
   resolveAssistantExchange as resolveAssistantExchangeAction,
   resetDemoSnapshot,
+  syncLiveDocuments as syncLiveDocumentsAction,
+  syncLiveRetrievedDocument as syncLiveRetrievedDocumentAction,
   startLiveDiscussion as startLiveDiscussionAction,
   startAssistantDemoDiscussion as startAssistantDemoDiscussionAction,
   startUserDiscussion as startUserDiscussionAction,
@@ -63,6 +66,8 @@ interface DemoContextValue {
   getAccount: (accountId: string) => DemoAccountRecord | null;
   getHomeConversationId: (accountId?: string) => Promise<string | null>;
   getDocumentConversationId: (documentId: string, viewerAccountId?: string) => Promise<string | null>;
+  syncLiveDocumentsFromApi: () => Promise<void>;
+  syncLiveDocumentById: (documentId: string) => Promise<void>;
   startAssistantDemoDiscussion: (conversationId: string) => Promise<string | null>;
   startScopeDiscussion: (conversationId: string, text: string) => Promise<string | null>;
   startLiveDiscussion: (conversationId: string, text: string) => Promise<string | null>;
@@ -71,10 +76,25 @@ interface DemoContextValue {
     exchangeId: string;
     turn: LiveAssistantTurn;
     createdDocument?: {
+      kind: string;
       name: string;
       description: string;
+      fields: Record<string, string>;
+      anchors: Array<{ key: string; label: string; purpose: string }>;
       sessionId: string | null;
       myosDocumentId: string | null;
+      mappedDocument?: DemoSnapshot["documents"][number] | null;
+      mappedAnchors?: DemoSnapshot["documentAnchors"];
+      linked?: Array<{
+        anchorKey: string;
+        childSessionId: string;
+        childDocumentId: string;
+        linkSessionId: string | null;
+      }>;
+      link?: {
+        parentDocumentId: string;
+        anchorKey: string;
+      } | null;
     } | null;
     docCreationError?: string | null;
   }) => Promise<void>;
@@ -150,6 +170,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     writeActiveDemoAccountId(accountId);
   }, []);
 
+  const activeAccount = useMemo(
+    () => (snapshot ? getActiveAccount(snapshot, activeAccountId) : null),
+    [activeAccountId, snapshot]
+  );
+
   const getHomeConversationId = useCallback(
     async (accountId?: string): Promise<string | null> => {
       const resolvedAccountId = accountId ?? activeAccountId;
@@ -174,6 +199,79 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       return result.conversationId || null;
     },
     [activeAccountId]
+  );
+
+  const syncLiveDocumentsFromApi = useCallback(async (): Promise<void> => {
+    if (!activeAccount || activeAccount.mode !== "live") {
+      return;
+    }
+    if (!credentials.myOsApiKey.trim() || !credentials.myOsAccountId.trim() || !credentials.myOsBaseUrl.trim()) {
+      return;
+    }
+    const response = await fetch("/api/demo/live-documents/list", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        credentials,
+        ownerAccountId: activeAccount.id,
+        ownerName: activeAccount.name,
+      }),
+    });
+    const payload = (await response.json()) as
+      | { ok: true; documents: DemoSnapshot["documents"] }
+      | { ok: false; error: string };
+    if (!response.ok || !payload.ok) {
+      return;
+    }
+    const next = await syncLiveDocumentsAction(activeAccount.id, payload.documents);
+    setSnapshot(next);
+  }, [activeAccount, credentials]);
+
+  const syncLiveDocumentById = useCallback(
+    async (documentId: string): Promise<void> => {
+      if (!activeAccount || activeAccount.mode !== "live") {
+        return;
+      }
+      if (!documentId.startsWith("doc_live_")) {
+        return;
+      }
+      if (!credentials.myOsApiKey.trim() || !credentials.myOsAccountId.trim() || !credentials.myOsBaseUrl.trim()) {
+        return;
+      }
+      const sessionId = documentId.replace(/^doc_live_/u, "");
+      const response = await fetch("/api/demo/live-documents/retrieve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentials,
+          sessionId,
+          accountId: activeAccount.id,
+          accountName: activeAccount.name,
+        }),
+      });
+      const payload = (await response.json()) as
+        | {
+            ok: true;
+            mappedDocument: DemoSnapshot["documents"][number] | null;
+            mappedAnchors: DemoSnapshot["documentAnchors"];
+            linked: Array<{ anchorKey: string; childSessionId: string }>;
+          }
+        | { ok: false; error: string };
+      if (!response.ok || !payload.ok || !payload.mappedDocument) {
+        return;
+      }
+      const next = await syncLiveRetrievedDocumentAction({
+        accountId: activeAccount.id,
+        document: payload.mappedDocument,
+        anchors: payload.mappedAnchors ?? [],
+        linked: (payload.linked ?? []).map((entry) => ({
+          anchorKey: entry.anchorKey,
+          childDocumentId: `doc_live_${entry.childSessionId}`,
+        })),
+      });
+      setSnapshot(next);
+    },
+    [activeAccount, credentials]
   );
 
   const startAssistantDemoDiscussion = useCallback(
@@ -213,10 +311,25 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       exchangeId: string;
       turn: LiveAssistantTurn;
       createdDocument?: {
+        kind: string;
         name: string;
         description: string;
+        fields: Record<string, string>;
+        anchors: Array<{ key: string; label: string; purpose: string }>;
         sessionId: string | null;
         myosDocumentId: string | null;
+        mappedDocument?: DemoSnapshot["documents"][number] | null;
+        mappedAnchors?: DemoSnapshot["documentAnchors"];
+        linked?: Array<{
+          anchorKey: string;
+          childSessionId: string;
+          childDocumentId: string;
+          linkSessionId: string | null;
+        }>;
+        link?: {
+          parentDocumentId: string;
+          anchorKey: string;
+        } | null;
       } | null;
       docCreationError?: string | null;
     }): Promise<void> => {
@@ -283,10 +396,48 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const setDocumentPublicVisibilityHandler = useCallback(
     async (documentId: string, enabled: boolean): Promise<void> => {
+      const liveDocument = snapshot?.documents.find((entry) => entry.id === documentId);
+      if (activeAccount?.mode === "live" && documentId.startsWith("doc_live_") && liveDocument?.sessionId) {
+        const response = await fetch("/api/demo/live-documents/visibility", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            credentials,
+            sessionId: liveDocument.sessionId,
+            enabled,
+          }),
+        });
+        const payload = (await response.json()) as
+          | {
+              ok: true;
+              mappedDocument: DemoSnapshot["documents"][number] | null;
+              mappedAnchors: DemoSnapshot["documentAnchors"];
+            }
+          | { ok: false; unsupported?: boolean; error: string };
+
+        if (!response.ok || !payload.ok) {
+          if ("unsupported" in payload && payload.unsupported) {
+            const next = await markLiveDocumentVisibilityUnsupported(documentId, payload.error);
+            setSnapshot(next);
+            return;
+          }
+          return;
+        }
+
+        if (payload.mappedDocument) {
+          const next = await syncLiveRetrievedDocumentAction({
+            accountId: activeAccount.id,
+            document: payload.mappedDocument,
+            anchors: payload.mappedAnchors ?? [],
+          });
+          setSnapshot(next);
+        }
+        return;
+      }
       const next = await toggleDocumentPublicVisibility(documentId, enabled);
       setSnapshot(next);
     },
-    []
+    [activeAccount, credentials, snapshot]
   );
 
   const addDocumentShareEntryHandler = useCallback(
@@ -326,11 +477,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const activeAccount = useMemo(
-    () => (snapshot ? getActiveAccount(snapshot, activeAccountId) : null),
-    [activeAccountId, snapshot]
-  );
-
   const value = useMemo<DemoContextValue>(
     () => ({
       snapshot,
@@ -344,6 +490,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       getAccount: (accountId: string) => (snapshot ? getAccountById(snapshot, accountId) : null),
       getHomeConversationId,
       getDocumentConversationId,
+      syncLiveDocumentsFromApi,
+      syncLiveDocumentById,
       startAssistantDemoDiscussion,
       startScopeDiscussion,
       startLiveDiscussion,
@@ -370,6 +518,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       getHomeConversationId,
       loading,
       refresh,
+      syncLiveDocumentById,
+      syncLiveDocumentsFromApi,
       continueLiveDiscussion,
       finalizeLiveDiscussion,
       replyToAssistantExchange,

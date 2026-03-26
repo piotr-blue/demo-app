@@ -83,6 +83,7 @@ suite("live account assistant + document creation routes", () => {
               ],
             },
             liveDocuments: [],
+            documentContext: null,
             userInput: "what is the capital of Poland",
           }),
         })
@@ -101,9 +102,13 @@ suite("live account assistant + document creation routes", () => {
           body: JSON.stringify({
             credentials,
             doc: {
+              kind: "note",
               name: `Live Route Test ${Date.now()}`,
               description: "Minimal live document created by live test.",
+              fields: {},
+              anchors: [],
             },
+            link: null,
           }),
         })
       );
@@ -112,7 +117,13 @@ suite("live account assistant + document creation routes", () => {
             ok: true;
             sessionId: string | null;
             myosDocumentId: string | null;
-            created: { name: string; description: string };
+            created: {
+              kind: string;
+              name: string;
+              description: string;
+              fields: Record<string, string>;
+              anchors: Array<{ key: string; label: string; purpose: string }>;
+            };
           }
         | { ok: false; error: string };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ConversationPanelV2 } from "@/components/demo/conversation-panel-v2";
 import { NeedsYouList, TaskList } from "@/components/demo/demo-surface-components";
@@ -57,10 +57,20 @@ export function AccountHomeShell() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { snapshot, activeAccount, loading } = useDemoApp();
+  const { snapshot, activeAccount, loading, syncLiveDocumentsFromApi } = useDemoApp();
   const [query, setQuery] = useState("");
 
   const activeSection = resolveSection(searchParams.get("section"));
+
+  useEffect(() => {
+    if (!activeAccount || activeAccount.mode !== "live") {
+      return;
+    }
+    if (activeSection !== "documents") {
+      return;
+    }
+    void syncLiveDocumentsFromApi();
+  }, [activeAccount, activeSection, syncLiveDocumentsFromApi]);
 
   const needsAction = useMemo(
     () => (snapshot && activeAccount ? getHomeNeedsActionForAccount(snapshot, activeAccount.id) : []),

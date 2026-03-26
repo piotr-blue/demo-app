@@ -11,6 +11,8 @@ import {
   getAssistantTimelineItems,
   getConversationExchanges,
   getConversationOpenExchanges,
+  getDocumentById,
+  getDocumentConversation,
   getExchangeMessages,
   getHomeDocumentsForAccount,
 } from "@/lib/demo/selectors";
@@ -361,6 +363,50 @@ export function ConversationPanelV2({
             messages: params.exchangeMessages,
           },
           liveDocuments,
+          documentContext:
+            resolvedTarget.type === "document" && snapshot
+              ? (() => {
+                  const currentDocument = getDocumentById(snapshot, resolvedTarget.id);
+                  const documentConversation = getDocumentConversation(
+                    snapshot,
+                    resolvedTarget.id,
+                    activeAccount?.id ?? resolvedTarget.id
+                  );
+                  if (!currentDocument) {
+                    return null;
+                  }
+                  return {
+                    currentDocument: {
+                      id: currentDocument.id,
+                      kind: currentDocument.kind,
+                      title: currentDocument.title,
+                      summary: currentDocument.summary,
+                      fields: Object.fromEntries(
+                        currentDocument.coreFields.map((field) => [field.label, field.value])
+                      ),
+                      anchors: currentDocument.anchorIds
+                        .map((anchorId) =>
+                          snapshot.documentAnchors.find((anchor) => anchor.id === anchorId)
+                        )
+                        .filter((anchor): anchor is NonNullable<typeof anchor> => Boolean(anchor))
+                        .map((anchor) => ({
+                          key: anchor.key,
+                          label: anchor.label,
+                          purpose: anchor.label,
+                        })),
+                    },
+                    recentMessages: documentConversation
+                      ? getExchangeMessages(snapshot, documentConversation.id)
+                          .slice(-12)
+                          .map((message) => ({
+                            role: message.role,
+                            body: message.body,
+                            createdAt: message.createdAt,
+                          }))
+                      : [],
+                  };
+                })()
+              : null,
           userInput: params.userInput,
         }),
       });
@@ -400,10 +446,8 @@ export function ConversationPanelV2({
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
               credentials,
-              doc: {
-                name: finalTurn.doc.name,
-                description: finalTurn.doc.description,
-              },
+              doc: finalTurn.doc,
+              link: finalTurn.link,
             }),
           });
           const createPayload = (await createResponse.json()) as
@@ -411,7 +455,25 @@ export function ConversationPanelV2({
                 ok: true;
                 sessionId: string | null;
                 myosDocumentId: string | null;
-                created: { name: string; description: string };
+                created: {
+                  kind: string;
+                  name: string;
+                  description: string;
+                  fields: Record<string, string>;
+                  anchors: Array<{ key: string; label: string; purpose: string }>;
+                };
+                mappedDocument?: Record<string, unknown> | null;
+                mappedAnchors?: Array<Record<string, unknown>>;
+                linked?: Array<{
+                  anchorKey: string;
+                  childSessionId: string;
+                  childDocumentId: string;
+                  linkSessionId: string | null;
+                }>;
+                link?: {
+                  parentDocumentId: string;
+                  anchorKey: string;
+                } | null;
               }
             | { ok: false; error: string };
           if (!createResponse.ok || !createPayload.ok) {
@@ -429,10 +491,32 @@ export function ConversationPanelV2({
             exchangeId: params.exchangeId,
             turn: finalTurn,
             createdDocument: {
+              kind: createPayload.created.kind,
               name: createPayload.created.name,
               description: createPayload.created.description,
+              fields: createPayload.created.fields,
+              anchors: createPayload.created.anchors,
               sessionId: createPayload.sessionId,
               myosDocumentId: createPayload.myosDocumentId,
+              mappedDocument:
+                createPayload.mappedDocument && typeof createPayload.mappedDocument === "object"
+                  ? (createPayload.mappedDocument as unknown as NonNullable<
+                      Parameters<typeof finalizeLiveDiscussion>[0]["createdDocument"]
+                    >["mappedDocument"])
+                  : null,
+              mappedAnchors: Array.isArray(createPayload.mappedAnchors)
+                ? (createPayload.mappedAnchors as unknown as NonNullable<
+                    Parameters<typeof finalizeLiveDiscussion>[0]["createdDocument"]
+                  >["mappedAnchors"])
+                : [],
+              linked: Array.isArray(createPayload.linked) ? createPayload.linked : [],
+              link:
+                createPayload.link && typeof createPayload.link === "object"
+                  ? {
+                      parentDocumentId: createPayload.link.parentDocumentId,
+                      anchorKey: createPayload.link.anchorKey,
+                    }
+                  : finalTurn.link,
             },
           });
           return;

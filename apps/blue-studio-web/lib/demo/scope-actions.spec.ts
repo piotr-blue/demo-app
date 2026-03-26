@@ -210,7 +210,11 @@ describe("demo scope actions", () => {
 
     const afterMore = await finalizeLiveDiscussion({
       exchangeId: started.exchangeId,
-      turn: { t: "more", q: "What should the document be called?" },
+      turn: {
+        t: "more",
+        c: "Sure — I can do that.",
+        q: "What should the document be called?",
+      },
     });
     const openExchange = afterMore.assistantExchanges.find((entry) => entry.id === started.exchangeId);
     expect(openExchange?.status).toBe("in-progress");
@@ -224,18 +228,68 @@ describe("demo scope actions", () => {
       turn: {
         t: "doc",
         summ: "I will create the document 'Roadmap'.",
-        doc: { name: "Roadmap", description: "Q4 priorities and milestones" },
+        doc: {
+          kind: "plan",
+          name: "Roadmap",
+          description: "Q4 priorities and milestones",
+          fields: {
+            owner: "piotr-blue",
+          },
+          anchors: [
+            {
+              key: "items",
+              label: "Items",
+              purpose: "Roadmap item breakdown",
+            },
+          ],
+        },
+        link: null,
       },
       createdDocument: {
+        kind: "plan",
         name: "Roadmap",
         description: "Q4 priorities and milestones",
+        fields: {
+          owner: "piotr-blue",
+        },
+        anchors: [
+          {
+            key: "items",
+            label: "Items",
+            purpose: "Roadmap item breakdown",
+          },
+        ],
         sessionId: "session_live_roadmap",
         myosDocumentId: "myos_live_roadmap",
+        mappedDocument: null,
+        mappedAnchors: [],
+        linked: [
+          {
+            anchorKey: "items",
+            childSessionId: "session_live_sub_item",
+            childDocumentId: "doc_live_session_live_sub_item",
+            linkSessionId: "session_link_doc",
+          },
+        ],
+        link: {
+          parentDocumentId: "doc_live_parent",
+          anchorKey: "orders",
+        },
       },
     });
     const resolved = afterDoc.assistantExchanges.find((entry) => entry.id === started.exchangeId);
     expect(resolved?.status).toBe("resolved");
-    expect(afterDoc.documents.some((document) => document.title === "Roadmap")).toBe(true);
+    const created = afterDoc.documents.find((document) => document.title === "Roadmap");
+    expect(created).toBeTruthy();
+    if (!created) {
+      return;
+    }
+    expect(created.anchorIds.length).toBe(1);
+    expect(created.linkedDocumentIds).toContain("doc_live_session_live_sub_item");
+
+    const anchor = afterDoc.documentAnchors.find((entry) => entry.id === created.anchorIds[0]);
+    expect(anchor?.key).toBe("items");
+    expect(anchor?.linkedDocumentIds).toContain("doc_live_session_live_sub_item");
   });
 
   it("resets snapshot to deterministic seed", async () => {

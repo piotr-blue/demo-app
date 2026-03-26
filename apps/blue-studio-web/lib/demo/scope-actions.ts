@@ -1,10 +1,12 @@
 import { clearDemoPersistence, getDemoSnapshot, saveDemoSnapshot } from "@/lib/demo/storage";
-import { createDocumentId } from "@/lib/demo/ids";
+import { createLiveDocumentIdFromSessionId } from "@/lib/myos/live-documents/map";
 import type {
   AssistantConversationRecord,
   AssistantExchangeMessageRecord,
   AssistantExchangeRecord,
   AssistantPlaybookRecord,
+  DocumentAnchorRecord,
+  DocumentRecord,
   DemoShareRecord,
   DemoSnapshot,
   LiveAssistantTurn,
@@ -50,7 +52,8 @@ function toExchangeTitle(text: string): string {
 }
 
 function normalizeLiveDocumentSummary(summary: string): string {
-  return summary.trim() || "Live document";
+  const trimmed = summary.trim();
+  return trimmed.length > 0 ? trimmed : "Live document";
 }
 
 function appendActivity(
@@ -66,6 +69,55 @@ function appendActivity(
     threadId: params.threadId ?? null,
     createdAt: nowIso(),
   });
+}
+
+function upsertDocument(snapshot: DemoSnapshot, incoming: DocumentRecord): DocumentRecord {
+  const existingIndex = snapshot.documents.findIndex((entry) => entry.id === incoming.id);
+  if (existingIndex < 0) {
+    snapshot.documents.unshift(incoming);
+    return incoming;
+  }
+  const existing = snapshot.documents[existingIndex]!;
+  const merged: DocumentRecord = {
+    ...existing,
+    ...incoming,
+    starredByAccountIds:
+      incoming.starredByAccountIds.length > 0
+        ? incoming.starredByAccountIds
+        : existing.starredByAccountIds,
+    shareSettings: incoming.shareSettings ?? existing.shareSettings,
+    settingsBlocks: incoming.settingsBlocks.length > 0 ? incoming.settingsBlocks : existing.settingsBlocks,
+    detailBlocks: incoming.detailBlocks.length > 0 ? incoming.detailBlocks : existing.detailBlocks,
+    uiCards: incoming.uiCards.length > 0 ? incoming.uiCards : existing.uiCards,
+    activity: incoming.activity.length > 0 ? incoming.activity : existing.activity,
+    updatedAt: nowIso(),
+  };
+  snapshot.documents[existingIndex] = merged;
+  return merged;
+}
+
+function upsertAnchors(snapshot: DemoSnapshot, anchors: DocumentAnchorRecord[]): void {
+  if (anchors.length === 0) {
+    return;
+  }
+  const incomingById = new Map(anchors.map((anchor) => [anchor.id, anchor]));
+  const nextAnchors = snapshot.documentAnchors
+    .map((anchor) => {
+      const incoming = incomingById.get(anchor.id);
+      if (!incoming) {
+        return anchor;
+      }
+      incomingById.delete(anchor.id);
+      return {
+        ...anchor,
+        ...incoming,
+        linkedDocumentIds: Array.from(
+          new Set([...(anchor.linkedDocumentIds ?? []), ...(incoming.linkedDocumentIds ?? [])])
+        ),
+      };
+    })
+    .concat(Array.from(incomingById.values()));
+  snapshot.documentAnchors = nextAnchors;
 }
 
 function updateConversationUpdatedAt(
@@ -194,6 +246,135 @@ export async function toggleDocumentPublicVisibility(
       : `${document.title} no longer allows public read-only access.`,
     documentId,
   });
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+export async function markLiveDocumentVisibilityUnsupported(
+  documentId: string,
+  reason: string
+): Promise<DemoSnapshot> {
+  const base = await getDemoSnapshot();
+  const snapshot = cloneSnapshot(base);
+  const document = snapshot.documents.find((entry) => entry.id === documentId);
+  if (!document) {
+    return base;
+  }
+  document.details = {
+    ...document.details,
+    liveVisibilityError: reason,
+    liveVisibilityUpdatedAt: nowIso(),
+  };
+  appendActivity(snapshot, {
+    kind: "document-visibility",
+    title: "Visibility update unsupported",
+    detail: reason,
+    documentId,
+  });
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+export async function syncLiveDocuments(
+  accountId: string,
+  documents: DocumentRecord[]
+): Promise<DemoSnapshot> {
+  const base = await getDemoSnapshot();
+  const snapshot = cloneSnapshot(base);
+  const existingLiveById = new Map(
+    snapshot.documents
+      .filter((entry) => entry.id.startsWith("doc_live_") && entry.ownerAccountId === accountId)
+      .map((entry) => [entry.id, entry] as const)
+  );
+  const incomingById = new Map(documents.map((entry) => [entry.id, entry] as const));
+
+  const mergedLiveDocuments = documents.map((incoming) => {
+    const existing = existingLiveById.get(incoming.id);
+    if (!existing) {
+      return incoming;
+    }
+    return {
+      ...existing,
+      ...incoming,
+      starredByAccountIds: existing.starredByAccountIds,
+      shareSettings: incoming.shareSettings ?? existing.shareSettings,
+    };
+  });
+
+  const retainedDocuments = snapshot.documents.filter(
+    (entry) => !(entry.id.startsWith("doc_live_") && entry.ownerAccountId === accountId)
+  );
+  snapshot.documents = [...mergedLiveDocuments, ...retainedDocuments].sort((left, right) =>
+    right.updatedAt.localeCompare(left.updatedAt)
+  );
+
+  const incomingIds = new Set(incomingById.keys());
+  snapshot.documentAnchors = snapshot.documentAnchors.filter(
+    (anchor) => !anchor.documentId.startsWith("doc_live_") || incomingIds.has(anchor.documentId)
+  );
+
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+export async function removeLiveDocumentById(documentId: string): Promise<DemoSnapshot> {
+  const base = await getDemoSnapshot();
+  const snapshot = cloneSnapshot(base);
+  const nextDocuments = snapshot.documents.filter((entry) => entry.id !== documentId);
+  if (nextDocuments.length === snapshot.documents.length) {
+    return base;
+  }
+  snapshot.documents = nextDocuments;
+  snapshot.documentAnchors = snapshot.documentAnchors.filter((anchor) => anchor.documentId !== documentId);
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+export async function syncLiveRetrievedDocument(params: {
+  accountId: string;
+  document: DocumentRecord;
+  anchors: DocumentAnchorRecord[];
+  linked?: Array<{ anchorKey: string; childDocumentId: string }>;
+}): Promise<DemoSnapshot> {
+  const base = await getDemoSnapshot();
+  const snapshot = cloneSnapshot(base);
+  const mergedDocument = upsertDocument(snapshot, {
+    ...params.document,
+    ownerAccountId: params.accountId,
+    participantAccountIds: params.document.participantAccountIds.length
+      ? params.document.participantAccountIds
+      : [params.accountId],
+  });
+  upsertAnchors(snapshot, params.anchors);
+
+  const linked = params.linked ?? [];
+  if (linked.length > 0) {
+    mergedDocument.linkedDocumentIds = Array.from(
+      new Set([...mergedDocument.linkedDocumentIds, ...linked.map((entry) => entry.childDocumentId)])
+    );
+    const anchorByKey = new Map(
+      snapshot.documentAnchors
+        .filter((anchor) => anchor.documentId === mergedDocument.id)
+        .map((anchor) => [anchor.key, anchor] as const)
+    );
+    for (const entry of linked) {
+      const anchor = anchorByKey.get(entry.anchorKey);
+      if (!anchor) {
+        continue;
+      }
+      anchor.linkedDocumentIds = Array.from(
+        new Set([...anchor.linkedDocumentIds, entry.childDocumentId])
+      );
+    }
+  }
+
+  if (mergedDocument.details.liveVisibilityError) {
+    mergedDocument.details = {
+      ...mergedDocument.details,
+      liveVisibilityError: null,
+    };
+  }
+
   await saveDemoSnapshot(snapshot);
   return snapshot;
 }
@@ -662,24 +843,46 @@ export async function continueLiveDiscussion(
 
 function buildLiveDocumentRecord(params: {
   ownerAccountId: string;
+  ownerName: string;
+  kind: string;
   title: string;
   summary: string;
+  fields: Record<string, string>;
+  anchors: Array<{ key: string; label: string; purpose: string }>;
   myosDocumentId: string | null;
   sessionId: string | null;
 }): DemoSnapshot["documents"][number] {
   const timestamp = nowIso();
-  const documentId = createDocumentId().replace("doc_", "doc_live_");
+  const documentId = params.sessionId
+    ? createLiveDocumentIdFromSessionId(params.sessionId)
+    : nextId("doc_live");
+  const normalizedFields = Object.entries(params.fields)
+    .filter(([label, value]) => label.trim().length > 0 && value.trim().length > 0)
+    .map(([label, value]) => ({ label, value }))
+    .slice(0, 12);
+  const coreFields = normalizedFields.length
+    ? normalizedFields
+    : [
+        { label: "Name", value: params.title },
+        { label: "Description", value: normalizeLiveDocumentSummary(params.summary) },
+      ];
+  const typeLabel = params.kind
+    .split(/[-_\s]+/u)
+    .map((part) => (part.length > 0 ? `${part[0]?.toUpperCase()}${part.slice(1)}` : part))
+    .join(" ")
+    .trim() || "Document";
+  const anchorIds = params.anchors.map((anchor) => `anchor_live_${documentId}_${anchor.key}`);
   return {
     id: documentId,
     scopeId: null,
-    kind: "note",
+    kind: params.kind || "document",
     category: "content",
     sectionKey: null,
     title: params.title,
     summary: normalizeLiveDocumentSummary(params.summary),
     status: "active",
-    owner: "You",
-    participants: ["You"],
+    owner: params.ownerName,
+    participants: [params.ownerName],
     tags: ["live", "chat-created"],
     isService: false,
     ownerAccountId: params.ownerAccountId,
@@ -689,25 +892,36 @@ function buildLiveDocumentRecord(params: {
     searchVisibility: "private",
     starredByAccountIds: [],
     linkedDocumentIds: [],
-    anchorIds: [],
+    anchorIds,
     taskIds: [],
-    typeLabel: "Document",
+    typeLabel,
     oneLineSummary: normalizeLiveDocumentSummary(params.summary),
     visibilityLabel: "Private",
-    coreFields: [
-      { label: "Name", value: params.title },
-      { label: "Description", value: normalizeLiveDocumentSummary(params.summary) },
-      { label: "Created from", value: "Live Blink chat" },
-    ],
+    coreFields: coreFields.map((field) => ({
+      label: field.label,
+      value: field.value,
+    })),
     detailBlocks: [
       {
         id: "overview",
         title: "Overview",
-        items: [
-          { label: "Name", value: params.title },
-          { label: "Description", value: normalizeLiveDocumentSummary(params.summary) },
-        ],
+        items: coreFields.slice(0, 8).map((field) => ({
+          label: field.label,
+          value: field.value,
+        })),
       },
+      ...(params.anchors.length > 0
+        ? [
+            {
+              id: "anchors",
+              title: "Anchors",
+              items: params.anchors.map((anchor) => ({
+                label: anchor.label,
+                value: anchor.key,
+              })),
+            },
+          ]
+        : []),
     ],
     descriptionText: normalizeLiveDocumentSummary(params.summary),
     initialMessage: "This document was created from your live account chat.",
@@ -720,7 +934,7 @@ function buildLiveDocumentRecord(params: {
       {
         id: params.ownerAccountId,
         accountId: params.ownerAccountId,
-        name: "You",
+        name: params.ownerName,
         email: null,
         subtitle: "Owner",
         avatar: null,
@@ -740,7 +954,7 @@ function buildLiveDocumentRecord(params: {
         title: "Document settings",
         items: [
           { label: "Visibility", value: "Private" },
-          { label: "Owner", value: "You" },
+          { label: "Owner", value: params.ownerName },
         ],
       },
     ],
@@ -748,7 +962,15 @@ function buildLiveDocumentRecord(params: {
     details: {},
     uiCards: [],
     activity: [],
-    searchKeywords: [params.title.toLowerCase(), params.summary.toLowerCase(), "live", "chat"],
+    searchKeywords: [
+      params.title.toLowerCase(),
+      params.summary.toLowerCase(),
+      params.kind.toLowerCase(),
+      ...Object.keys(params.fields).map((key) => key.toLowerCase()),
+      ...params.anchors.map((anchor) => anchor.key.toLowerCase()),
+      "live",
+      "chat",
+    ],
   };
 }
 
@@ -756,10 +978,25 @@ export async function finalizeLiveDiscussion(params: {
   exchangeId: string;
   turn: LiveAssistantTurn;
   createdDocument?: {
+    kind: string;
     name: string;
     description: string;
+    fields: Record<string, string>;
+    anchors: Array<{ key: string; label: string; purpose: string }>;
     sessionId: string | null;
     myosDocumentId: string | null;
+    mappedDocument?: DemoSnapshot["documents"][number] | null;
+    mappedAnchors?: DemoSnapshot["documentAnchors"];
+    linked?: Array<{
+      anchorKey: string;
+      childSessionId: string;
+      childDocumentId: string;
+      linkSessionId: string | null;
+    }>;
+    link?: {
+      parentDocumentId: string;
+      anchorKey: string;
+    } | null;
   } | null;
   docCreationError?: string | null;
 }): Promise<DemoSnapshot> {
@@ -800,15 +1037,100 @@ export async function finalizeLiveDiscussion(params: {
   if (params.turn.t === "doc") {
     const accountId = exchange.viewerAccountId ?? null;
     if (params.createdDocument && accountId) {
-      const document = buildLiveDocumentRecord({
-        ownerAccountId: accountId,
-        title: params.createdDocument.name,
-        summary: params.createdDocument.description,
-        sessionId: params.createdDocument.sessionId,
-        myosDocumentId: params.createdDocument.myosDocumentId,
-      });
-      snapshot.documents.unshift(document);
       const account = snapshot.accounts.find((entry) => entry.id === accountId);
+      const ownerName = account?.name ?? "You";
+      const document = upsertDocument(
+        snapshot,
+        params.createdDocument.mappedDocument
+          ? {
+              ...params.createdDocument.mappedDocument,
+              ownerAccountId: accountId,
+              owner: params.createdDocument.mappedDocument.owner || ownerName,
+              participantAccountIds: params.createdDocument.mappedDocument.participantAccountIds.length
+                ? params.createdDocument.mappedDocument.participantAccountIds
+                : [accountId],
+              participants: params.createdDocument.mappedDocument.participants.length
+                ? params.createdDocument.mappedDocument.participants
+                : [ownerName],
+              updatedAt: assistantAt,
+              createdAt: params.createdDocument.mappedDocument.createdAt || assistantAt,
+            }
+          : buildLiveDocumentRecord({
+              ownerAccountId: accountId,
+              ownerName,
+              kind: params.createdDocument.kind,
+              title: params.createdDocument.name,
+              summary: params.createdDocument.description,
+              fields: params.createdDocument.fields,
+              anchors: params.createdDocument.anchors,
+              sessionId: params.createdDocument.sessionId,
+              myosDocumentId: params.createdDocument.myosDocumentId,
+            })
+      );
+
+      const providedAnchors: DocumentAnchorRecord[] = params.createdDocument.mappedAnchors?.length
+        ? params.createdDocument.mappedAnchors
+        : params.createdDocument.anchors.map((anchor) => ({
+            id: `anchor_live_${document.id}_${anchor.key}`,
+            documentId: document.id,
+            key: anchor.key,
+            label: anchor.label,
+            linkedDocumentIds: [],
+            searchKeywords: [anchor.key.toLowerCase(), anchor.label.toLowerCase()],
+          }));
+
+      if (providedAnchors.length > 0) {
+        upsertAnchors(snapshot, providedAnchors);
+        document.anchorIds = providedAnchors.map((anchor) => anchor.id);
+      }
+
+      const linkedEntries = params.createdDocument.linked ?? [];
+      if (linkedEntries.length > 0) {
+        document.linkedDocumentIds = Array.from(
+          new Set([
+            ...document.linkedDocumentIds,
+            ...linkedEntries.map((entry) => entry.childDocumentId),
+          ])
+        );
+        const anchorByKey = new Map(
+          snapshot.documentAnchors
+            .filter((anchor) => anchor.documentId === document.id)
+            .map((anchor) => [anchor.key, anchor])
+        );
+        for (const entry of linkedEntries) {
+          const anchor = anchorByKey.get(entry.anchorKey);
+          if (!anchor) {
+            continue;
+          }
+          anchor.linkedDocumentIds = Array.from(
+            new Set([...anchor.linkedDocumentIds, entry.childDocumentId])
+          );
+        }
+      }
+
+      if (params.createdDocument.link) {
+        const parentDocumentId = params.createdDocument.link.parentDocumentId.startsWith("doc_live_")
+          ? params.createdDocument.link.parentDocumentId
+          : createLiveDocumentIdFromSessionId(params.createdDocument.link.parentDocumentId);
+        const parentDocument = snapshot.documents.find((entry) => entry.id === parentDocumentId);
+        if (parentDocument) {
+          document.parentDocumentId = parentDocument.id;
+          parentDocument.linkedDocumentIds = Array.from(
+            new Set([...parentDocument.linkedDocumentIds, document.id])
+          );
+          const parentAnchor = snapshot.documentAnchors.find(
+            (anchor) =>
+              anchor.documentId === parentDocument.id &&
+              anchor.key === params.createdDocument?.link?.anchorKey
+          );
+          if (parentAnchor) {
+            parentAnchor.linkedDocumentIds = Array.from(
+              new Set([...parentAnchor.linkedDocumentIds, document.id])
+            );
+          }
+        }
+      }
+
       if (account && !account.favoriteDocumentIds.includes(document.id)) {
         account.favoriteDocumentIds.unshift(document.id);
       }

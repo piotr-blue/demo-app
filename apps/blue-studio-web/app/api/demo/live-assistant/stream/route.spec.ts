@@ -89,4 +89,57 @@ describe("POST /api/demo/live-assistant/stream", () => {
     expect(text).toContain("event: error");
     expect(text).toContain("stable order");
   });
+
+  it("accepts document context payload shape", async () => {
+    streamMock.mockImplementationOnce(async (params: { onDelta?: (delta: string) => void }) => {
+      params.onDelta?.('{"t":"ans","c":"Got it."}');
+      return { text: '{"t":"ans","c":"Got it."}', inputTokens: 10 };
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/demo/live-assistant/stream", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildBody({
+            target: {
+              type: "document",
+              id: "doc_live_123",
+              title: "Morning Brew",
+            },
+            documentContext: {
+              currentDocument: {
+                id: "doc_live_123",
+                kind: "shop",
+                title: "Morning Brew",
+                summary: "Shop workspace",
+                fields: {
+                  website: "https://example.com",
+                },
+                anchors: [
+                  {
+                    key: "orders",
+                    label: "Orders",
+                    purpose: "Order records",
+                  },
+                ],
+              },
+              recentMessages: [
+                {
+                  role: "user",
+                  body: "create an order",
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            },
+          })
+        ),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).toContain("event: final");
+    expect(text).toContain('"t":"ans"');
+  });
 });

@@ -23,23 +23,33 @@ test("live account supports answer, follow-up doc flow, one-shot doc flow, and a
 }) => {
   const assistantResponses = [
     { t: "ans", c: "Warsaw." },
-    { t: "more", q: "What should the document be called?" },
-    { t: "more", q: "What description should I use for this document?" },
+    { t: "more", c: "Sure — I can create one.", q: "What should the document be called?" },
+    { t: "more", c: "Great.", q: "What description should I use for this document?" },
     {
       t: "doc",
       summ: "I will create the document 'Roadmap'.",
       doc: {
+        kind: "plan",
         name: "Roadmap",
         description: "Q4 priorities and milestones",
+        fields: {
+          owner: "piotr-blue",
+        },
+        anchors: [],
       },
+      link: null,
     },
     {
       t: "doc",
       summ: "I will create the document 'Alpha'.",
       doc: {
+        kind: "note",
         name: "Alpha",
         description: "Beta",
+        fields: {},
+        anchors: [],
       },
+      link: null,
     },
   ];
 
@@ -58,7 +68,8 @@ test("live account supports answer, follow-up doc flow, one-shot doc flow, and a
   let createdCount = 0;
   await page.route("**/api/demo/live-documents/create", async (route) => {
     const body = route.request().postDataJSON() as {
-      doc: { name: string; description: string };
+      doc: { kind: string; name: string; description: string; fields: Record<string, string>; anchors: unknown[] };
+      link: { parentDocumentId: string; anchorKey: string } | null;
     };
     createdCount += 1;
     await route.fulfill({
@@ -69,9 +80,14 @@ test("live account supports answer, follow-up doc flow, one-shot doc flow, and a
         sessionId: `session_live_${createdCount}`,
         myosDocumentId: `myos_live_${createdCount}`,
         created: {
+          kind: body.doc.kind,
           name: body.doc.name,
           description: body.doc.description,
+          fields: body.doc.fields,
+          anchors: body.doc.anchors ?? [],
         },
+        link: body.link,
+        linked: [],
       }),
     });
   });
