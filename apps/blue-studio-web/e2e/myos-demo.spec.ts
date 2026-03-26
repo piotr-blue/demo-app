@@ -8,8 +8,8 @@ test("myos demo supports multi-account document-first stories", async ({ page })
 
   await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
   await expect(page.getByRole("link", { name: "My Profile" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Fresh Bites" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "piotr-blue" })).toBeVisible();
+  await expect(page.getByText("Live account for real assistant chat")).toBeVisible();
 
   await page.getByPlaceholder("Search accounts, services, and documents...").fill("Fresh Bites");
   await page.getByRole("button", { name: "Search" }).first().click();

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { CreditCardIcon, LogOutIcon, Settings2Icon } from "lucide-react";
 import { useDemoApp } from "@/components/demo/demo-provider";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,8 @@ export function StudioAccountMenu({ compact = false }: { compact?: boolean }) {
   const name = activeAccount?.name ?? "piotr-blue";
   const subtitle = activeAccount?.subtitle ?? "MyOS operator";
   const switchTargets = (snapshot?.accounts ?? []).filter((account) => account.id !== activeAccount?.id);
+  const currentModeLabel = activeAccount?.mode === "live" ? "Live" : "Demo";
+  const currentModeVariant = activeAccount?.mode === "live" ? "default" : "outline";
 
   return (
     <DropdownMenu>
@@ -53,7 +56,10 @@ export function StudioAccountMenu({ compact = false }: { compact?: boolean }) {
               />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{name}</p>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-medium">{name}</p>
+                <Badge variant={currentModeVariant}>{currentModeLabel}</Badge>
+              </div>
               <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
             </div>
           </div>
@@ -79,7 +85,12 @@ export function StudioAccountMenu({ compact = false }: { compact?: boolean }) {
                     />
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-sm">Switch to {account.name}</span>
+                    <span className="flex items-center gap-1.5 truncate text-sm">
+                      <span>Switch to {account.name}</span>
+                      <Badge variant={account.mode === "live" ? "default" : "outline"}>
+                        {account.mode === "live" ? "Live" : "Demo"}
+                      </Badge>
+                    </span>
                     <span className="block truncate text-xs text-muted-foreground">{account.subtitle}</span>
                   </span>
                 </DropdownMenuItem>

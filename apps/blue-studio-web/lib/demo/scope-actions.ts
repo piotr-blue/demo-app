@@ -1,4 +1,5 @@
 import { clearDemoPersistence, getDemoSnapshot, saveDemoSnapshot } from "@/lib/demo/storage";
+import { createDocumentId } from "@/lib/demo/ids";
 import type {
   AssistantConversationRecord,
   AssistantExchangeMessageRecord,
@@ -6,6 +7,7 @@ import type {
   AssistantPlaybookRecord,
   DemoShareRecord,
   DemoSnapshot,
+  LiveAssistantTurn,
 } from "@/lib/demo/types";
 import { getDocumentConversation, getHomeConversation } from "@/lib/demo/selectors";
 import type { DemoActionDefinition } from "@/lib/demo/types";
@@ -40,6 +42,15 @@ function getExchangeById(snapshot: DemoSnapshot, exchangeId: string): AssistantE
 
 function nextId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function toExchangeTitle(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.length > 72 ? `${trimmed.slice(0, 69)}...` : trimmed;
+}
+
+function normalizeLiveDocumentSummary(summary: string): string {
+  return summary.trim() || "Live document";
 }
 
 function appendActivity(
@@ -319,7 +330,22 @@ export async function getOrCreateDocumentConversation(
   if (existing) {
     return { snapshot, conversationId: existing.id };
   }
-  return { snapshot, conversationId: "" };
+  const timestamp = nowIso();
+  const conversationId = nextId("aconv");
+  snapshot.assistantConversations.push({
+    id: conversationId,
+    scopeId: null,
+    targetType: "document",
+    targetId: documentId,
+    viewerAccountId,
+    assistantName: "Blink",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    lastSeenAt: null,
+    lastRecapAt: null,
+  });
+  await saveDemoSnapshot(snapshot);
+  return { snapshot, conversationId };
 }
 
 export async function startAssistantDemoDiscussion(
@@ -405,7 +431,7 @@ export async function startUserDiscussion(
     viewerAccountId: conversation.viewerAccountId,
     type: trimmed.endsWith("?") ? "question" : "instruction",
     status: "in-progress",
-    title: trimmed.length > 72 ? `${trimmed.slice(0, 69)}...` : trimmed,
+    title: toExchangeTitle(trimmed),
     openerMessageId: openerId,
     resolutionMessageId: null,
     latestMessageId: replyId,
@@ -446,6 +472,63 @@ export async function startUserDiscussion(
     }
   );
   updateConversationUpdatedAt(snapshot, conversationId, replyAt);
+  await saveDemoSnapshot(snapshot);
+  return { snapshot, exchangeId };
+}
+
+export async function startLiveDiscussion(
+  conversationId: string,
+  openerText: string
+): Promise<{ snapshot: DemoSnapshot; exchangeId: string }> {
+  const trimmed = openerText.trim();
+  const base = await getDemoSnapshot();
+  if (!trimmed) {
+    return { snapshot: base, exchangeId: "" };
+  }
+  const snapshot = cloneSnapshot(base);
+  const conversation = getConversationById(snapshot, conversationId);
+  if (!conversation) {
+    return { snapshot: base, exchangeId: "" };
+  }
+  const openerAt = nowIso();
+  const exchangeId = nextId("aex");
+  const openerId = nextId("aemsg");
+  const exchange: AssistantExchangeRecord = {
+    id: exchangeId,
+    conversationId,
+    targetType: conversation.targetType,
+    targetId: conversation.targetId,
+    viewerAccountId: conversation.viewerAccountId,
+    type: trimmed.endsWith("?") ? "question" : "instruction",
+    status: "in-progress",
+    title: toExchangeTitle(trimmed),
+    openerMessageId: openerId,
+    resolutionMessageId: null,
+    latestMessageId: openerId,
+    replyCount: 0,
+    requiresUserAction: true,
+    stickyUntilResolved: false,
+    linkedAttentionItemId: null,
+    sourceType: "user-demo",
+    sourceId: null,
+    canDeliverExternally: false,
+    externalThreadKey: null,
+    openedAt: openerAt,
+    resolvedAt: null,
+    updatedAt: openerAt,
+  };
+  snapshot.assistantExchanges.push(exchange);
+  snapshot.assistantExchangeMessages.push({
+    id: openerId,
+    conversationId,
+    exchangeId,
+    role: "user",
+    kind: "opener",
+    body: trimmed,
+    createdAt: openerAt,
+    surface: "app",
+  });
+  updateConversationUpdatedAt(snapshot, conversationId, openerAt);
   await saveDemoSnapshot(snapshot);
   return { snapshot, exchangeId };
 }
@@ -530,6 +613,246 @@ export async function replyToAssistantExchange(exchangeId: string, text: string)
 
 export async function resolveAssistantExchange(exchangeId: string): Promise<DemoSnapshot> {
   return replyToAssistantExchange(exchangeId, "DONE");
+}
+
+function mapLiveTurnToAssistantText(turn: LiveAssistantTurn): string {
+  if (turn.t === "ans") {
+    return turn.c;
+  }
+  if (turn.t === "more") {
+    return turn.q;
+  }
+  return turn.summ;
+}
+
+export async function continueLiveDiscussion(
+  exchangeId: string,
+  replyText: string
+): Promise<DemoSnapshot> {
+  const trimmed = replyText.trim();
+  const base = await getDemoSnapshot();
+  if (!trimmed) {
+    return base;
+  }
+  const snapshot = cloneSnapshot(base);
+  const exchange = getExchangeById(snapshot, exchangeId);
+  if (!exchange || exchange.status === "resolved" || exchange.status === "dismissed") {
+    return base;
+  }
+  const timestamp = nowIso();
+  const userReplyId = nextId("aemsg");
+  snapshot.assistantExchangeMessages.push({
+    id: userReplyId,
+    conversationId: exchange.conversationId,
+    exchangeId: exchange.id,
+    role: "user",
+    kind: "reply",
+    body: trimmed,
+    createdAt: timestamp,
+    surface: "app",
+  });
+  exchange.status = "in-progress";
+  exchange.latestMessageId = userReplyId;
+  exchange.replyCount += 1;
+  exchange.updatedAt = timestamp;
+  updateConversationUpdatedAt(snapshot, exchange.conversationId, timestamp);
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
+}
+
+function buildLiveDocumentRecord(params: {
+  ownerAccountId: string;
+  title: string;
+  summary: string;
+  myosDocumentId: string | null;
+  sessionId: string | null;
+}): DemoSnapshot["documents"][number] {
+  const timestamp = nowIso();
+  const documentId = createDocumentId().replace("doc_", "doc_live_");
+  return {
+    id: documentId,
+    scopeId: null,
+    kind: "note",
+    category: "content",
+    sectionKey: null,
+    title: params.title,
+    summary: normalizeLiveDocumentSummary(params.summary),
+    status: "active",
+    owner: "You",
+    participants: ["You"],
+    tags: ["live", "chat-created"],
+    isService: false,
+    ownerAccountId: params.ownerAccountId,
+    participantAccountIds: [params.ownerAccountId],
+    isPublic: false,
+    visibleToAccountIds: [params.ownerAccountId],
+    searchVisibility: "private",
+    starredByAccountIds: [],
+    linkedDocumentIds: [],
+    anchorIds: [],
+    taskIds: [],
+    typeLabel: "Document",
+    oneLineSummary: normalizeLiveDocumentSummary(params.summary),
+    visibilityLabel: "Private",
+    coreFields: [
+      { label: "Name", value: params.title },
+      { label: "Description", value: normalizeLiveDocumentSummary(params.summary) },
+      { label: "Created from", value: "Live Blink chat" },
+    ],
+    detailBlocks: [
+      {
+        id: "overview",
+        title: "Overview",
+        items: [
+          { label: "Name", value: params.title },
+          { label: "Description", value: normalizeLiveDocumentSummary(params.summary) },
+        ],
+      },
+    ],
+    descriptionText: normalizeLiveDocumentSummary(params.summary),
+    initialMessage: "This document was created from your live account chat.",
+    currentStateText: "Ready for follow-up actions.",
+    currentStateFields: [
+      { label: "State", value: "Ready" },
+      { label: "Source", value: "Live chat" },
+    ],
+    participantsDetailed: [
+      {
+        id: params.ownerAccountId,
+        accountId: params.ownerAccountId,
+        name: "You",
+        email: null,
+        subtitle: "Owner",
+        avatar: null,
+        roles: ["Owner"],
+      },
+    ],
+    allOperations: [],
+    pendingOperations: [],
+    embeddedDocuments: [],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    sessionId: params.sessionId,
+    myosDocumentId: params.myosDocumentId,
+    settingsBlocks: [
+      {
+        id: "settings",
+        title: "Document settings",
+        items: [
+          { label: "Visibility", value: "Private" },
+          { label: "Owner", value: "You" },
+        ],
+      },
+    ],
+    sourceData: {},
+    details: {},
+    uiCards: [],
+    activity: [],
+    searchKeywords: [params.title.toLowerCase(), params.summary.toLowerCase(), "live", "chat"],
+  };
+}
+
+export async function finalizeLiveDiscussion(params: {
+  exchangeId: string;
+  turn: LiveAssistantTurn;
+  createdDocument?: {
+    name: string;
+    description: string;
+    sessionId: string | null;
+    myosDocumentId: string | null;
+  } | null;
+  docCreationError?: string | null;
+}): Promise<DemoSnapshot> {
+  const base = await getDemoSnapshot();
+  const snapshot = cloneSnapshot(base);
+  const exchange = getExchangeById(snapshot, params.exchangeId);
+  if (!exchange || exchange.status === "resolved" || exchange.status === "dismissed") {
+    return base;
+  }
+  const assistantAt = nowIso();
+  const assistantMessageId = nextId("aemsg");
+  snapshot.assistantExchangeMessages.push({
+    id: assistantMessageId,
+    conversationId: exchange.conversationId,
+    exchangeId: exchange.id,
+    role: "assistant",
+    kind: params.turn.t === "more" ? "reply" : "resolution",
+    body: mapLiveTurnToAssistantText(params.turn),
+    createdAt: assistantAt,
+    surface: "app",
+  });
+  exchange.latestMessageId = assistantMessageId;
+  exchange.updatedAt = assistantAt;
+  exchange.replyCount += 1;
+  exchange.requiresUserAction = params.turn.t === "more";
+
+  if (params.turn.t === "more") {
+    exchange.status = "in-progress";
+    updateConversationUpdatedAt(snapshot, exchange.conversationId, assistantAt);
+    await saveDemoSnapshot(snapshot);
+    return snapshot;
+  }
+
+  exchange.status = "resolved";
+  exchange.resolutionMessageId = assistantMessageId;
+  exchange.resolvedAt = assistantAt;
+
+  if (params.turn.t === "doc") {
+    const accountId = exchange.viewerAccountId ?? null;
+    if (params.createdDocument && accountId) {
+      const document = buildLiveDocumentRecord({
+        ownerAccountId: accountId,
+        title: params.createdDocument.name,
+        summary: params.createdDocument.description,
+        sessionId: params.createdDocument.sessionId,
+        myosDocumentId: params.createdDocument.myosDocumentId,
+      });
+      snapshot.documents.unshift(document);
+      const account = snapshot.accounts.find((entry) => entry.id === accountId);
+      if (account && !account.favoriteDocumentIds.includes(document.id)) {
+        account.favoriteDocumentIds.unshift(document.id);
+      }
+      appendActivity(snapshot, {
+        kind: "live-document-created",
+        title: `Created "${document.title}"`,
+        detail: "Document was created via live assistant and MyOS bootstrap.",
+        documentId: document.id,
+      });
+      const systemMessageId = nextId("aemsg");
+      const systemAt = new Date(Date.now() + 1).toISOString();
+      snapshot.assistantExchangeMessages.push({
+        id: systemMessageId,
+        conversationId: exchange.conversationId,
+        exchangeId: exchange.id,
+        role: "system",
+        kind: "system",
+        body: `Created document "${document.title}" successfully.`,
+        createdAt: systemAt,
+        surface: "system",
+      });
+      exchange.latestMessageId = systemMessageId;
+      exchange.updatedAt = systemAt;
+    } else if (params.docCreationError?.trim()) {
+      const systemMessageId = nextId("aemsg");
+      const systemAt = new Date(Date.now() + 1).toISOString();
+      snapshot.assistantExchangeMessages.push({
+        id: systemMessageId,
+        conversationId: exchange.conversationId,
+        exchangeId: exchange.id,
+        role: "system",
+        kind: "system",
+        body: `Document creation failed: ${params.docCreationError.trim()}`,
+        createdAt: systemAt,
+        surface: "system",
+      });
+      exchange.latestMessageId = systemMessageId;
+      exchange.updatedAt = systemAt;
+    }
+  }
+
+  updateConversationUpdatedAt(snapshot, exchange.conversationId, exchange.updatedAt);
+  await saveDemoSnapshot(snapshot);
+  return snapshot;
 }
 
 export async function updateAssistantPlaybook(

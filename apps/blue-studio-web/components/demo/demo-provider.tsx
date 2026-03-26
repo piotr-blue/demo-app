@@ -14,12 +14,15 @@ import {
   applyDocumentAction,
   applyThreadAction,
   addDocumentShareEntry,
+  continueLiveDiscussion as continueLiveDiscussionAction,
+  finalizeLiveDiscussion as finalizeLiveDiscussionAction,
   getOrCreateDocumentConversation,
   getOrCreateHomeConversation,
   loadDemoSnapshot,
   replyToAssistantExchange as replyToAssistantExchangeAction,
   resolveAssistantExchange as resolveAssistantExchangeAction,
   resetDemoSnapshot,
+  startLiveDiscussion as startLiveDiscussionAction,
   startAssistantDemoDiscussion as startAssistantDemoDiscussionAction,
   startUserDiscussion as startUserDiscussionAction,
   toggleDocumentPublicVisibility,
@@ -43,6 +46,7 @@ import type {
   DemoAccountRecord,
   AssistantPlaybookRecord,
   DemoCredentials,
+  LiveAssistantTurn,
   DemoShareRecord,
   DemoSnapshot,
 } from "@/lib/demo/types";
@@ -61,6 +65,19 @@ interface DemoContextValue {
   getDocumentConversationId: (documentId: string, viewerAccountId?: string) => Promise<string | null>;
   startAssistantDemoDiscussion: (conversationId: string) => Promise<string | null>;
   startScopeDiscussion: (conversationId: string, text: string) => Promise<string | null>;
+  startLiveDiscussion: (conversationId: string, text: string) => Promise<string | null>;
+  continueLiveDiscussion: (exchangeId: string, text: string) => Promise<void>;
+  finalizeLiveDiscussion: (params: {
+    exchangeId: string;
+    turn: LiveAssistantTurn;
+    createdDocument?: {
+      name: string;
+      description: string;
+      sessionId: string | null;
+      myosDocumentId: string | null;
+    } | null;
+    docCreationError?: string | null;
+  }) => Promise<void>;
   replyToAssistantExchange: (exchangeId: string, text: string) => Promise<void>;
   resolveAssistantExchange: (exchangeId: string) => Promise<void>;
   updateAssistantPlaybook: (
@@ -173,6 +190,38 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const result = await startUserDiscussionAction(scopeId, text);
       setSnapshot(result.snapshot);
       return result.exchangeId || null;
+    },
+    []
+  );
+
+  const startLiveDiscussion = useCallback(
+    async (conversationId: string, text: string): Promise<string | null> => {
+      const result = await startLiveDiscussionAction(conversationId, text);
+      setSnapshot(result.snapshot);
+      return result.exchangeId || null;
+    },
+    []
+  );
+
+  const continueLiveDiscussion = useCallback(async (exchangeId: string, text: string): Promise<void> => {
+    const next = await continueLiveDiscussionAction(exchangeId, text);
+    setSnapshot(next);
+  }, []);
+
+  const finalizeLiveDiscussion = useCallback(
+    async (params: {
+      exchangeId: string;
+      turn: LiveAssistantTurn;
+      createdDocument?: {
+        name: string;
+        description: string;
+        sessionId: string | null;
+        myosDocumentId: string | null;
+      } | null;
+      docCreationError?: string | null;
+    }): Promise<void> => {
+      const next = await finalizeLiveDiscussionAction(params);
+      setSnapshot(next);
     },
     []
   );
@@ -297,6 +346,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       getDocumentConversationId,
       startAssistantDemoDiscussion,
       startScopeDiscussion,
+      startLiveDiscussion,
+      continueLiveDiscussion,
+      finalizeLiveDiscussion,
       replyToAssistantExchange,
       resolveAssistantExchange,
       updateAssistantPlaybook,
@@ -318,6 +370,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       getHomeConversationId,
       loading,
       refresh,
+      continueLiveDiscussion,
+      finalizeLiveDiscussion,
       replyToAssistantExchange,
       resolveAssistantExchange,
       resetDemoDataAction,
@@ -331,6 +385,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setCredentials,
       snapshot,
       startAssistantDemoDiscussion,
+      startLiveDiscussion,
       startScopeDiscussion,
       toggleDocumentServiceHandler,
       toggleFavoriteHandler,
