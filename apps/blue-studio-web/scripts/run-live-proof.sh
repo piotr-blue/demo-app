@@ -8,12 +8,42 @@ LOG_FILE="${LIVE_PROOF_LOG_FILE:-/opt/cursor/artifacts/live-proof-run.log}"
 DETAILS_FILE="${LIVE_PROOF_DETAILS_FILE:-/opt/cursor/artifacts/live-proof-order-details.json}"
 CHECK_ONLY="${1:-}"
 
+is_placeholder() {
+  local value="${1:-}"
+  [[ -z "$value" ]] && return 0
+  [[ "$value" =~ ^\<.*\>$ ]] && return 0
+  [[ "$value" =~ ^(REPLACE_ME|CHANGEME|YOUR_.*_HERE)$ ]] && return 0
+  return 1
+}
+
 has_env_creds() {
-  [[ -n "${OPENAI_API_KEY:-}" && -n "${MYOS_API_KEY:-}" && -n "${MYOS_ACCOUNT_ID:-}" ]]
+  [[ -n "${OPENAI_API_KEY:-}" && -n "${MYOS_API_KEY:-}" && -n "${MYOS_ACCOUNT_ID:-}" ]] || return 1
+  is_placeholder "${OPENAI_API_KEY:-}" && return 1
+  is_placeholder "${MYOS_API_KEY:-}" && return 1
+  is_placeholder "${MYOS_ACCOUNT_ID:-}" && return 1
+  return 0
 }
 
 has_file_creds() {
-  [[ -f "$CREDS_FILE" ]]
+  [[ -f "$CREDS_FILE" ]] || return 1
+  node -e '
+const fs = require("node:fs");
+const filePath = process.argv[1];
+const isPlaceholder = (value) => {
+  if (typeof value !== "string") return true;
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  if (/^<.*>$/.test(trimmed)) return true;
+  return /^(REPLACE_ME|CHANGEME|YOUR_.*_HERE)$/i.test(trimmed);
+};
+const json = JSON.parse(fs.readFileSync(filePath, "utf8"));
+const openAiApiKey = typeof json.openAiApiKey === "string" ? json.openAiApiKey : json.OPENAI_API_KEY;
+const myOsApiKey = typeof json.myOsApiKey === "string" ? json.myOsApiKey : json.MYOS_API_KEY;
+const myOsAccountId = typeof json.myOsAccountId === "string" ? json.myOsAccountId : json.MYOS_ACCOUNT_ID;
+if (isPlaceholder(openAiApiKey) || isPlaceholder(myOsApiKey) || isPlaceholder(myOsAccountId)) {
+  process.exit(1);
+}
+' "$CREDS_FILE"
 }
 
 if ! has_env_creds && ! has_file_creds; then
@@ -27,6 +57,7 @@ Provide one of:
   2) Credentials file:
      cp "$EXAMPLE_FILE" "$CREDS_FILE"
      # then fill openAiApiKey / myOsApiKey / myOsAccountId
+     # placeholders like <OPENAI_API_KEY> are treated as missing
 EOF
   exit 2
 fi
