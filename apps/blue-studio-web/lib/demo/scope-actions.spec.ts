@@ -50,21 +50,21 @@ describe("demo scope actions", () => {
   it("toggles favorites for the active account", async () => {
     const before = await loadDemoSnapshot();
     const account = before.accounts.find((entry) => entry.id === "account_piotr_blue");
-    expect(account?.favoriteDocumentIds.includes("doc_fresh_bites")).toBe(true);
+    expect(account?.favoriteDocumentIds.includes("doc_fresh_bites")).toBe(false);
 
     const afterRemove = await toggleDocumentFavorite("account_piotr_blue", "doc_fresh_bites");
     expect(
       afterRemove.accounts
         .find((entry) => entry.id === "account_piotr_blue")
         ?.favoriteDocumentIds.includes("doc_fresh_bites")
-    ).toBe(false);
+    ).toBe(true);
 
     const afterAdd = await toggleDocumentFavorite("account_piotr_blue", "doc_fresh_bites");
     expect(
       afterAdd.accounts
         .find((entry) => entry.id === "account_piotr_blue")
         ?.favoriteDocumentIds.includes("doc_fresh_bites")
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("updates share settings and service connections for documents", async () => {
@@ -244,13 +244,13 @@ describe("demo scope actions", () => {
       changed.accounts.find((entry) => entry.id === "account_piotr_blue")?.favoriteDocumentIds.includes(
         "doc_fresh_bites"
       )
-    ).toBe(false);
+    ).toBe(true);
 
     const reset = await resetDemoSnapshot();
     expect(
       reset.accounts.find((entry) => entry.id === "account_piotr_blue")?.favoriteDocumentIds.includes(
         "doc_fresh_bites"
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 });

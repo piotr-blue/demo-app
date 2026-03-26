@@ -16,7 +16,9 @@ import {
   getDocumentShareSettings,
   getExchangeMessages,
   getFavoriteDocumentsForAccount,
+  getHomeDocumentsForAccount,
   getHomeConversation,
+  getPublicAccounts,
   getThreadActivity,
   getVisibleDocumentsForAnchor,
   getViewerSpecificCommentDocuments,
@@ -39,6 +41,15 @@ describe("multi-account selectors", () => {
     expect(documentConversation).toBeTruthy();
     expect(documentConversation?.targetType).toBe("document");
     expect(documentConversation?.viewerAccountId).toBe("account_bob");
+  });
+
+  it("keeps public account list as demo-only and live home mostly empty", () => {
+    const snapshot = createSeedSnapshot();
+    const publicAccounts = getPublicAccounts(snapshot);
+    const liveAccount = snapshot.accounts.find((account) => account.id === "account_piotr_blue");
+    expect(liveAccount?.mode).toBe("live");
+    expect(publicAccounts.some((account) => account.id === "account_piotr_blue")).toBe(false);
+    expect(getHomeDocumentsForAccount(snapshot, "account_piotr_blue")).toHaveLength(0);
   });
 
   it("filters Fresh Bites orders by viewer", () => {
@@ -116,10 +127,12 @@ describe("multi-account selectors", () => {
   it("returns account favourites and accessible documents", () => {
     const snapshot = createSeedSnapshot();
     const piotrFavorites = getFavoriteDocumentsForAccount(snapshot, "account_piotr_blue");
+    const bobFavorites = getFavoriteDocumentsForAccount(snapshot, "account_bob");
     const bobAccessible = getAccessibleDocumentsForAccount(snapshot, "account_bob");
 
-    expect(piotrFavorites.some((document) => document.title === "Fresh Bites")).toBe(true);
-    expect(piotrFavorites.some((document) => document.title === "Northwind BI")).toBe(true);
+    expect(piotrFavorites).toHaveLength(0);
+    expect(bobFavorites.some((document) => document.title === "Fresh Bites")).toBe(true);
+    expect(bobFavorites.some((document) => document.title === "Northwind BI")).toBe(true);
     expect(bobAccessible.some((document) => document.title === "Fresh Bites")).toBe(true);
     expect(bobAccessible.some((document) => document.title === "Northwind BI Agreement — Bob")).toBe(
       true

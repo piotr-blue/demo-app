@@ -7,7 +7,7 @@ const DB_VERSION = 3;
 const SNAPSHOT_STORE = "snapshot";
 const META_STORE = "meta";
 const SNAPSHOT_KEY = "current";
-const DEMO_SEED_VERSION = "seed-multi-account-myos-v2-document-surfaces";
+const DEMO_SEED_VERSION = "seed-multi-account-myos-v3-live-account";
 
 interface MetaRecord {
   key: string;

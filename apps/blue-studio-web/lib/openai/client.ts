@@ -27,6 +27,10 @@ export interface GenerateTextResult {
   inputTokens: number;
 }
 
+export interface StreamTextParams extends GenerateTextParams {
+  onDelta?: (delta: string) => void;
+}
+
 export async function countInputTokens(params: {
   apiKey: string;
   systemPrompt: string;
@@ -78,4 +82,60 @@ export async function generateTextWithResponsesApi(
   }
   const inputTokens = response.usage?.input_tokens ?? 0;
   return { text, inputTokens };
+}
+
+export async function streamTextWithResponsesApi(
+  params: StreamTextParams
+): Promise<GenerateTextResult> {
+  const client = createOpenAiClient({ apiKey: params.apiKey });
+  const stream = await client.responses.create({
+    model: params.model ?? OPENAI_TEXT_MODEL,
+    reasoning: {
+      effort: "low",
+    },
+    input: [
+      {
+        role: "system",
+        content: params.systemPrompt,
+      },
+      {
+        role: "user",
+        content: params.input,
+      },
+    ],
+    stream: true,
+  });
+
+  let text = "";
+  let inputTokens = 0;
+  let completedResponse: { output_text?: string; usage?: { input_tokens?: number } } | null = null;
+
+  for await (const event of stream as AsyncIterable<Record<string, unknown>>) {
+    if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
+      text += event.delta;
+      params.onDelta?.(event.delta);
+      continue;
+    }
+    if (
+      event.type === "response.completed" &&
+      event.response &&
+      typeof event.response === "object"
+    ) {
+      completedResponse = event.response as {
+        output_text?: string;
+        usage?: { input_tokens?: number };
+      };
+    }
+  }
+
+  if (!text.trim() && completedResponse?.output_text?.trim()) {
+    text = completedResponse.output_text.trim();
+  }
+  if (typeof completedResponse?.usage?.input_tokens === "number") {
+    inputTokens = completedResponse.usage.input_tokens;
+  }
+  if (!text.trim()) {
+    throw new Error("OpenAI streaming response did not contain output text.");
+  }
+  return { text: text.trim(), inputTokens };
 }

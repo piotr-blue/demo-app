@@ -3,6 +3,7 @@ export type WorkspaceTemplateKey = "shop" | "restaurant" | "generic-business";
 export type DemoConversationTargetType = "home" | "document";
 export type DemoSearchVisibility = "private" | "participants" | "public";
 export type DemoViewerAccessMode = "owner" | "participant" | "public" | "none";
+export type DemoAccountMode = "live" | "demo";
 
 export interface DemoSectionDefinition {
   key: string;
@@ -33,6 +34,7 @@ export interface ScopeAssistantProfile {
 export interface DemoAccountRecord {
   id: string;
   accountId: string;
+  mode: DemoAccountMode;
   name: string;
   email: string;
   subtitle: string;
@@ -462,3 +464,21 @@ export interface DemoCredentials {
   myOsAccountId: string;
   myOsBaseUrl: string;
 }
+
+export type LiveAssistantTurn =
+  | {
+      t: "ans";
+      c: string;
+    }
+  | {
+      t: "more";
+      q: string;
+    }
+  | {
+      t: "doc";
+      summ: string;
+      doc: {
+        name: string;
+        description: string;
+      };
+    };
